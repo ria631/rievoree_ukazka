@@ -1,48 +1,35 @@
 import { useState } from "react"
+import { createClient } from "@supabase/supabase-js"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { supabase } from "@/lib/supabase"
-import { useAuth } from "@/lib/auth/useAuth"
+import { createInstrumentedFetch } from "@/lib/xray/instrumentedFetch"
 
 /**
  * RLS — "same query, three identities". The core demo moment: run the IDENTICAL
  * SELECT as Viewer / Manager / Admin and watch Postgres RLS return different
  * rows. The numbers are REAL — each "Run as…" signs in as a seeded demo user
- * (local stack) and runs the same query through the same seam; nothing here is
- * hardcoded. Sign-in changes the whole app's session (by design — the PIPELINE
- * tab then reflects that role too); Reset signs out back to anon.
+ * and runs the same query through the same instrumented seam.
+ *
+ * It runs on an ISOLATED client (its own storage, no session persistence), so
+ * it NEVER changes the app's own session — the read-only demo tour stays
+ * read-only, and a real signed-in user keeps their seat. (Previously this
+ * signed the whole app in as another role, which broke the demo's read-only
+ * guarantee and confused the "acting as" banner.)
  */
 
-// LOCAL demo režim only. These are the seeded *@demo.local users (see seed.sql);
-// the shared password is the public local demo password, never a real secret.
+// LOCAL + remote demo accounts. The shared password is the public demo
+// password, never a real secret; these accounts are DB-locked to read-only.
 const DEMO_PASSWORD = "demo123456"
 
 type Role = "viewer" | "manager" | "admin"
 
-const IDENTITIES: {
-  role: Role
-  email: string
-  label: string
-  reason: string
-}[] = [
-  {
-    role: "viewer",
-    email: "viewer@demo.local",
-    label: "Viewer",
-    reason: "my_entity_ids() — assigned entities only",
-  },
-  {
-    role: "manager",
-    email: "manager@demo.local",
-    label: "Manager",
-    reason: "my_entity_ids() — assigned entities only",
-  },
-  {
-    role: "admin",
-    email: "admin@demo.local",
-    label: "Admin",
-    reason: "is_admin() — bypasses the entity filter",
-  },
+const IDENTITIES: { role: Role; email: string; label: string; reason: string }[] = [
+  { role: "viewer", email: "viewer@demo.local", label: "Viewer",
+    reason: "my_entity_ids() — assigned entities only" },
+  { role: "manager", email: "manager@demo.local", label: "Manager",
+    reason: "my_entity_ids() — assigned entities only" },
+  { role: "admin", email: "admin@demo.local", label: "Admin",
+    reason: "is_admin() — platform staff, bypasses the entity filter" },
 ]
 
 // The one query every identity runs — verbatim. Only the JWT differs.
@@ -54,52 +41,53 @@ interface RunResult {
   error?: string
 }
 
-export function RlsTab() {
-  // Single source of truth: the active identity comes from AuthProvider, so this
-  // banner stays consistent whether you signed in via /login or "Run as…" here.
-  const { role } = useAuth()
-  const active: Role | null =
-    role === "viewer" || role === "manager" || role === "admin" ? role : null
+// A throwaway client that never touches the app's own auth storage. Each run
+// signs in, queries, signs out on THIS client only. Instrumented, so the calls
+// still show up on the X-ray CALLS tab.
+function makeProbeClient() {
+  return createClient(
+    import.meta.env.VITE_SUPABASE_URL,
+    import.meta.env.VITE_SUPABASE_ANON_KEY,
+    {
+      auth: { persistSession: false, autoRefreshToken: false, storageKey: "xray-rls-probe" },
+      global: { fetch: createInstrumentedFetch() },
+    },
+  )
+}
 
+export function RlsTab() {
   const [results, setResults] = useState<Partial<Record<Role, RunResult>>>({})
-  const [busy, setBusy] = useState<Role | "reset" | null>(null)
+  const [busy, setBusy] = useState<Role | null>(null)
+  const [lastRun, setLastRun] = useState<Role | null>(null)
 
   async function runAs(role: Role, email: string) {
     setBusy(role)
+    const probe = makeProbeClient()
     try {
-      const auth = await supabase.auth.signInWithPassword({
-        email,
-        password: DEMO_PASSWORD,
-      })
+      const auth = await probe.auth.signInWithPassword({ email, password: DEMO_PASSWORD })
       if (auth.error) {
         setResults((r) => ({ ...r, [role]: { count: 0, names: [], error: auth.error!.message } }))
         return
       }
       // The identical query, now under this identity's JWT → RLS decides rows.
-      const { data, error } = await supabase
-        .from("entities")
-        .select("id,name")
-        .order("name")
+      const { data, error } = await probe.from("entities").select("id,name").order("name")
       setResults((r) => ({
         ...r,
         [role]: error
           ? { count: 0, names: [], error: error.message }
           : { count: data.length, names: data.map((e) => e.name as string) },
       }))
-      // active identity now flows from AuthProvider (onAuthStateChange).
+      setLastRun(role)
     } finally {
+      // Always drop the probe session; the app's own session is never touched.
+      await probe.auth.signOut().catch(() => {})
       setBusy(null)
     }
   }
 
-  async function reset() {
-    setBusy("reset")
-    try {
-      await supabase.auth.signOut()
-      setResults({})
-    } finally {
-      setBusy(null)
-    }
+  function reset() {
+    setResults({})
+    setLastRun(null)
   }
 
   return (
@@ -115,26 +103,23 @@ export function RlsTab() {
         <p className="mt-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
           Same SQL, three identities. The server returns different rows by{" "}
           <span className="text-accent">auth.uid()</span> — RLS is the only
-          barrier, not the frontend.
+          barrier, not the frontend. Runs in an isolated session, so{" "}
+          <span className="text-foreground">your own view here doesn't change.</span>
         </p>
       </div>
 
-      {/* Acting-as banner. */}
+      {/* Status line — which identity was last probed (no global session change). */}
       <div className="flex items-center justify-between border-b border-border px-4 py-2">
         <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-          acting as:{" "}
-          <span className={role ? "text-accent" : "text-foreground"}>
-            {role ?? "anonymous"}
+          last run:{" "}
+          <span className={lastRun ? "text-accent" : "text-foreground"}>
+            {lastRun ?? "—"}
           </span>
         </span>
-        <Button
-          variant="outline"
-          size="xs"
-          className="font-mono text-[10px]"
-          disabled={busy !== null}
-          onClick={reset}
-        >
-          {busy === "reset" ? "…" : "Reset → anon"}
+        <Button variant="outline" size="xs" className="font-mono text-[10px]"
+          disabled={busy !== null || (!lastRun && Object.keys(results).length === 0)}
+          onClick={reset}>
+          Clear
         </Button>
       </div>
 
@@ -146,7 +131,7 @@ export function RlsTab() {
             label={id.label}
             reason={id.reason}
             result={results[id.role]}
-            active={active === id.role}
+            active={lastRun === id.role}
             busy={busy === id.role}
             onRun={() => runAs(id.role, id.email)}
           />
