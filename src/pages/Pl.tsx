@@ -6,7 +6,8 @@ import { useReport } from "@/lib/data/useReport"
 import { useEntities } from "@/lib/data/useEntities"
 import { useBudget } from "@/lib/data/useBudget"
 import { buildPl } from "@/lib/data/pl"
-import { Sparkline, COLORS } from "@/components/charts/FinancialCharts"
+import { marginBridge, topAccounts } from "@/lib/data/aggregate"
+import { Sparkline, COLORS, ChartCard, Waterfall, TopAccountsBars } from "@/components/charts/FinancialCharts"
 import { LoadingNote, ErrorNote, EmptyNote } from "@/components/StateNote"
 import { SimpleSelect } from "@/components/ui/select"
 
@@ -30,6 +31,9 @@ export function Pl() {
   const scopedBudgets = useMemo(() => (budgets ?? []).filter((b) => entityId === "all" || b.entity_id === entityId), [budgets, entityId])
   const model = useMemo(() => buildPl(scopedRows, scopedBudgets, period), [scopedRows, scopedBudgets, period])
   const hasBudget = (budgets?.length ?? 0) > 0
+  const chartRows = useMemo(() => (period === "all" ? scopedRows : scopedRows.filter((r) => r.period === period)), [scopedRows, period])
+  const bridge = useMemo(() => marginBridge(chartRows), [chartRows])
+  const top = useMemo(() => topAccounts(chartRows, 6), [chartRows])
 
   function toggle(id: string) {
     setCollapsed((cur) => { const n = new Set(cur); n.has(id) ? n.delete(id) : n.add(id); return n })
@@ -84,6 +88,17 @@ export function Pl() {
                 Budget columns — apply migration 21
               </span>
             )}
+          </div>
+
+          {/* Margin bridge + biggest lines of money — the "where did profit come
+              from, and which accounts dominate" read, above the detail table. */}
+          <div className="grid gap-5 lg:grid-cols-2">
+            <ChartCard title="Operating-income bridge" hint="revenue → EBITDA">
+              <Waterfall steps={bridge} />
+            </ChartCard>
+            <ChartCard title="Biggest lines of money" hint="top accounts">
+              <TopAccountsBars data={top} />
+            </ChartCard>
           </div>
 
           <div className="overflow-hidden rounded-[1.5rem] bg-card shadow-soft ring-1 ring-border">

@@ -3,8 +3,8 @@ import { motion } from "motion/react"
 import { cn } from "@/lib/utils"
 import { useReport } from "@/lib/data/useReport"
 import { useEntities } from "@/lib/data/useEntities"
-import { monthlyPnl, expenseByAccount, executiveSeries, executiveKpis, type Kpi } from "@/lib/data/aggregate"
-import { ChartCard, PnlTrend, ExpenseTreemap, RevenueMarginCombo, Sparkline, COLORS } from "@/components/charts/FinancialCharts"
+import { monthlyPnl, expenseByAccount, executiveSeries, executiveKpis, momGrowth, financialRatios, type Kpi } from "@/lib/data/aggregate"
+import { ChartCard, PnlTrend, ExpenseTreemap, RevenueMarginCombo, GrowthBars, Sparkline, COLORS } from "@/components/charts/FinancialCharts"
 import { CountUp } from "@/components/CountUp"
 import { LoadingNote, ErrorNote, EmptyNote } from "@/components/StateNote"
 import { SimpleSelect } from "@/components/ui/select"
@@ -24,6 +24,8 @@ export function Dashboard() {
   const combo = useMemo(() => exec.map((p) => ({ month: p.month, revenue: p.revenue, marginPct: p.marginPct })), [exec])
   const pnl = useMemo(() => monthlyPnl(filtered), [filtered])
   const expenses = useMemo(() => expenseByAccount(filtered), [filtered])
+  const growth = useMemo(() => momGrowth(exec), [exec])
+  const ratios = useMemo(() => financialRatios(filtered), [filtered])
 
   const cards: { label: string; kpi: Kpi; fmt: (n: number) => string; goodUp: boolean; color: string }[] = [
     { label: "Revenue · last mo.", kpi: k.revenue, fmt: (n) => eur.format(n), goodUp: true, color: COLORS.emerald },
@@ -89,10 +91,31 @@ export function Dashboard() {
             ))}
           </div>
 
+          {/* Key financial ratios — the health read execs scan first. */}
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
+            <RatioTile label="Gross margin" value={`${ratios.grossMarginPct.toFixed(1)}%`}
+              hint="revenue kept after COGS" good={ratios.grossMarginPct >= 40} />
+            <RatioTile label="Current ratio" value={`${ratios.currentRatio.toFixed(2)}×`}
+              hint="current assets ÷ liabilities" good={ratios.currentRatio >= 1.5} />
+            <RatioTile label="DPO (days)" value={`${Math.round(ratios.dpo)}d`}
+              hint="days to pay suppliers" good={ratios.dpo >= 30} />
+            <RatioTile label="Cash runway"
+              value={ratios.runwayMonths == null ? "∞" : `${Math.round(ratios.runwayMonths)} mo`}
+              hint={ratios.runwayMonths == null ? "cash-flow positive" : "months at current burn"}
+              good={ratios.runwayMonths == null || ratios.runwayMonths >= 12} />
+          </div>
+
           {/* Combo: revenue bars + operating margin % line */}
           <motion.div initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-40px" }} transition={{ duration: 0.45 }}>
             <ChartCard title="Revenue & operating margin" hint="18 months">
               <RevenueMarginCombo data={combo} />
+            </ChartCard>
+          </motion.div>
+
+          {/* Momentum — month-over-month growth of revenue vs expenses. */}
+          <motion.div initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-40px" }} transition={{ duration: 0.45 }}>
+            <ChartCard title="Momentum · month-over-month growth" hint="revenue vs expenses">
+              <GrowthBars data={growth} />
             </ChartCard>
           </motion.div>
 
@@ -107,6 +130,17 @@ export function Dashboard() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+/** A compact ratio tile — value + one-line meaning, accent when healthy. */
+function RatioTile({ label, value, hint, good }: { label: string; value: string; hint: string; good: boolean }) {
+  return (
+    <div className="rounded-2xl bg-card p-5 shadow-soft ring-1 ring-border">
+      <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{label}</span>
+      <div className={cn("mt-2 text-2xl font-semibold tabular-nums lg:text-3xl", good ? "text-accent" : "text-foreground")}>{value}</div>
+      <div className="mt-1 font-mono text-[10px] leading-snug text-muted-foreground/80">{hint}</div>
     </div>
   )
 }

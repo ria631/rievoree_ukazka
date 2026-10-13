@@ -203,3 +203,40 @@ export function ExpenseTreemap({ data }: { data: Slice[] }) {
     </div>
   )
 }
+
+/** Month-over-month growth (%) — revenue vs expenses as grouped bars. A quick
+ *  "are we accelerating or slowing?" read that execs scan first. */
+export function GrowthBars({ data }: { data: { month: string; revGrowth: number; expGrowth: number }[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
+        <CartesianGrid stroke={GRID} vertical={false} />
+        <XAxis dataKey="month" tick={{ fill: AXIS, fontSize: 11, fontFamily: "JetBrains Mono" }} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={24} />
+        <YAxis tick={{ fill: AXIS, fontSize: 11, fontFamily: "JetBrains Mono" }} tickLine={false} axisLine={false} tickFormatter={(v) => `${Math.round(Number(v))}%`} width={44} />
+        <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+        <Legend wrapperStyle={{ fontFamily: "JetBrains Mono", fontSize: 11, color: AXIS }} />
+        <Bar dataKey="revGrowth" name="Revenue %" fill={EMERALD} radius={[3, 3, 0, 0]} isAnimationActive={ANIM} />
+        <Bar dataKey="expGrowth" name="Expense %" fill={TEAL} radius={[3, 3, 0, 0]} isAnimationActive={ANIM} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
+/** Horizontal "leaderboard" bars — top accounts by magnitude. Revenue green,
+ *  expense amber, so the biggest lines of money read at a glance. */
+export function TopAccountsBars({ data }: { data: { name: string; value: number; kind: "revenue" | "expense" }[] }) {
+  const height = Math.max(200, data.length * 40)
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 8 }}>
+        <CartesianGrid stroke={GRID} horizontal={false} />
+        <XAxis type="number" tick={{ fill: AXIS, fontSize: 11, fontFamily: "JetBrains Mono" }} tickLine={false} axisLine={false} tickFormatter={eurK} />
+        <YAxis type="category" dataKey="name" width={128} tick={{ fill: AXIS, fontSize: 11, fontFamily: "JetBrains Mono" }} tickLine={false} axisLine={false} />
+        <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+        <Bar dataKey="value" name="Amount" radius={[0, 3, 3, 0]} isAnimationActive={ANIM}>
+          {data.map((d, i) => <Cell key={i} fill={d.kind === "revenue" ? EMERALD : AMBER} />)}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
