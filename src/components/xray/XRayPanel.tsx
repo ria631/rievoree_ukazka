@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 import { useXRayEvents } from "@/lib/xray/useXRayEvents"
 import { useXrayPanel } from "./XrayPanelContext"
 import { CallsTab } from "./tabs/CallsTab"
+import { CodeTab } from "./tabs/CodeTab"
 import { PipelineTab } from "./tabs/PipelineTab"
 import { RlsTab } from "./tabs/RlsTab"
 import { SqlTab } from "./tabs/SqlTab"
@@ -31,6 +32,7 @@ const TABS = [
   { id: "pipeline", label: "Pipeline" },
   { id: "rls", label: "RLS" },
   { id: "sql", label: "SQL" },
+  { id: "code", label: "Code" },
   { id: "arch", label: "Arch" },
 ] as const
 
@@ -105,6 +107,7 @@ export function XRayPanel() {
           {tab === "pipeline" && <PipelineTab />}
           {tab === "rls" && <RlsTab />}
           {tab === "sql" && <SqlTab />}
+          {tab === "code" && <CodeTab />}
           {tab === "arch" && <ArchTab />}
         </div>
       </SheetContent>

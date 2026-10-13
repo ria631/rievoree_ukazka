@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
  * tour) can open it to a specific tab. The panel itself reads open/tab from
  * here instead of local state; nothing else changes.
  */
-export type XrayTab = "calls" | "pipeline" | "rls" | "sql" | "arch"
+export type XrayTab = "calls" | "pipeline" | "rls" | "sql" | "code" | "arch"
 
 interface XrayPanelState {
   open: boolean
