@@ -123,11 +123,8 @@ export function AppShell() {
     <div className={cn("flex min-h-screen flex-col overflow-x-clip", onPaper && "paper")}>
       {onPaper ? <PaperBackground /> : <OrbsBackground subtle />}
 
-      {/* Sticky header. On the lime "paper" pages it still needs a background +
-          blur once content scrolls under it, or the logo/nav collide with the
-          text beneath (reported). Both variants are opaque-enough + blurred. */}
       <header className={onPaper
-        ? "sticky top-0 z-40 border-b border-border/40 bg-background/80 backdrop-blur-lg"
+        ? "sticky top-0 z-40"
         : "sticky top-0 z-40 border-b border-border bg-background/75 shadow-soft backdrop-blur-lg"}>
         <div className={cn("mx-auto flex h-16 items-center justify-between gap-4 px-6", headerMax)}>
           <Link to="/" className="text-xl font-semibold tracking-tight">
@@ -156,8 +153,8 @@ export function AppShell() {
             <nav className="hidden items-center gap-1 md:flex">
               <button onClick={exploreDemo} className={`${navLinkBase} ${navLinkIdle}`}>Demo</button>
               <Link to="/about" className={navLinkBase}
-                activeProps={{ className: navLinkActive }} inactiveProps={{ className: navLinkIdle }}>About</Link>
-              <Link to="/login" className={`${navLinkBase} ${navLinkIdle}`}>Sign in</Link>
+                activeProps={{ className: navLinkActive }} inactiveProps={{ className: navLinkIdle }}>O nás</Link>
+              <Link to="/login" className={`${navLinkBase} ${navLinkIdle}`}>Prihlásiť</Link>
             </nav>
           )}
 
@@ -256,8 +253,8 @@ function MobileNav({ mode, navItems, identity, onDemo, onExitDemo }: { mode: "us
           {mode === "anon" && (
             <>
               <button onClick={() => { setOpen(false); onDemo() }} className={`rounded-xl px-4 py-3 text-left font-mono text-sm uppercase tracking-widest ${navLinkIdle}`}>Demo</button>
-              <Link to="/about" onClick={() => setOpen(false)} className={`rounded-xl px-4 py-3 font-mono text-sm uppercase tracking-widest ${navLinkIdle}`}>About</Link>
-              <Link to="/login" onClick={() => setOpen(false)} className={`rounded-xl px-4 py-3 font-mono text-sm uppercase tracking-widest ${navLinkIdle}`}>Sign in</Link>
+              <Link to="/about" onClick={() => setOpen(false)} className={`rounded-xl px-4 py-3 font-mono text-sm uppercase tracking-widest ${navLinkIdle}`}>O nás</Link>
+              <Link to="/login" onClick={() => setOpen(false)} className={`rounded-xl px-4 py-3 font-mono text-sm uppercase tracking-widest ${navLinkIdle}`}>Prihlásiť</Link>
             </>
           )}
         </nav>
