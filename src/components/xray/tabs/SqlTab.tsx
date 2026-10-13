@@ -64,19 +64,36 @@ alter view public.report_account_monthly set (security_invoker = on);`,
   {
     target: "approve_batch",
     title: "approve_batch — permission gate",
-    migration: "migration 14",
-    note: "FOR UPDATE locks the row before the check; coalesce(...,false) fails closed.",
+    migration: "migrations 14 + 27",
+    note: "FOR UPDATE locks the row before the check; coalesce(...,false) fails closed. Managers and (scoped) admins may approve their own entities.",
     sql: `select * into v_batch from public.ingest_batches
   where id = p_batch_id for update;
 
 if not coalesce(
   (select private.is_admin())
-  or ((select private.user_role()) = 'manager'
+  or ((select private.user_role()) in ('manager', 'admin')
       and v_batch.entity_id in (select private.my_entity_ids())),
   false
 ) then
   raise exception 'not authorized ...' using errcode = '42501';
 end if;`,
+  },
+  {
+    target: "profiles",
+    title: "is_admin() — scoped global admin (security hardening)",
+    migration: "migration 34",
+    note: "Global cross-tenant access requires an explicit is_platform_staff flag — a self-registered admin stays scoped to their own entities. This closed a privilege-escalation found in review.",
+    sql: `create or replace function private.is_admin()
+returns boolean language sql stable security definer
+set search_path = '' as $$
+  select coalesce(
+    (select private.is_super_admin())
+    or exists (
+      select 1 from public.profiles
+      where id = (select auth.uid()) and is_active
+        and role = 'admin' and is_platform_staff),
+    false)
+$$;`,
   },
 ]
 
