@@ -18,6 +18,9 @@ interface XrayPanelState {
   rlsRunToken: number
   /** Ask the RLS tab to play viewer → manager → admin for the tour. */
   runRls: () => void
+  /** Full-screen code editor (the current page's real source, IDE-style). */
+  codeFullscreen: boolean
+  setCodeFullscreen: (on: boolean) => void
 }
 
 const XrayPanelContext = createContext<XrayPanelState | null>(null)
@@ -26,11 +29,12 @@ export function XrayPanelProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<XrayTab>("calls")
   const [rlsRunToken, setRlsRunToken] = useState(0)
+  const [codeFullscreen, setCodeFullscreen] = useState(false)
   const openTo = useCallback((t: XrayTab) => { setTab(t); setOpen(true) }, [])
   const runRls = useCallback(() => { setTab("rls"); setOpen(true); setRlsRunToken((n) => n + 1) }, [])
   const value = useMemo(
-    () => ({ open, tab, setOpen, setTab, openTo, rlsRunToken, runRls }),
-    [open, tab, openTo, rlsRunToken, runRls],
+    () => ({ open, tab, setOpen, setTab, openTo, rlsRunToken, runRls, codeFullscreen, setCodeFullscreen }),
+    [open, tab, openTo, rlsRunToken, runRls, codeFullscreen],
   )
   return <XrayPanelContext.Provider value={value}>{children}</XrayPanelContext.Provider>
 }

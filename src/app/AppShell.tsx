@@ -3,6 +3,7 @@ import { Link, Navigate, Outlet, useNavigate, useRouterState } from "@tanstack/r
 import { Menu, ScanLine } from "lucide-react"
 import { XRayPanel } from "@/components/xray/XRayPanel"
 import { XrayPanelProvider } from "@/components/xray/XrayPanelContext"
+import { CodeOverlay } from "@/components/xray/CodeOverlay"
 import { Tour } from "@/components/Tour"
 import { OrbsBackground } from "@/components/OrbsBackground"
 import { PaperBackground } from "@/components/PaperBackground"
@@ -209,6 +210,9 @@ export function AppShell() {
           auto-offers once to the read-only demo visitor, who is the one most
           likely to miss the machinery. */}
       {session && !onPaper && <Tour autoOffer={isDemo} />}
+
+      {/* Full-screen code reveal (the current page's real source, IDE-style). */}
+      <CodeOverlay />
     </div>
     </XrayPanelProvider>
   )

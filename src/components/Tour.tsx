@@ -19,90 +19,98 @@ import { supabase } from "@/lib/supabase"
  */
 const SEEN_KEY = "xray-tour-choice"
 
+interface StepCtx {
+  runRls: () => void
+  navigate: (to: string) => void
+  signInAs: (email: string) => Promise<void>
+}
 interface Step {
   title: string
   body: string
   sell?: string                 // "where this helps" line
   go?: string                   // navigate here
   xray?: XrayTab                // open the panel on this tab
-  onEnter?: (ctx: { runRls: () => void }) => void
+  onEnter?: (ctx: StepCtx) => void | Promise<void>
   render?: () => ReactNode      // custom content (generator, feedback)
 }
+
+const DEMO_PASSWORD = "demo123456"
 
 const STEPS: Step[] = [
   {
     title: "See the machinery — I'll drive",
-    body: "A 3-minute walk through a financial reporting engine built backend-first by Mariia Chernenko. Sit back — I'll open each page and show the backend working underneath.",
+    body: "This is a financial reporting engine built backend-first by Mariia Chernenko. In a few minutes I'll click through the whole thing myself — the reports that tell you if you're making money, and the backend working underneath every number.",
     sell: "What this demonstrates: production-grade full-stack — security, data pipelines, and the judgement to make them observable.",
     go: "/dashboard",
   },
   {
-    title: "1 · Live, timed numbers",
-    body: "This is the CFO dashboard. Every figure came from Postgres through one instrumented fetch — the X-ray Calls panel logs each request with its status and milliseconds.",
-    sell: "Where it helps: proving performance and debugging a slow page in production without guessing.",
+    title: "1 · The CFO snapshot — live",
+    body: "Revenue, EBITDA, cash position and DSO for last month, with 18-month trends. Every figure came from Postgres through one instrumented fetch — the X-ray Calls panel logs each request with its status and milliseconds.",
+    sell: "How it counts money: this is the one-glance 'are we healthy?' — margin falling, cash rising, how fast customers pay.",
     go: "/dashboard",
     xray: "calls",
   },
   {
     title: "2 · The real code, in place",
-    body: "The Code tab is the actual React component rendering this page — real source from the repo, syntax-highlighted, not a screenshot.",
-    sell: "Where it helps: honesty. A reviewer can read exactly how it's built.",
+    body: "The Code tab is the actual React component rendering this page — real repo source, syntax-highlighted. Hit \"Full screen\" to read it like an IDE.",
+    sell: "Where it helps: honesty. A reviewer can read exactly how it's built — no screenshots, no hand-waving.",
     go: "/dashboard",
     xray: "code",
   },
   {
-    title: "3 · Income statement (P&L)",
-    body: "Profit & loss with Actual / Budget / Variance, subtotals, the accounting sign convention and a trend per line. Real double-entry, not a mock-up.",
-    sell: "Where it helps: the report a CFO actually reads every month.",
+    title: "3 · Did we make money? (P&L)",
+    body: "The income statement: revenue minus cost of sales is gross profit, minus operating expenses is EBITDA. Actual vs Budget vs Variance per line, with the accounting sign convention and a trend for each.",
+    sell: "How it counts money: this is THE monthly report — it answers 'did we profit, and where did it come from?'",
     go: "/pl",
   },
   {
-    title: "4 · Balance sheet & cash flow",
-    body: "Assets, liabilities & equity — with the fundamental check that it ties (A = L + E) — plus an indirect cash-flow waterfall.",
-    sell: "Where it helps: catching a books-don't-balance error the moment it happens.",
+    title: "4 · What we own vs owe (Balance sheet)",
+    body: "Assets, liabilities & equity — with the fundamental check that it ties (A = L + E) — plus an indirect cash-flow waterfall from operating → investing → financing.",
+    sell: "How it counts money: is the business solvent, and where did the cash actually go this year.",
     go: "/balance",
   },
   {
-    title: "5 · Pivot — slice any way",
-    body: "Pivot the ledger across any two dimensions (entity, account, type, period), heat-mapped by magnitude. Multi-entity pivoting most dashboards skip.",
-    sell: "Where it helps: answering an ad-hoc 'show me X by Y' without a data analyst.",
+    title: "5 · Where does the money move? (Pivot)",
+    body: "Pivot the whole ledger across any two dimensions — entity, account, type, period — heat-mapped by magnitude. Multi-entity pivoting most dashboards skip.",
+    sell: "How it counts money: find the leak — which account, which month, which entity is bleeding cash.",
     go: "/pivot",
   },
   {
-    title: "6 · Variance bridge & aging",
-    body: "An operating-income bridge (base → per-line drivers → actual) and AR/AP aging bucketed by days past due. We'll glance at both.",
-    sell: "Where it helps: explaining WHY a number moved, and chasing overdue cash.",
+    title: "6 · Why did profit move? (Variance & Aging)",
+    body: "An operating-income bridge — base → each line's favourable/unfavourable driver → actual — and AR/AP aging, open balances bucketed by days past due.",
+    sell: "How it counts money: explain a swing to the board in one chart, and see exactly who owes you and how late.",
     go: "/variance",
   },
   {
-    title: "7 · Reports, RLS-filtered",
-    body: "The per-account monthly roll-up — filtered to the entities your role may see. Click a month to filter the table.",
-    sell: "Where it helps: one report, safely scoped per user.",
+    title: "7 · Row-level security — watch roles switch",
+    body: "The core trick. The SAME query runs as Viewer, Manager and Admin — I'm switching identity for you now, in an isolated session. Different rows each time, decided by the database, not the UI. (The SQL tab shows the policy and the privilege-escalation it was hardened against.)",
+    sell: "Where it helps: multi-tenant SaaS, where one customer seeing another's numbers is a company-ending bug.",
     go: "/reports",
-  },
-  {
-    title: "8 · Row-level security — watch the roles switch",
-    body: "Here's the core. The SAME query runs as Viewer, Manager and Admin — I'm switching identity for you now. Different rows each time, decided by the database, not the UI. (The SQL tab shows the policy, and the privilege-escalation it was hardened against.)",
-    sell: "Where it helps: multi-tenant SaaS, where one customer seeing another's data is a company-ending bug.",
-    go: "/dashboard",
     onEnter: ({ runRls }) => runRls(),
   },
   {
-    title: "9 · The ETL pipeline — try it with your data",
-    body: "Uploading a spreadsheet runs validate → z-score anomaly screen → approval → idempotent load → auto-refresh. Uploading lives on the Ingest page (sign in to use it). Generate a month of data shaped like yours — with a planted anomaly — and take it with you:",
-    sell: "Where it helps: onboarding a client's books and catching bad numbers before they hit a report.",
+    title: "8 · I'll switch you to a Manager",
+    body: "Watch the top menu — I'm signing you in as a Manager now. New pages appear: Ingest and Connectors. This is the write side of the app, the part a role like Viewer never sees.",
+    sell: "How roles count money: who may approve a number into the books is itself a control — segregation of duties, enforced server-side.",
+    onEnter: async ({ signInAs, navigate }) => { await signInAs("manager@demo.local"); navigate("/ingest") },
+  },
+  {
+    title: "9 · Messy spreadsheets in → clean reports out",
+    body: "This is Ingest. A batch is sitting at \"Needs review\" with flagged rows — the z-score screen caught numbers far outside their own history before they could reach a report. A manager approves, then it loads and the reports refresh automatically. Uploading your own takes a free account — here's data shaped like yours to try, with a planted anomaly:",
+    sell: "How it counts money: this is the whole value — turn a client's raw books into trustworthy reports, and catch the bad number before it costs someone a decision.",
+    go: "/ingest",
     render: () => <DataGenerator />,
   },
   {
     title: "10 · The async machinery, live",
-    body: "On approval, database triggers + pg_cron + pg_net load the rows and refresh the reports. The Pipeline tab streams those events as they fire — the backend talking to itself, in the open.",
-    sell: "Where it helps: scheduled, event-driven jobs you can actually see.",
+    body: "On approval, database triggers + pg_cron + pg_net load the rows and refresh the materialized views. The Pipeline tab streams those events as they fire — the backend talking to itself, in the open.",
+    sell: "Where it helps: scheduled, event-driven jobs you can actually watch instead of trusting a black box.",
     go: "/dashboard",
     xray: "pipeline",
   },
   {
-    title: "That's the machinery",
-    body: "Thanks for looking. If this is the kind of work you'd want on your team — or you'd just like to say what you thought:",
+    title: "That's the machinery — now make it yours",
+    body: "You've seen it all: the reports, the security, the pipeline, the real code. To unlock the full thing — upload your own data, switch your own roles, approve batches, add connectors — create a free account and click around yourself. Or just tell me what you thought:",
     render: () => <TourClose />,
   },
 ]
@@ -124,11 +132,16 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
 
   function remember() { try { localStorage.setItem(SEEN_KEY, "1") } catch { /* ignore */ } }
 
+  async function signInAs(email: string) {
+    await supabase.auth.signInWithPassword({ email, password: DEMO_PASSWORD })
+    // Give AuthProvider a tick to propagate the new session before we navigate.
+    await new Promise((r) => setTimeout(r, 350))
+  }
   function applyStep(step: Step) {
     if (step.go) navigate({ to: step.go })
     if (step.xray) openTo(step.xray)
     else if (!step.onEnter) setOpen(false)
-    step.onEnter?.({ runRls })
+    void step.onEnter?.({ runRls, navigate: (to) => navigate({ to }), signInAs })
   }
   function start() { remember(); setChoice("made"); setI(0); setRunning(true); applyStep(STEPS[0]) }
   function chooseSelf() { remember(); setChoice("made") }

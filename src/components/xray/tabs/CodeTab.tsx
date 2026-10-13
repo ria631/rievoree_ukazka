@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react"
 import { useRouterState } from "@tanstack/react-router"
-import { Code2 } from "lucide-react"
+import { Code2, Maximize2 } from "lucide-react"
 import { highlightCode } from "@/lib/code-xray"
+import { useXrayPanel } from "@/components/xray/XrayPanelContext"
+import { PAGE_SOURCES } from "@/components/xray/pageSources"
 
 /**
  * CODE — the real FRONTEND source of the page you're on, shown as a proper
@@ -13,23 +15,10 @@ import { highlightCode } from "@/lib/code-xray"
  * never weigh down the initial bundle. This is the client half of "the
  * machinery, made visible".
  */
-const SOURCES: Record<string, { file: string; load: () => Promise<{ default: string }> }> = {
-  "/dashboard": { file: "src/pages/Dashboard.tsx", load: () => import("@/pages/Dashboard.tsx?raw") },
-  "/reports": { file: "src/pages/Reports.tsx", load: () => import("@/pages/Reports.tsx?raw") },
-  "/pl": { file: "src/pages/Pl.tsx", load: () => import("@/pages/Pl.tsx?raw") },
-  "/balance": { file: "src/pages/Balance.tsx", load: () => import("@/pages/Balance.tsx?raw") },
-  "/pivot": { file: "src/pages/Pivot.tsx", load: () => import("@/pages/Pivot.tsx?raw") },
-  "/variance": { file: "src/pages/Variance.tsx", load: () => import("@/pages/Variance.tsx?raw") },
-  "/aging": { file: "src/pages/Aging.tsx", load: () => import("@/pages/Aging.tsx?raw") },
-  "/ingest": { file: "src/pages/Ingest.tsx", load: () => import("@/pages/Ingest.tsx?raw") },
-  "/connectors": { file: "src/pages/Connectors.tsx", load: () => import("@/pages/Connectors.tsx?raw") },
-  "/account": { file: "src/pages/Account.tsx", load: () => import("@/pages/Account.tsx?raw") },
-  "/users": { file: "src/pages/Users.tsx", load: () => import("@/pages/Users.tsx?raw") },
-}
-
 export function CodeTab() {
+  const { setCodeFullscreen } = useXrayPanel()
   const path = useRouterState({ select: (s) => s.location.pathname })
-  const entry = SOURCES[path]
+  const entry = PAGE_SOURCES[path]
   const [raw, setRaw] = useState<string | null>(null)
   const [html, setHtml] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -77,7 +66,10 @@ export function CodeTab() {
         <span className="flex items-center gap-2 border-r border-black/30 bg-[#1e1e1e] px-4 py-2 text-white">
           <Code2 className="size-3.5 text-accent" /> {name}
         </span>
-        <span className="ml-auto px-4 text-[10px] uppercase tracking-widest text-accent">real source · ?raw</span>
+        <button onClick={() => setCodeFullscreen(true)}
+          className="ml-auto inline-flex items-center gap-1.5 px-4 py-2 text-[10px] uppercase tracking-widest text-accent transition hover:text-white">
+          <Maximize2 className="size-3.5" /> Full screen
+        </button>
       </div>
       {/* Breadcrumb */}
       <div className="shrink-0 border-b border-black/40 px-4 py-1 text-[11px] text-white/35">
