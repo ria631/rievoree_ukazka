@@ -1,19 +1,18 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouterState } from "@tanstack/react-router"
 import { Code2 } from "lucide-react"
+import { highlightCode } from "@/lib/code-xray"
 
 /**
- * CODE — the real FRONTEND source of the page you're on, not just the backend.
+ * CODE — the real FRONTEND source of the page you're on, shown as a proper
+ * VS Code (Dark+) editor, just like the landing's X-ray editor: Shiki syntax
+ * highlighting + gutter line numbers, not a plain dump.
  *
- * Honesty invariant (same as the SQL tab): every line here is the LITERAL repo
- * file, pulled in via Vite `?raw`. It's loaded ON DEMAND (dynamic import) so the
- * source strings never weigh down the initial bundle. This is the client half of
- * "the machinery, made visible": the component that rendered what you're looking
- * at, readable in place.
+ * Honesty invariant (same as the SQL tab): every line is the LITERAL repo file,
+ * pulled in via Vite `?raw` ON DEMAND (dynamic import) so the source strings
+ * never weigh down the initial bundle. This is the client half of "the
+ * machinery, made visible".
  */
-
-// path → { file label, dynamic ?raw loader }. Literal import specifiers so Vite
-// can code-split each one. Only the current page's source is ever fetched.
 const SOURCES: Record<string, { file: string; load: () => Promise<{ default: string }> }> = {
   "/dashboard": { file: "src/pages/Dashboard.tsx", load: () => import("@/pages/Dashboard.tsx?raw") },
   "/reports": { file: "src/pages/Reports.tsx", load: () => import("@/pages/Reports.tsx?raw") },
@@ -31,21 +30,31 @@ const SOURCES: Record<string, { file: string; load: () => Promise<{ default: str
 export function CodeTab() {
   const path = useRouterState({ select: (s) => s.location.pathname })
   const entry = SOURCES[path]
-  const [src, setSrc] = useState<string | null>(null)
+  const [raw, setRaw] = useState<string | null>(null)
+  const [html, setHtml] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  // Load the real source for this route (on demand).
   useEffect(() => {
-    if (!entry) { setSrc(null); return }
+    if (!entry) { setRaw(null); setHtml(null); return }
     let alive = true
-    setLoading(true)
+    setLoading(true); setHtml(null)
     entry.load()
-      .then((m) => { if (alive) setSrc(m.default) })
-      .catch(() => { if (alive) setSrc(null) })
+      .then((m) => { if (alive) setRaw(m.default) })
+      .catch(() => { if (alive) setRaw(null) })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [entry])
 
-  const lines = useMemo(() => (src ? src.replace(/\s+$/, "").split("\n") : []), [src])
+  // Syntax-highlight it (Shiki Dark+), same engine as the landing editor.
+  useEffect(() => {
+    if (raw == null) { setHtml(null); return }
+    let alive = true
+    highlightCode(raw, "tsx")
+      .then((out) => { if (alive) setHtml(out) })
+      .catch(() => { if (alive) setHtml(null) })
+    return () => { alive = false }
+  }, [raw])
 
   if (!entry) {
     return (
@@ -58,34 +67,42 @@ export function CodeTab() {
     )
   }
 
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
-        <Code2 className="size-3.5 text-accent" />
-        <span className="font-mono text-[11px] text-foreground">{entry.file}</span>
-        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-accent">real source · ?raw</span>
-      </div>
-      <p className="border-b border-border px-4 py-2 font-mono text-[10px] leading-relaxed text-muted-foreground">
-        The actual component rendering this page — not a screenshot, not a
-        paraphrase. Pulled from the repo at build time.
-      </p>
+  const dir = entry.file.split("/").slice(0, -1).join("/")
+  const name = entry.file.split("/").pop()
 
-      {loading ? (
-        <p className="px-4 py-3 font-mono text-xs text-muted-foreground">loading source…</p>
-      ) : (
-        <div className="min-h-0 flex-1 overflow-auto">
-          <pre className="w-max min-w-full px-0 py-2 font-mono text-[11px] leading-relaxed">
-            {lines.map((line, i) => (
-              <div key={i} className="flex">
-                <span className="sticky left-0 w-10 shrink-0 select-none bg-background pr-3 text-right text-muted-foreground/50">
-                  {i + 1}
-                </span>
-                <code className="whitespace-pre pr-4 text-foreground/90">{line || " "}</code>
-              </div>
-            ))}
-          </pre>
-        </div>
-      )}
+  return (
+    <div className="flex h-full flex-col overflow-hidden bg-[#1e1e1e] font-mono text-[#d4d4d4]">
+      {/* Tab strip — one open file */}
+      <div className="flex shrink-0 items-center bg-[#252526] text-[12px]">
+        <span className="flex items-center gap-2 border-r border-black/30 bg-[#1e1e1e] px-4 py-2 text-white">
+          <Code2 className="size-3.5 text-accent" /> {name}
+        </span>
+        <span className="ml-auto px-4 text-[10px] uppercase tracking-widest text-accent">real source · ?raw</span>
+      </div>
+      {/* Breadcrumb */}
+      <div className="shrink-0 border-b border-black/40 px-4 py-1 text-[11px] text-white/35">
+        {dir.split("/").join("  ›  ")}  ›  {name}
+      </div>
+
+      {/* Code */}
+      <div className="code-shiki min-h-0 flex-1 overflow-auto">
+        {loading && <pre className="px-4 py-4 text-[12.5px] text-white/50">loading source…</pre>}
+        {!loading && html != null && (
+          // Safe: Shiki's escaped output of our OWN build-time source (?raw).
+          <div dangerouslySetInnerHTML={{ __html: html }} />
+        )}
+        {!loading && html == null && raw != null && (
+          <pre className="px-4 py-4 text-[12.5px] leading-[1.65] text-white/70">{raw}</pre>
+        )}
+      </div>
+
+      {/* Status bar — matches the landing editor */}
+      <div className="flex h-6 shrink-0 items-center gap-4 bg-accent px-3 text-[11px] font-medium text-accent-foreground">
+        <span>⎇ main</span>
+        <span className="ml-auto">TypeScript JSX</span>
+        <span>UTF-8</span>
+        <span className="hidden sm:inline">the component rendering this page</span>
+      </div>
     </div>
   )
 }

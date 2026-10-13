@@ -497,6 +497,10 @@
  * -------------------------------------------------------------------------- */
 @layer base {
   html {
+    /* Slightly "zoomed out" by default — 15px base (vs 16) gives the whole app
+       a touch more breathing room. rem-based type + spacing scale down with it;
+       the px-set X-ray console text is unaffected, so it stays readable. */
+    font-size: 15px;
     scroll-behavior: smooth;
     scrollbar-gutter: stable;         /* no layout shift when the bar appears */
     scrollbar-width: thin;            /* Firefox */

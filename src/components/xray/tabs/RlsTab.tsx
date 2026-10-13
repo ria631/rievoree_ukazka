@@ -1,8 +1,9 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { createInstrumentedFetch } from "@/lib/xray/instrumentedFetch"
+import { useXrayPanel } from "@/components/xray/XrayPanelContext"
 
 /**
  * RLS — "same query, three identities". The core demo moment: run the IDENTICAL
@@ -56,9 +57,27 @@ function makeProbeClient() {
 }
 
 export function RlsTab() {
+  const { rlsRunToken } = useXrayPanel()
   const [results, setResults] = useState<Partial<Record<Role, RunResult>>>({})
   const [busy, setBusy] = useState<Role | null>(null)
   const [lastRun, setLastRun] = useState<Role | null>(null)
+
+  // The guided tour asks us to play all three roles in sequence (animated).
+  const seenToken = useRef(rlsRunToken)
+  useEffect(() => {
+    if (rlsRunToken === seenToken.current) return
+    seenToken.current = rlsRunToken
+    let alive = true
+    ;(async () => {
+      for (const id of IDENTITIES) {
+        if (!alive) return
+        await runAs(id.role, id.email)
+        await new Promise((r) => setTimeout(r, 650)) // let each result land visibly
+      }
+    })()
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rlsRunToken])
 
   async function runAs(role: Role, email: string) {
     setBusy(role)

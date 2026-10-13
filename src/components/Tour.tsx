@@ -1,114 +1,147 @@
 import { useEffect, useState, type ReactNode } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { AnimatePresence, motion } from "motion/react"
-import { ScanLine, X, Check } from "lucide-react"
+import { ScanLine, X, Check, Wand2, MousePointerClick } from "lucide-react"
 import { useXrayPanel, type XrayTab } from "@/components/xray/XrayPanelContext"
 import { DataGenerator } from "@/components/DataGenerator"
 import { supabase } from "@/lib/supabase"
 
 /**
- * Guided tour — the part that SELLS the project. It's not just a walkthrough: at
- * each stop it says what you're seeing, and (the point) WHERE that skill matters
- * in a real product. It opens the X-ray to the right lens, lets you generate
- * data shaped like your own, and ends by asking for a quick reaction + an easy
- * way to get in touch. Fully client-safe: it performs no writes to tenant data.
+ * Guided tour — the part that SELLS the project. It actually DRIVES the demo:
+ * it walks the real menu pages (Dashboard, P&L, Balance, Pivot, Variance, Aging,
+ * Reports), opens the X-ray to the right lens at each stop, and even plays the
+ * "same query as three roles" RLS demo for you. At each step it says what you're
+ * seeing AND where that skill matters in a real product. Fully client-safe: no
+ * writes to tenant data.
+ *
+ * When a visitor enters the demo they first choose: let the tour drive (with
+ * animation), or explore on their own.
  */
-const SEEN_KEY = "xray-tour-seen"
+const SEEN_KEY = "xray-tour-choice"
 
 interface Step {
   title: string
   body: string
-  /** "Where this helps" sell line. */
-  sell?: string
-  go?: string
-  xray?: XrayTab
-  /** Custom content (generator, feedback form). */
-  render?: () => ReactNode
+  sell?: string                 // "where this helps" line
+  go?: string                   // navigate here
+  xray?: XrayTab                // open the panel on this tab
+  onEnter?: (ctx: { runRls: () => void }) => void
+  render?: () => ReactNode      // custom content (generator, feedback)
 }
 
 const STEPS: Step[] = [
   {
-    title: "See the machinery — in 3 minutes",
-    body: "This is a portfolio project by Mariia Chernenko: a financial reporting engine built backend-first. Instead of telling you it's solid, it lets you watch every layer work.",
+    title: "See the machinery — I'll drive",
+    body: "A 3-minute walk through a financial reporting engine built backend-first by Mariia Chernenko. Sit back — I'll open each page and show the backend working underneath.",
     sell: "What this demonstrates: production-grade full-stack — security, data pipelines, and the judgement to make them observable.",
     go: "/dashboard",
   },
   {
-    title: "1 · Every number is real & timed",
-    body: "The X-ray panel logs every call this page made to Postgres — method, status, milliseconds. Nothing is mocked; this is live traffic.",
-    sell: "Where it helps: this is how you prove performance and debug a slow page in production without guessing.",
+    title: "1 · Live, timed numbers",
+    body: "This is the CFO dashboard. Every figure came from Postgres through one instrumented fetch — the X-ray Calls panel logs each request with its status and milliseconds.",
+    sell: "Where it helps: proving performance and debugging a slow page in production without guessing.",
     go: "/dashboard",
     xray: "calls",
   },
   {
     title: "2 · The real code, in place",
-    body: "The Code tab shows the actual React component that rendered this page — pulled straight from the repo, not a screenshot.",
-    sell: "Where it helps: honesty. A reviewer can read exactly how it's built, which is what earns trust in an engineer.",
+    body: "The Code tab is the actual React component rendering this page — real source from the repo, syntax-highlighted, not a screenshot.",
+    sell: "Where it helps: honesty. A reviewer can read exactly how it's built.",
     go: "/dashboard",
     xray: "code",
   },
   {
-    title: "3 · Row-level security, proven",
-    body: "Run the same query as Viewer, Manager, Admin — different rows each time. The database decides, not the frontend. (See the SQL tab for the policy, and the privilege-escalation it was hardened against.)",
-    sell: "Where it helps: multi-tenant SaaS, where one customer seeing another's data is a company-ending bug.",
-    go: "/dashboard",
-    xray: "rls",
+    title: "3 · Income statement (P&L)",
+    body: "Profit & loss with Actual / Budget / Variance, subtotals, the accounting sign convention and a trend per line. Real double-entry, not a mock-up.",
+    sell: "Where it helps: the report a CFO actually reads every month.",
+    go: "/pl",
   },
   {
-    title: "4 · A real ETL pipeline — try it",
-    body: "Messy spreadsheets become clean reports: validate → z-score anomaly screen → human approval → idempotent load → auto-refresh. Generate a month of data shaped like yours (with a planted anomaly), download it, then create an account to run it through:",
-    sell: "Where it helps: onboarding a client's books, catching bad numbers before they hit a report.",
+    title: "4 · Balance sheet & cash flow",
+    body: "Assets, liabilities & equity — with the fundamental check that it ties (A = L + E) — plus an indirect cash-flow waterfall.",
+    sell: "Where it helps: catching a books-don't-balance error the moment it happens.",
+    go: "/balance",
+  },
+  {
+    title: "5 · Pivot — slice any way",
+    body: "Pivot the ledger across any two dimensions (entity, account, type, period), heat-mapped by magnitude. Multi-entity pivoting most dashboards skip.",
+    sell: "Where it helps: answering an ad-hoc 'show me X by Y' without a data analyst.",
+    go: "/pivot",
+  },
+  {
+    title: "6 · Variance bridge & aging",
+    body: "An operating-income bridge (base → per-line drivers → actual) and AR/AP aging bucketed by days past due. We'll glance at both.",
+    sell: "Where it helps: explaining WHY a number moved, and chasing overdue cash.",
+    go: "/variance",
+  },
+  {
+    title: "7 · Reports, RLS-filtered",
+    body: "The per-account monthly roll-up — filtered to the entities your role may see. Click a month to filter the table.",
+    sell: "Where it helps: one report, safely scoped per user.",
+    go: "/reports",
+  },
+  {
+    title: "8 · Row-level security — watch the roles switch",
+    body: "Here's the core. The SAME query runs as Viewer, Manager and Admin — I'm switching identity for you now. Different rows each time, decided by the database, not the UI. (The SQL tab shows the policy, and the privilege-escalation it was hardened against.)",
+    sell: "Where it helps: multi-tenant SaaS, where one customer seeing another's data is a company-ending bug.",
+    go: "/dashboard",
+    onEnter: ({ runRls }) => runRls(),
+  },
+  {
+    title: "9 · The ETL pipeline — try it with your data",
+    body: "Uploading a spreadsheet runs validate → z-score anomaly screen → approval → idempotent load → auto-refresh. Uploading lives on the Ingest page (sign in to use it). Generate a month of data shaped like yours — with a planted anomaly — and take it with you:",
+    sell: "Where it helps: onboarding a client's books and catching bad numbers before they hit a report.",
     render: () => <DataGenerator />,
   },
   {
-    title: "5 · The async machinery, live",
+    title: "10 · The async machinery, live",
     body: "On approval, database triggers + pg_cron + pg_net load the rows and refresh the reports. The Pipeline tab streams those events as they fire — the backend talking to itself, in the open.",
-    sell: "Where it helps: scheduled jobs and event-driven refreshes you can actually see, instead of a black box.",
+    sell: "Where it helps: scheduled, event-driven jobs you can actually see.",
     go: "/dashboard",
     xray: "pipeline",
   },
   {
     title: "That's the machinery",
-    body: "Thanks for looking. If this is the kind of work you want on your team — or you'd just like to say what you thought — here's the quickest way:",
+    body: "Thanks for looking. If this is the kind of work you'd want on your team — or you'd just like to say what you thought:",
     render: () => <TourClose />,
   },
 ]
 
 export function Tour({ autoOffer }: { autoOffer?: boolean }) {
   const navigate = useNavigate()
-  const { openTo, setOpen } = useXrayPanel()
+  const { openTo, setOpen, runRls } = useXrayPanel()
   const [running, setRunning] = useState(false)
   const [i, setI] = useState(0)
-  const [dismissedOffer, setDismissedOffer] = useState(false)
-  const [seen, setSeen] = useState(true)
+  const [choice, setChoice] = useState<"pending" | "made">("made")
 
+  // First visit: offer the choice (guided vs self). Remembered per browser.
   useEffect(() => {
-    try { setSeen(localStorage.getItem(SEEN_KEY) === "1") } catch { /* private mode */ }
-  }, [])
+    if (!autoOffer) return
+    try {
+      if (localStorage.getItem(SEEN_KEY) !== "1") setChoice("pending")
+    } catch { /* private mode → skip the offer */ }
+  }, [autoOffer])
 
-  function markSeen() {
-    try { localStorage.setItem(SEEN_KEY, "1") } catch { /* ignore */ }
-    setSeen(true)
-  }
+  function remember() { try { localStorage.setItem(SEEN_KEY, "1") } catch { /* ignore */ } }
+
   function applyStep(step: Step) {
     if (step.go) navigate({ to: step.go })
     if (step.xray) openTo(step.xray)
-    else setOpen(false)
+    else if (!step.onEnter) setOpen(false)
+    step.onEnter?.({ runRls })
   }
-  function start() { setDismissedOffer(true); setI(0); setRunning(true); applyStep(STEPS[0]) }
-  function next() {
-    if (i >= STEPS.length - 1) { end(); return }
-    const n = i + 1; setI(n); applyStep(STEPS[n])
-  }
+  function start() { remember(); setChoice("made"); setI(0); setRunning(true); applyStep(STEPS[0]) }
+  function chooseSelf() { remember(); setChoice("made") }
+  function next() { if (i >= STEPS.length - 1) { end(); return } const n = i + 1; setI(n); applyStep(STEPS[n]) }
   function back() { if (i === 0) return; const n = i - 1; setI(n); applyStep(STEPS[n]) }
-  function end() { setRunning(false); setOpen(false); markSeen() }
+  function end() { setRunning(false); setOpen(false) }
 
   const step = STEPS[i]
-  const offer = autoOffer && !seen && !running && !dismissedOffer
   const isLast = i >= STEPS.length - 1
 
   return (
     <>
+      {/* Persistent launcher */}
       {!running && (
         <button onClick={start}
           className="fixed bottom-5 left-5 z-50 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-accent-foreground shadow-soft transition hover:brightness-110">
@@ -116,20 +149,44 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
         </button>
       )}
 
+      {/* First-visit choice — guided agent vs explore yourself */}
       <AnimatePresence>
-        {offer && (
+        {choice === "pending" && !running && (
           <motion.div
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-            className="fixed bottom-20 left-5 z-50 w-64 rounded-2xl border border-border bg-card p-4 text-sm shadow-soft ring-1 ring-border">
-            <p className="text-foreground">New here? A 3-minute guided tour shows what this project is really about.</p>
-            <div className="mt-3 flex items-center gap-2">
-              <button onClick={start} className="rounded-full bg-accent px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-accent-foreground">Start</button>
-              <button onClick={() => { setDismissedOffer(true); markSeen() }} className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground">No thanks</button>
-            </div>
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-6 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+              className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-soft ring-1 ring-border md:p-8">
+              <span className="font-mono text-xs font-semibold uppercase tracking-widest text-accent">Welcome to the demo</span>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight">How do you want to look around?</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                It's read-only — nothing you do is saved. Pick a path:
+              </p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <button onClick={start}
+                  className="group flex flex-col items-start gap-2 rounded-xl border border-accent bg-accent/10 p-4 text-left transition hover:bg-accent/15">
+                  <Wand2 className="size-5 text-accent" />
+                  <span className="font-semibold">Guide me through it</span>
+                  <span className="text-xs leading-relaxed text-muted-foreground">
+                    A 3-minute animated walkthrough — I open each page and show the backend working.
+                  </span>
+                </button>
+                <button onClick={chooseSelf}
+                  className="group flex flex-col items-start gap-2 rounded-xl border border-border p-4 text-left transition hover:border-accent/60 hover:bg-foreground/[0.03]">
+                  <MousePointerClick className="size-5 text-foreground" />
+                  <span className="font-semibold">I'll explore myself</span>
+                  <span className="text-xs leading-relaxed text-muted-foreground">
+                    Click around freely. You can start the tour any time from the button, bottom-left.
+                  </span>
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* The step card */}
       <AnimatePresence>
         {running && (
           <motion.div
@@ -139,7 +196,6 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
               <span className="font-mono text-[10px] uppercase tracking-widest text-accent">Tour · {i + 1} / {STEPS.length}</span>
               <button onClick={end} aria-label="End tour" className="text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
             </div>
-            {/* progress dots */}
             <div className="flex gap-1 px-5 pt-2">
               {STEPS.map((_, idx) => (
                 <span key={idx} className={`h-1 flex-1 rounded-full ${idx <= i ? "bg-accent" : "bg-border"}`} />
@@ -170,9 +226,8 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
   )
 }
 
-/** Closing step: a quick 👍/👎 + optional note (→ tour_feedback), an email
- *  capture (→ leads), and the sign-up / sign-in / source CTAs. All writes are
- *  insert-only, read-nobody tables — the same honesty stance as the rest. */
+/** Closing step: a quick 👍/👎 + note (→ tour_feedback), an email capture
+ *  (→ leads), and the CTAs. All insert-only, read-nobody tables. */
 function TourClose() {
   const [helpful, setHelpful] = useState<boolean | null>(null)
   const [note, setNote] = useState("")
@@ -182,19 +237,18 @@ function TourClose() {
 
   async function sendFeedback(h: boolean) {
     setHelpful(h)
-    await supabase.from("tour_feedback").insert({ helpful: h, note: note.trim() || null, step: "end" })
+    try { await supabase.from("tour_feedback").insert({ helpful: h, note: note.trim() || null, step: "end" }) } catch { /* best-effort */ }
     setSentFb(true)
   }
   async function sendEmail(e: React.FormEvent) {
     e.preventDefault()
     if (!email.trim()) return
-    await supabase.from("leads").insert({ email: email.trim(), source: "tour" })
+    try { await supabase.from("leads").insert({ email: email.trim(), source: "tour" }) } catch { /* best-effort */ }
     setSentEmail(true); setEmail("")
   }
 
   return (
     <div className="space-y-4">
-      {/* Feedback */}
       <div className="rounded-xl border border-border bg-background/40 p-3">
         <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Was this useful?</p>
         {sentFb ? (
@@ -213,7 +267,6 @@ function TourClose() {
         )}
       </div>
 
-      {/* Email capture */}
       <div className="rounded-xl border border-border bg-background/40 p-3">
         <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Leave an email (optional)</p>
         {sentEmail ? (
@@ -227,7 +280,6 @@ function TourClose() {
         )}
       </div>
 
-      {/* CTAs */}
       <div className="flex flex-wrap gap-2">
         <a href="/register" className="rounded-full bg-accent px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">Create account</a>
         <a href="/login" className="rounded-full border border-border px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-foreground transition hover:border-accent">Sign in</a>
