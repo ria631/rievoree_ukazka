@@ -2,6 +2,8 @@ import { useState } from "react"
 import { Link, Navigate, Outlet, useNavigate, useRouterState } from "@tanstack/react-router"
 import { Menu, ScanLine } from "lucide-react"
 import { XRayPanel } from "@/components/xray/XRayPanel"
+import { XrayPanelProvider } from "@/components/xray/XrayPanelContext"
+import { Tour } from "@/components/Tour"
 import { OrbsBackground } from "@/components/OrbsBackground"
 import { PaperBackground } from "@/components/PaperBackground"
 import { Button } from "@/components/ui/button"
@@ -113,8 +115,11 @@ export function AppShell() {
   const headerMax = realUser ? "max-w-7xl" : "max-w-6xl"
 
   return (
-    // overflow-x-clip: a hard guarantee the page never scrolls sideways (clip
-    // doesn't create a scroll container, so the sticky header still works).
+    // XrayPanelProvider: the X-ray panel's open/tab state is shared so the
+    // guided tour can drive it. overflow-x-clip: a hard guarantee the page
+    // never scrolls sideways (clip doesn't create a scroll container, so the
+    // sticky header still works).
+    <XrayPanelProvider>
     <div className={cn("flex min-h-screen flex-col overflow-x-clip", onPaper && "paper")}>
       {onPaper ? <PaperBackground /> : <OrbsBackground subtle />}
 
@@ -202,7 +207,13 @@ export function AppShell() {
           <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Portfolio demo — fake data only</p>
         </div>
       </footer>
+
+      {/* Guided tour — only inside the app (not the public paper pages). It
+          auto-offers once to the read-only demo visitor, who is the one most
+          likely to miss the machinery. */}
+      {session && !onPaper && <Tour autoOffer={isDemo} />}
     </div>
+    </XrayPanelProvider>
   )
 }
 

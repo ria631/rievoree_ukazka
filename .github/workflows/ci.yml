@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# PLAN.md §2/§9: lint/typecheck/test + a migration-safety scanner. "Lint" here
+# is the TypeScript build (the repo has no separate ESLint config yet).
+jobs:
+  frontend:
+    name: Typecheck + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build   # tsc -b && vite build
+
+  worker:
+    name: Worker tests (Deno)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - working-directory: worker
+        run: deno test --allow-read
+
+  migration-safety:
+    name: Migration-safety scanner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/check-migrations.sh
+
+  db-tests:
+    name: pgTAP (RLS, ETL, z-score, isolation)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      # Provider secrets referenced by config.toml via env() — dummy values so
+      # the local stack boots (OAuth isn't exercised by the tests).
+      - name: Start local stack
+        env:
+          SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID: ci
+          SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET: ci
+          SUPABASE_AUTH_EXTERNAL_GITHUB_CLIENT_ID: ci
+          SUPABASE_AUTH_EXTERNAL_GITHUB_SECRET: ci
+        run: supabase start -x studio,imgproxy,vector,logflare,supavisor,postgres-meta
+      - name: Run pgTAP suite
+        run: supabase test db

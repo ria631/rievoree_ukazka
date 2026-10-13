@@ -1,116 +1,107 @@
 # X-Ray Financial Reporting Engine
 
 A full-stack financial reporting tool whose real product is **visible backend
-machinery**: every page carries an X-ray panel (🔬) showing live API calls,
-RLS policies, SQL and security layers doing the work.
+machinery**: every page carries an X-ray panel (🔬) that shows the live API
+calls, RLS policies, SQL and security layers doing the work.
 
-Portfolio project — all data is fake, built from scratch.
+**Live demo:** https://rievoree-ukazka.vercel.app — click **Explore the demo**
+(read-only, no account), then open the **X-RAY** panel on any page.
 
-> **Status:** Phase 1 — database foundation (5 migrations, multi-tenant RLS,
-> least-privilege grants), frontend scaffold, X-ray instrumentation seam,
-> Docker worker placeholder. ETL pipeline lands in Phase 2–3.
+Portfolio project by **Mariia Chernenko**. All data is fake, built from scratch.
+
+---
+
+## What it actually does
+
+Messy accounting spreadsheets in → validated, anomaly-screened, RLS-scoped
+reports out — and you can watch every layer run:
+
+- **Multi-tenant RLS.** The same query returns different rows per role; the
+  database, not the frontend, is the barrier. The X-ray **RLS** tab runs the
+  identical `select … from entities` as viewer / manager / admin and shows the
+  row counts side by side.
+- **Real ETL pipeline.** Upload a CSV → validate per-entity rules → z-score
+  anomaly screen → manual approval → idempotent delete-and-reload → the report
+  materialized view refreshes (trigger chain + `pg_cron`), with `pg_net` calling
+  an edge function on the way.
+- **Auth & user management.** Four roles, TOTP 2FA, email invites, password
+  reset, deactivation, OAuth — with frozen privileged columns (defense in depth).
+- **Connectors.** Google Drive (OAuth + Changes API + resumable page token) and
+  an HMAC-signed webhook, both feeding the same pipeline. Drive ships in
+  "simulate" mode on the public demo (see the Connectors page for why).
+
+### What's real vs. illustrative (honesty invariant)
+Every figure in the product app is a real query result. The small panels in the
+landing page's "What it does" section are **on-brand illustrations** (labelled as
+such) — the live versions are one click into the demo. The X-ray **SQL** tab
+shows reference SQL pulled from the migrations, clearly marked "not a live
+EXPLAIN"; the **Calls** and **Pipeline** tabs are live.
+
+---
 
 ## Repository map
 
 | Path | Responsibility |
 |---|---|
-| `src/` | React 19 + TypeScript frontend (Vite, Tailwind v4, shadcn/ui, TanStack Router/Query) |
+| `src/` | React 19 + TypeScript frontend (Vite, Tailwind v4, shadcn/ui, TanStack Router/Query, recharts) |
 | `src/lib/xray/` | X-ray instrumentation: every Supabase request is timed at the fetch layer |
-| `supabase/migrations/` | Versioned SQL — schema, RLS policies, grant hardening |
-| `worker/` | Deno ETL/metrics worker (queue consumer in Phase 3) |
-| `docker-compose.yml` | Our services on top of the Supabase local stack |
-| `PLAN.md` | Full project specification |
+| `supabase/migrations/` | Versioned SQL — schema, RLS policies, RPCs, grant hardening |
+| `supabase/tests/` | pgTAP: ETL transform, z-score, load, tenant isolation |
+| `supabase/functions/` | Deno edge functions (ingest-submit, notify-review, connectors, admin-users) |
+| `worker/` | Deno ETL worker — used locally for XLSX; the hosted path parses CSV in-browser |
+| `docs/` | Design spec, DB operation notes, the Claude-in-Chrome review prompts |
 
-## Architecture (local dev)
+## Security model
 
-```
-┌─ Vite dev server ── React app ── instrumented supabase-js ─┐
-│                                                            │
-│   ┌──────────────── Docker ─────────────────────────────┐  │
-│   │  Supabase CLI stack          our docker-compose     │  │
-│   │  ┌───────────────────────┐   ┌───────────────────┐  │  │
-│   │  │ Postgres :54322       │◄──┤ Deno ETL worker   │  │  │
-│   │  │ Auth / REST :54321    │   │ (queue consumer)  │  │  │
-│   │  │ Studio :54323         │   └───────────────────┘  │  │
-│   │  └───────────────────────┘                          │  │
-│   └──────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-```
+- **Multi-tenant RLS** on every table, keyed by `entities`; global roles
+  (super_admin / admin / manager / viewer) + per-entity membership.
+- **Global admin is explicit.** Cross-tenant access requires
+  `profiles.is_platform_staff`; a self-registered admin is scoped to their own
+  entities. (This closed a privilege-escalation found in review — see
+  migration `20261013000001`.)
+- **Demo accounts are DB-locked read-only** (`profiles.is_demo`): they can't
+  change role/password/2FA, provision, or manage connectors/members, and an
+  hourly `reset_demo_state()` keeps the showcase clean.
+- **Defense in depth:** column-level grants under RLS under triggers — frozen
+  profile columns are protected at three layers.
+- **Least privilege:** API roles hold only what they can legitimately use;
+  `ingest_queue` is deny-all by design.
 
-`supabase start` already runs the platform (Postgres, Auth, REST, Studio) as
-Docker containers, so our compose file only adds what the platform doesn't
-have: the ETL worker. One command starts everything (see below).
-
-## Getting started
+## Getting started (local)
 
 Prerequisites: Node 20+, Docker, [Supabase CLI](https://supabase.com/docs/guides/local-development).
 
 ```bash
 npm install
-supabase start            # boots the local stack + applies all migrations
+# config.toml reads OAuth provider secrets from env — dummy values are fine locally:
+export SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID=x SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET=x \
+       SUPABASE_AUTH_EXTERNAL_GITHUB_CLIENT_ID=x SUPABASE_AUTH_EXTERNAL_GITHUB_SECRET=x
+supabase start            # boots the local stack + applies all migrations + seed
 cp .env.example .env.local
 # fill VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY from `supabase status`
-
-npm run stack             # = supabase start + docker compose up + vite dev
+npm run dev
 ```
 
-### macOS / Windows (Docker Desktop)
+All demo users share the password **`demo123456`** (local seed, `super@` /
+`admin@` / `manager@` / `viewer@` / `demo@demo.local`). The shared accounts are
+read-only — register a real account to try uploads and role switching.
 
-Works out of the box — the worker reaches the host's Postgres via
-`host.docker.internal`, which Docker Desktop provides natively.
-
-### Linux (native Docker)
-
-Also works out of the box, via the `extra_hosts: host.docker.internal:host-gateway`
-mapping in `docker-compose.yml` (requires Docker 20.10+, released 2020).
-If your Supabase Postgres runs on a non-default port, override the URL:
+## Tests
 
 ```bash
-WORKER_DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:54322/postgres \
-  docker compose up -d
+supabase test db          # pgTAP: transform, z-score, load, tenant isolation
+cd worker && deno test    # CSV/XLSX parser + CSV-injection sanitizer
+npm run build             # tsc -b (typecheck) + vite build
+bash scripts/check-migrations.sh   # migration-safety scanner (no fake-RLS)
 ```
 
-## Demo data & login
-
-`supabase db reset` (and the first `supabase start`) seeds local-only demo data
-via `supabase/seed.sql`: four tenants, 18 months of deterministic history
-(~11k journal rows, no `random()`), and one Northwind batch left at
-`awaiting_review` with a real Utilities spike flagged by the anomaly detector
-(~200σ over its 12-month baseline).
-
-> **Local only.** `supabase db push` ships `migrations/`, never `seed.sql`, so
-> these shared-password demo users never reach a remote project.
-
-All demo users share the password **`demo123456`**:
-
-| Email | Role | Sees entities |
-|---|---|---|
-| `super@demo.local` | super_admin | all 4 (and may assign membership) |
-| `admin@demo.local` | admin | all 4 |
-| `manager@demo.local` | manager | Northwind + Acme (2) |
-| `viewer@demo.local` | viewer | Northwind (1) |
-
-Same query, different rows per role — the RLS contrast the X-ray panel showcases.
-Managers/admins also see the ingest machinery (`journal_staging`, the flagged
-batch); viewers only see finished reports (`journal_entries`).
-
-## Security model (Phase 1)
-
-- **Multi-tenant RLS** on every table, keyed by `entities`; global roles
-  (super_admin / admin / manager / viewer) + per-entity membership.
-- **Defense in depth:** column-level grants under RLS under triggers —
-  privileged profile columns are frozen at three layers.
-- **Least privilege:** API roles hold only what they can legitimately use
-  (no TRUNCATE/REFERENCES/TRIGGER anywhere; `ingest_queue` is deny-all by
-  design — the linter INFO on it is intentional).
-- **InitPlan-optimized policies:** helpers wrapped in `(select …)` so
-  Postgres evaluates them once per query, not per row.
+CI (`.github/workflows/ci.yml`) runs all of the above on every push and PR.
 
 ## Scripts
 
 | Command | What it does |
 |---|---|
-| `npm run dev` | Vite dev server only |
-| `npm run stack` | Supabase stack + worker container + Vite |
+| `npm run dev` | Vite dev server |
 | `npm run build` | typecheck + production build |
 | `npm run typecheck` | `tsc -b` |
+| `npm run stack` | Supabase stack + worker container + Vite |
