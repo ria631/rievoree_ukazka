@@ -8,9 +8,10 @@ import { useXray } from "@/components/XrayContext"
 import { CountUp } from "@/components/CountUp"
 import { Showcase } from "@/components/Showcase"
 
-// TODO(mariia): replace with your real links before deploy.
-const GITHUB_URL = "https://github.com/your-handle/xray-reporting-engine"
-const CV_URL = "https://your-portfolio.example/cv"
+// Real project links. CV_URL stays empty until a real URL is provided — the
+// footer hides the CV link rather than pointing at a placeholder.
+const GITHUB_URL = "https://github.com/ria631/rievoree_ukazka"
+const CV_URL = ""
 
 const STACK = ["React 19", "TypeScript", "Vite", "Tailwind v4", "TanStack", "recharts", "Supabase", "Postgres", "Edge / Deno", "Docker", "pg_cron", "pg_net", "RLS"]
 const ARCH = [
@@ -22,7 +23,7 @@ const ARCH = [
 const TABS = [
   { k: "Calls", d: "Every Supabase call, timed at the fetch seam.", line: "GET report_account_monthly · 200 · 41 ms" },
   { k: "Pipeline", d: "A realtime timeline of each ingest job and trigger as it fires.", line: "queued → processing → loaded · batch #1184" },
-  { k: "RLS", d: "The same query, run as three identities — different rows each time.", line: "admin 42 rows · manager 12 · viewer 0" },
+  { k: "RLS", d: "The same query, run as three identities — different rows each time.", line: "admin 4 entities · manager 2 · viewer 1" },
 ]
 
 const SUBLINE =
@@ -251,8 +252,9 @@ export function Landing() {
 
         {/* 6 — Footer */}
         <Reveal className="flex flex-wrap items-center gap-6 border-t border-border pt-10 text-sm">
+          <span className="font-medium text-foreground">Mariia Chernenko</span>
           <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="font-medium text-muted-foreground hover:text-accent">GitHub ↗</a>
-          <a href={CV_URL} target="_blank" rel="noreferrer" className="font-medium text-muted-foreground hover:text-accent">CV / Portfolio ↗</a>
+          {CV_URL && <a href={CV_URL} target="_blank" rel="noreferrer" className="font-medium text-muted-foreground hover:text-accent">CV / Portfolio ↗</a>}
           <span className="ml-auto font-mono text-xs text-muted-foreground">Fake data only</span>
         </Reveal>
       </div>

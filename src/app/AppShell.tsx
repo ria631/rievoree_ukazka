@@ -97,9 +97,11 @@ export function AppShell() {
   if (session && session.user.email !== DEMO_EMAIL && active === false) {
     return <DeactivatedScreen email={session.user.email ?? ""} />
   }
-  // Guard: the demo tour cannot reach write/account routes — sign in first.
+  // Guard: the demo tour cannot reach write/account routes. Don't bounce
+  // silently — explain why and point at the next step (reported: a silent
+  // redirect left visitors unsure what happened).
   if (isDemo && DEMO_BLOCKED.has(path)) {
-    return <Navigate to="/dashboard" />
+    return <DemoBlockedScreen path={path} />
   }
 
   // The signed-in flag for chrome purposes EXCLUDES the demo tour.
@@ -116,8 +118,11 @@ export function AppShell() {
     <div className={cn("flex min-h-screen flex-col overflow-x-clip", onPaper && "paper")}>
       {onPaper ? <PaperBackground /> : <OrbsBackground subtle />}
 
+      {/* Sticky header. On the lime "paper" pages it still needs a background +
+          blur once content scrolls under it, or the logo/nav collide with the
+          text beneath (reported). Both variants are opaque-enough + blurred. */}
       <header className={onPaper
-        ? "sticky top-0 z-40"
+        ? "sticky top-0 z-40 border-b border-border/40 bg-background/80 backdrop-blur-lg"
         : "sticky top-0 z-40 border-b border-border bg-background/75 shadow-soft backdrop-blur-lg"}>
         <div className={cn("mx-auto flex h-16 items-center justify-between gap-4 px-6", headerMax)}>
           <Link to="/" className="text-xl font-semibold tracking-tight">
@@ -146,8 +151,8 @@ export function AppShell() {
             <nav className="hidden items-center gap-1 md:flex">
               <button onClick={exploreDemo} className={`${navLinkBase} ${navLinkIdle}`}>Demo</button>
               <Link to="/about" className={navLinkBase}
-                activeProps={{ className: navLinkActive }} inactiveProps={{ className: navLinkIdle }}>O nás</Link>
-              <Link to="/login" className={`${navLinkBase} ${navLinkIdle}`}>Prihlásiť</Link>
+                activeProps={{ className: navLinkActive }} inactiveProps={{ className: navLinkIdle }}>About</Link>
+              <Link to="/login" className={`${navLinkBase} ${navLinkIdle}`}>Sign in</Link>
             </nav>
           )}
 
@@ -240,8 +245,8 @@ function MobileNav({ mode, navItems, identity, onDemo, onExitDemo }: { mode: "us
           {mode === "anon" && (
             <>
               <button onClick={() => { setOpen(false); onDemo() }} className={`rounded-xl px-4 py-3 text-left font-mono text-sm uppercase tracking-widest ${navLinkIdle}`}>Demo</button>
-              <Link to="/about" onClick={() => setOpen(false)} className={`rounded-xl px-4 py-3 font-mono text-sm uppercase tracking-widest ${navLinkIdle}`}>O nás</Link>
-              <Link to="/login" onClick={() => setOpen(false)} className={`rounded-xl px-4 py-3 font-mono text-sm uppercase tracking-widest ${navLinkIdle}`}>Prihlásiť</Link>
+              <Link to="/about" onClick={() => setOpen(false)} className={`rounded-xl px-4 py-3 font-mono text-sm uppercase tracking-widest ${navLinkIdle}`}>About</Link>
+              <Link to="/login" onClick={() => setOpen(false)} className={`rounded-xl px-4 py-3 font-mono text-sm uppercase tracking-widest ${navLinkIdle}`}>Sign in</Link>
             </>
           )}
         </nav>
@@ -264,6 +269,56 @@ function MobileNav({ mode, navItems, identity, onDemo, onExitDemo }: { mode: "us
     </Sheet>
   )
 }
+
+// The demo tour is read-only; write/account routes need a real account. Shown
+// instead of a silent redirect so the visitor knows why and what to do next.
+function DemoBlockedScreen({ path }: { path: string }) {
+  const feature = path.replace("/", "") || "that page"
+  return (
+    <div className="flex min-h-[70vh] flex-col items-center justify-center gap-5 px-6 text-center">
+      <span className="grid size-12 place-items-center rounded-2xl bg-accent/15 text-accent ring-1 ring-accent/30">
+        <ScanLine className="size-6" />
+      </span>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">That's a hands-on page</h1>
+        <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+          You're in the read-only demo, so <span className="font-mono text-foreground">{feature}</span> (where
+          you'd upload, approve or manage) is off. Create a free account to get a private sandbox and try it for real —
+          or keep exploring the read-only reports.
+        </p>
+      </div>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Link to="/register" className="rounded-full bg-accent px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
+          Create account
+        </Link>
+        <Link to="/dashboard" className="rounded-full border border-border px-6 py-3 font-mono text-xs uppercase tracking-widest text-foreground transition hover:border-accent">
+          Back to the demo
+        </Link>
+      </div>
+    </div>
+  )
+}
+
+// Friendly 404 for a signed-in user who hits an unknown route (reported: a bare
+// "Not Found" with no way back).
+function NotFoundScreen() {
+  return (
+    <div className="flex min-h-[70vh] flex-col items-center justify-center gap-5 px-6 text-center">
+      <span className="font-mono text-6xl font-bold text-accent">404</span>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Page not found</h1>
+        <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+          That route doesn't exist. Head back to the dashboard.
+        </p>
+      </div>
+      <Link to="/dashboard" className="rounded-full bg-accent px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
+        Go to dashboard
+      </Link>
+    </div>
+  )
+}
+
+export { NotFoundScreen }
 
 function DeactivatedScreen({ email }: { email: string }) {
   return (

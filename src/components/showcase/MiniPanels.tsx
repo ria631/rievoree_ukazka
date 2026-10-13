@@ -52,9 +52,13 @@ export function PanelIngest() {
   )
 }
 
-// Build a smooth-ish polyline across a 0..1 normalised viewport.
-function line(vals: number[], w: number, h: number, pad = 4) {
-  const max = Math.max(...vals), min = Math.min(...vals)
+// Build a polyline. All series on one chart MUST share a scale (pass the same
+// [lo, hi]) — otherwise each line is normalised to its own min/max and a small
+// series (profit) is drawn as tall as a large one (revenue), which reads as
+// "profit above revenue" (reported). Default falls back to the series' own range.
+function line(vals: number[], w: number, h: number, scale?: [number, number], pad = 4) {
+  const min = scale ? scale[0] : Math.min(...vals)
+  const max = scale ? scale[1] : Math.max(...vals)
   const span = max - min || 1
   return vals
     .map((v, i) => {
@@ -70,6 +74,9 @@ export function PanelReports() {
   const revenue = [142, 150, 146, 158, 165, 160, 172, 168, 176]
   const expenses = [96, 101, 99, 104, 110, 107, 113, 109, 118]
   const profit = revenue.map((r, i) => r - expenses[i])
+  // One shared scale for all three lines so magnitudes read truthfully.
+  const all = [...revenue, ...expenses, ...profit]
+  const scale: [number, number] = [Math.min(...all, 0), Math.max(...all)]
   return (
     <Shell label="reports · RLS-scoped">
       <div className="flex h-full flex-col">
@@ -84,10 +91,10 @@ export function PanelReports() {
               <stop offset="100%" stopColor="oklch(0.72 0.12 158)" stopOpacity="0" />
             </linearGradient>
           </defs>
-          <polygon points={`4,${H - 4} ${line(revenue, W, H)} ${W - 4},${H - 4}`} fill="url(#rev-fill)" />
-          <polyline points={line(revenue, W, H)} fill="none" stroke="oklch(0.72 0.12 158)" strokeWidth="2.5" />
-          <polyline points={line(expenses, W, H)} fill="none" stroke="oklch(0.74 0.13 190)" strokeWidth="2.5" />
-          <polyline points={line(profit, W, H)} fill="none" stroke="oklch(0.8 0.15 85)" strokeWidth="2" strokeDasharray="1 4" strokeLinecap="round" />
+          <polygon points={`4,${H - 4} ${line(revenue, W, H, scale)} ${W - 4},${H - 4}`} fill="url(#rev-fill)" />
+          <polyline points={line(revenue, W, H, scale)} fill="none" stroke="oklch(0.72 0.12 158)" strokeWidth="2.5" />
+          <polyline points={line(expenses, W, H, scale)} fill="none" stroke="oklch(0.74 0.13 190)" strokeWidth="2.5" />
+          <polyline points={line(profit, W, H, scale)} fill="none" stroke="oklch(0.8 0.15 85)" strokeWidth="2" strokeDasharray="1 4" strokeLinecap="round" />
         </svg>
         <div className="mt-2 flex items-center gap-4 font-mono text-[10px] text-muted-foreground">
           <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-accent" /> Revenue</span>

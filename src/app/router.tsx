@@ -3,7 +3,7 @@ import {
   createRoute,
   createRouter,
 } from "@tanstack/react-router"
-import { AppShell } from "./AppShell"
+import { AppShell, NotFoundScreen } from "./AppShell"
 import { Account } from "@/pages/Account"
 import { Connectors } from "@/pages/Connectors"
 import { Dashboard } from "@/pages/Dashboard"
@@ -26,7 +26,7 @@ import { Users } from "@/pages/Users"
  * shell. Role guards arrive with auth (Phase 5) as `beforeLoad` checks on
  * the protected routes — the structure below already gives them a place.
  */
-const rootRoute = createRootRoute({ component: AppShell })
+const rootRoute = createRootRoute({ component: AppShell, notFoundComponent: NotFoundScreen })
 
 const routes = [
   createRoute({ getParentRoute: () => rootRoute, path: "/", component: Landing }),
