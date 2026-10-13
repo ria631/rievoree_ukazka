@@ -2,30 +2,29 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  lazyRouteComponent,
 } from "@tanstack/react-router"
 import { AppShell, NotFoundScreen } from "./AppShell"
-import { Account } from "@/pages/Account"
-import { Connectors } from "@/pages/Connectors"
-import { Dashboard } from "@/pages/Dashboard"
-import { Ingest } from "@/pages/Ingest"
+// Public / auth pages load eagerly — they're the entry point and lightweight
+// (no charts), so the first paint of the landing stays instant.
 import { Landing } from "@/pages/Landing"
 import { Login } from "@/pages/Login"
 import { Register } from "@/pages/Register"
 import { ResetPassword } from "@/pages/ResetPassword"
 import { About } from "@/pages/About"
-import { Reports } from "@/pages/Reports"
-import { Pl } from "@/pages/Pl"
-import { Balance } from "@/pages/Balance"
-import { Pivot } from "@/pages/Pivot"
-import { Variance } from "@/pages/Variance"
-import { Aging } from "@/pages/Aging"
-import { Users } from "@/pages/Users"
 
 /**
- * Code-based route tree (no codegen): 7 pages from PLAN.md §4 under one
- * shell. Role guards arrive with auth (Phase 5) as `beforeLoad` checks on
- * the protected routes — the structure below already gives them a place.
+ * Code-based route tree (no codegen): 7 pages from PLAN.md §4 under one shell.
+ *
+ * Performance: the product pages pull the heavy libraries (recharts, nivo,
+ * tanstack-table). They're lazy-loaded per route via `lazyRouteComponent`, so a
+ * visitor landing on `/` (or any auth page) never downloads chart code until
+ * they actually open the app. This keeps the initial bundle — and the first
+ * impression — small and fast.
  */
+const lazy = (loader: () => Promise<Record<string, unknown>>, name: string) =>
+  lazyRouteComponent(loader as never, name as never)
+
 const rootRoute = createRootRoute({ component: AppShell, notFoundComponent: NotFoundScreen })
 
 const routes = [
@@ -41,23 +40,36 @@ const routes = [
   createRoute({ getParentRoute: () => rootRoute, path: "/register", component: Register }),
   createRoute({ getParentRoute: () => rootRoute, path: "/reset-password", component: ResetPassword }),
   createRoute({ getParentRoute: () => rootRoute, path: "/about", component: About }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/dashboard", component: Dashboard }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/ingest", component: Ingest }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/reports", component: Reports }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/pl", component: Pl }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/balance", component: Balance }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/pivot", component: Pivot }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/variance", component: Variance }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/aging", component: Aging }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/connectors", component: Connectors }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/users", component: Users }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/account", component: Account }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/dashboard", component: lazy(() => import("@/pages/Dashboard"), "Dashboard") }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/ingest", component: lazy(() => import("@/pages/Ingest"), "Ingest") }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/reports", component: lazy(() => import("@/pages/Reports"), "Reports") }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/pl", component: lazy(() => import("@/pages/Pl"), "Pl") }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/balance", component: lazy(() => import("@/pages/Balance"), "Balance") }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/pivot", component: lazy(() => import("@/pages/Pivot"), "Pivot") }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/variance", component: lazy(() => import("@/pages/Variance"), "Variance") }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/aging", component: lazy(() => import("@/pages/Aging"), "Aging") }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/connectors", component: lazy(() => import("@/pages/Connectors"), "Connectors") }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/users", component: lazy(() => import("@/pages/Users"), "Users") }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/account", component: lazy(() => import("@/pages/Account"), "Account") }),
 ]
 
 export const router = createRouter({
   routeTree: rootRoute.addChildren(routes),
-  defaultPreload: "intent",
+  defaultPreload: "intent",          // prefetch a route's chunk on hover/focus
+  defaultPendingComponent: RouteLoading,
+  defaultPendingMs: 150,
 })
+
+/** Tiny loader shown only if a lazy route's chunk takes >150ms to arrive. */
+function RouteLoading() {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <span className="inline-flex items-center gap-2.5 rounded-full bg-card px-5 py-3 font-mono text-xs uppercase tracking-widest text-muted-foreground ring-1 ring-border">
+        <span className="size-1.5 animate-pulse rounded-full bg-accent" /> loading…
+      </span>
+    </div>
+  )
+}
 
 declare module "@tanstack/react-router" {
   interface Register {
