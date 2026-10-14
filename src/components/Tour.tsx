@@ -141,11 +141,12 @@ interface Stage {
   scrollDone: boolean
   stepIdx: number
   showAt: number // the card may re-appear only after it has faded out
+  docked: boolean // mirrors the React layout state (the loop must not translate a docked strip)
 }
 const freshStage = (): Stage => ({
   sel: null, el: null, elSel: null, wantDim: false, hole: null, dim: 0, card: null, mode: null,
   prefer: [], size: { w: 384, h: 380 }, lastR: null, stable: 0, invalid: 0, scrollDone: true,
-  stepIdx: -1, showAt: 0,
+  stepIdx: -1, showAt: 0, docked: false,
 })
 
 export function Tour({ autoOffer }: { autoOffer?: boolean }) {
@@ -275,23 +276,34 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
           const c = st.mode === "dock" ? null : coordsFor(st.mode, r, cw, ch)
           st.card = c ? { ...c } : null
           if (c && cardRef.current) cardRef.current.style.transform = `translate3d(${c.x}px, ${c.y}px, 0)`
-          setDocked(st.mode === "dock")
+          st.docked = st.mode === "dock"
+          setDocked(st.docked)
           setReadyStep(st.stepIdx)
         }
       } else if (st.mode && st.mode !== "center" && st.mode !== "dock" && r && !coordsFor(st.mode, r, cw, ch)) {
-        if (++st.invalid > 15) { st.mode = chooseMode(r, cw, ch, st.prefer); st.invalid = 0; setDocked(st.mode === "dock") }
+        if (++st.invalid > 15) {
+          st.mode = chooseMode(r, cw, ch, st.prefer); st.invalid = 0
+          st.docked = st.mode === "dock"; setDocked(st.docked)
+          if (st.docked) st.card = null
+        }
       } else st.invalid = 0
 
+      // The loop alone owns the card's transform (React never sets it).
       const card = cardRef.current
-      const desired = st.mode && st.mode !== "dock" ? coordsFor(st.mode, r, cw, ch) : null
-      if (card && desired) {
-        if (!st.card) st.card = { ...desired }
-        else { const e = k(0.16); st.card = { x: lerp(st.card.x, desired.x, e), y: lerp(st.card.y, desired.y, e) } }
-        card.style.transform = `translate3d(${st.card.x}px, ${st.card.y}px, 0)`
-      } else if (card && !st.card && st.mode !== "dock") {
-        const c = coordsFor("center", null, cw, ch)!
-        st.card = c
-        card.style.transform = `translate3d(${c.x}px, ${c.y}px, 0)`
+      if (card) {
+        if (st.docked) {
+          if (card.style.transform !== "none") card.style.transform = "none" // the strip is laid out by CSS
+        } else {
+          const desired = st.mode ? coordsFor(st.mode, r, cw, ch) : null
+          if (desired) {
+            if (!st.card) st.card = { ...desired }
+            else { const e = k(0.16); st.card = { x: lerp(st.card.x, desired.x, e), y: lerp(st.card.y, desired.y, e) } }
+            card.style.transform = `translate3d(${st.card.x}px, ${st.card.y}px, 0)`
+          } else if (!st.card) {
+            st.card = coordsFor("center", null, cw, ch)!
+            card.style.transform = `translate3d(${st.card.x}px, ${st.card.y}px, 0)`
+          }
+        }
       }
 
       // 4 · the little pointer on the card edge, aimed at the target's middle
@@ -476,8 +488,8 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
   const target = cs.code ? CODE_MAP[cs.code] : null
   const dockW = typeof window === "undefined" ? 0 : Math.min(window.innerWidth - MARGIN * 2, 1120)
   const cardStyle: React.CSSProperties = docked
-    ? { left: (window.innerWidth - dockW) / 2, top: window.innerHeight - DOCK_H - MARGIN, width: dockW, height: DOCK_H, transform: "none" }
-    : { left: 0, top: 0, transform: "translate3d(-200vw, 0, 0)" } // placed by the frame loop on its first frame
+    ? { left: (window.innerWidth - dockW) / 2, top: window.innerHeight - DOCK_H - MARGIN, width: dockW, height: DOCK_H }
+    : { left: 0, top: 0 } // positioned by the frame loop's transform (invisible until placed)
 
   return (
     <>
