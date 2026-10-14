@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, LabelList, Legend, Line,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts"
 import { ResponsiveTreeMap } from "@nivo/treemap"
@@ -96,6 +96,7 @@ export function Waterfall({ steps }: { steps: WfStep[] }) {
         <Bar dataKey="base" stackId="w" fill="transparent" isAnimationActive={false} />
         <Bar dataKey="bar" stackId="w" radius={[3, 3, 0, 0]} isAnimationActive={ANIM}>
           {data.map((d, i) => <Cell key={i} fill={d.color} />)}
+          <LabelList dataKey="val" position="top" formatter={(v) => eurK(Math.abs(Number(v)))} style={{ ...LABEL, fontSize: 10 }} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
@@ -222,19 +223,24 @@ export function GrowthBars({ data }: { data: { month: string; revGrowth: number;
   )
 }
 
+// Shared label style for direct value labels on bars (dataviz: label selectively,
+// text in ink tokens, never the series colour).
+const LABEL = { fill: "rgba(255,255,255,0.82)", fontSize: 11, fontFamily: "JetBrains Mono" } as const
+
 /** Horizontal "leaderboard" bars — top accounts by magnitude. Revenue green,
- *  expense amber, so the biggest lines of money read at a glance. */
+ *  expense amber, with the value labelled at the bar end so it reads without a hover. */
 export function TopAccountsBars({ data }: { data: { name: string; value: number; kind: "revenue" | "expense" }[] }) {
-  const height = Math.max(200, data.length * 40)
+  const height = Math.max(200, data.length * 44)
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 8 }}>
+      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 56, bottom: 0, left: 8 }}>
         <CartesianGrid stroke={GRID} horizontal={false} />
         <XAxis type="number" tick={{ fill: AXIS, fontSize: 11, fontFamily: "JetBrains Mono" }} tickLine={false} axisLine={false} tickFormatter={eurK} />
         <YAxis type="category" dataKey="name" width={128} tick={{ fill: AXIS, fontSize: 11, fontFamily: "JetBrains Mono" }} tickLine={false} axisLine={false} />
         <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-        <Bar dataKey="value" name="Amount" radius={[0, 3, 3, 0]} isAnimationActive={ANIM}>
+        <Bar dataKey="value" name="Amount" radius={[0, 4, 4, 0]} isAnimationActive={ANIM}>
           {data.map((d, i) => <Cell key={i} fill={d.kind === "revenue" ? EMERALD : AMBER} />)}
+          <LabelList dataKey="value" position="right" formatter={(v) => eurK(Number(v))} style={LABEL} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
@@ -264,15 +270,17 @@ export function CashTrend({ data }: { data: { month: string; value: number }[] }
 
 /** Horizontal magnitude bars (single accent colour) — e.g. pivot row totals. */
 export function MagnitudeBars({ data }: { data: { name: string; value: number }[] }) {
-  const height = Math.max(180, data.length * 38)
+  const height = Math.max(180, data.length * 42)
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 8 }}>
+      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 56, bottom: 0, left: 8 }}>
         <CartesianGrid stroke={GRID} horizontal={false} />
         <XAxis type="number" tick={{ fill: AXIS, fontSize: 11, fontFamily: "JetBrains Mono" }} tickLine={false} axisLine={false} tickFormatter={eurK} />
         <YAxis type="category" dataKey="name" width={120} tick={{ fill: AXIS, fontSize: 11, fontFamily: "JetBrains Mono" }} tickLine={false} axisLine={false} />
         <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-        <Bar dataKey="value" name="Magnitude" fill={EMERALD} radius={[0, 3, 3, 0]} isAnimationActive={ANIM} />
+        <Bar dataKey="value" name="Magnitude" fill={EMERALD} radius={[0, 4, 4, 0]} isAnimationActive={ANIM}>
+          <LabelList dataKey="value" position="right" formatter={(v) => eurK(Number(v))} style={LABEL} />
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   )
