@@ -170,16 +170,16 @@
      Lives on a fixed inset-0 layer, so the inset() % is viewport-relative and
      the whole page reads as transforming in place. GPU-composited clip. */
   .xray-editor-clip {
-    clip-path: inset(0 0 calc((1 - var(--scan, 0)) * 100%) 0);
     will-change: clip-path;
-    contain: paint;
+    contain: strict;
   }
   /* The scan line riding the reveal edge — fixed, so top% == vh. */
   .xray-scanline {
     position: fixed;
     left: 0; right: 0;
-    top: calc(var(--scan, 0) * 100%);
+    top: 0;
     height: 2px;
+    will-change: transform;
     z-index: 55; pointer-events: none;
     opacity: 0;
     transition: opacity 0.2s ease;
@@ -193,8 +193,8 @@
     margin: 0;
     padding: 1rem 1.25rem 1rem 0;
     background: transparent !important;
-    font-size: 12.5px;
-    line-height: 1.65;
+    font-size: var(--code-size, 11.5px); /* A− / A+ in the editors */
+    line-height: 1.6;
     tab-size: 2;
   }
   .code-shiki code {
@@ -537,7 +537,8 @@
 }
 
 /* Compact gutter for snippet-sized code windows inside the X-ray panel. */
-.code-shiki-sm pre { font-size: 11.5px; line-height: 1.6; padding: 0.6rem 0.9rem 0.6rem 0; }
+.code-shiki-sm pre { font-size: 11px; line-height: 1.55; padding: 0.6rem 0.9rem 0.6rem 0; }
+.code-shiki-sm .line { white-space: pre-wrap; word-break: break-word; } /* no sideways scrolling in the narrow panel */
 .code-shiki-sm .line::before { width: 2.25rem; margin-right: 0.75rem; }
 
 /* X-RAY CODE button glow: a pre-painted halo whose OPACITY pulses. Opacity is

@@ -172,7 +172,9 @@ export function AppShell() {
           )}
 
           <div className="flex items-center gap-2.5">
-            <XRayPanel />
+            {/* The live X-ray panel belongs to the app; the landing has its own
+                "x-ray the page" window, and an empty calls panel there looked broken. */}
+            {!onPaper && <XRayPanel />}
             {realUser && <div className="hidden xl:block"><ActingAs label={role ?? session.user.email ?? "signed in"} /></div>}
             {isDemo && (
               <div className={cn("hidden shrink-0 items-center gap-2 whitespace-nowrap", showProductNav ? "xl:flex" : "lg:flex")}>

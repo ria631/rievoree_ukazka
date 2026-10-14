@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "motion/react"
 import { X, Code2, FileCode2, Folder, Database, Crosshair } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { highlightCode } from "@/lib/code-xray"
+import { useCodeSize, CodeSizeControl } from "@/lib/codeSize"
 import { useXrayPanel } from "./XrayPanelContext"
 import { SOURCES, ROUTE_FILE, langOf, explorerTree } from "./sources"
 
@@ -59,6 +60,7 @@ export function findBlock(lines: string[], needle: string): [number, number] | n
 
 export function CodeOverlay() {
   const { code, closeCode } = useXrayPanel()
+  const codeSize = useCodeSize()
   const path = useRouterState({ select: (s) => s.location.pathname })
 
   // Tabs for whatever was asked to open.
@@ -146,7 +148,8 @@ export function CodeOverlay() {
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           transition={{ duration: 0.16 }}
-          className="fixed inset-0 z-[70] flex flex-col bg-[#1e1e1e] font-mono text-[#d4d4d4]">
+          className="fixed inset-0 z-[70] flex flex-col bg-[#1e1e1e] font-mono text-[#d4d4d4]"
+          style={{ ["--code-size" as string]: `${codeSize.size}px` }}>
           {/* Title bar */}
           <div className="flex h-9 shrink-0 items-center bg-[#323233] px-3 text-[12px] text-white/55">
             <div className="flex gap-2">
@@ -155,6 +158,7 @@ export function CodeOverlay() {
               <span className="size-3 rounded-full bg-[#28c840]" />
             </div>
             <span className="mx-auto truncate">{name} — xray-reporting-engine</span>
+            <CodeSizeControl {...codeSize} />
             <button onClick={closeCode} aria-label="Close code view"
               className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-[11px] text-white/70 transition hover:bg-white/10 hover:text-white">
               Close <kbd className="rounded bg-white/10 px-1 text-[10px]">Esc</kbd> <X className="size-3.5" />

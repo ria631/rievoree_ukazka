@@ -1,99 +1,118 @@
 import { useEffect, useState } from "react"
 import { useRouterState } from "@tanstack/react-router"
-import { Code2, Maximize2 } from "lucide-react"
-import { highlightCode } from "@/lib/code-xray"
+import { ArrowUpRight, Code2, Database, FileCode2, Maximize2, MousePointerClick } from "lucide-react"
 import { useXrayPanel } from "@/components/xray/XrayPanelContext"
-import { PAGE_SOURCES } from "@/components/xray/pageSources"
+import { CODE_MAP, type CodeTarget } from "@/components/xray/codeMap"
+import { ROUTE_FILE } from "@/components/xray/sources"
 
 /**
- * CODE — the real FRONTEND source of the page you're on, shown as a proper
- * VS Code (Dark+) editor, just like the landing's X-ray editor: Shiki syntax
- * highlighting + gutter line numbers, not a plain dump.
- *
- * Honesty invariant (same as the SQL tab): every line is the LITERAL repo file,
- * pulled in via Vite `?raw` ON DEMAND (dynamic import) so the source strings
- * never weigh down the initial bundle. This is the client half of "the
- * machinery, made visible".
+ * CODE — a map of THIS page's code, not a cramped editor. Every chart, table and
+ * control currently on the page is listed with the real files behind it (where
+ * it's drawn, the component, the math / SQL). Clicking one opens the
+ * full-screen IDE on exactly those blocks, highlighted. Reading code belongs in
+ * the full-screen editor; a 500px side panel is for finding it.
  */
+interface Item { id: string; target: CodeTarget }
+
+function scanPage(): Item[] {
+  const seen = new Set<string>()
+  const out: Item[] = []
+  document.querySelectorAll<HTMLElement>("[data-tour]").forEach((el) => {
+    const id = el.dataset.tour ?? ""
+    const target = CODE_MAP[id]
+    if (!target || seen.has(id)) return
+    if (el.closest('header, [data-slot="sheet-content"]')) return // page content only
+    seen.add(id)
+    out.push({ id, target })
+  })
+  return out
+}
+
 export function CodeTab() {
-  const { openCode } = useXrayPanel()
+  const { openCode, setInspecting, setOpen } = useXrayPanel()
   const path = useRouterState({ select: (s) => s.location.pathname })
-  const entry = PAGE_SOURCES[path]
-  const [raw, setRaw] = useState<string | null>(null)
-  const [html, setHtml] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const file = ROUTE_FILE[path]
+  const [items, setItems] = useState<Item[]>([])
 
-  // Load the real source for this route (on demand).
+  // The page renders its charts asynchronously — rescan until it settles.
   useEffect(() => {
-    if (!entry) { setRaw(null); setHtml(null); return }
-    let alive = true
-    setLoading(true); setHtml(null)
-    entry.load()
-      .then((m) => { if (alive) setRaw(m.default) })
-      .catch(() => { if (alive) setRaw(null) })
-      .finally(() => { if (alive) setLoading(false) })
-    return () => { alive = false }
-  }, [entry])
+    let last = ""
+    const scan = () => {
+      const next = scanPage()
+      const key = next.map((i) => i.id).join("|")
+      if (key !== last) { last = key; setItems(next) }
+    }
+    scan()
+    const t = window.setInterval(scan, 1200)
+    return () => window.clearInterval(t)
+  }, [path])
 
-  // Syntax-highlight it (Shiki Dark+), same engine as the landing editor.
-  useEffect(() => {
-    if (raw == null) { setHtml(null); return }
-    let alive = true
-    highlightCode(raw, "tsx")
-      .then((out) => { if (alive) setHtml(out) })
-      .catch(() => { if (alive) setHtml(null) })
-    return () => { alive = false }
-  }, [raw])
-
-  if (!entry) {
+  if (!file) {
     return (
       <div className="flex h-full items-center justify-center px-6 text-center">
         <p className="font-mono text-xs leading-relaxed text-muted-foreground">
-          Open a product page (Dashboard, Reports, P&amp;L, Pivot…) and this tab
-          shows its real source — the component that rendered it.
+          Open a product page (Dashboard, Reports, P&amp;L, Pivot…) and this tab maps
+          every chart and table on it to the real code behind it.
         </p>
       </div>
     )
   }
 
-  const dir = entry.file.split("/").slice(0, -1).join("/")
-  const name = entry.file.split("/").pop()
-
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-[#1e1e1e] font-mono text-[#d4d4d4]">
-      {/* Tab strip — one open file */}
-      <div className="flex shrink-0 items-center bg-[#252526] text-[12px]">
-        <span className="flex items-center gap-2 border-r border-black/30 bg-[#1e1e1e] px-4 py-2 text-white">
-          <Code2 className="size-3.5 text-accent" /> {name}
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* The page's own file */}
+      <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#1e1e1e] ring-1 ring-white/10">
+          <Code2 className="size-4 text-accent" />
         </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-mono text-xs text-foreground">{file.split("/").pop()}</p>
+          <p className="truncate font-mono text-[10px] text-muted-foreground">{file}</p>
+        </div>
         <button data-tour="code-fullscreen" onClick={() => openCode({ kind: "page" })}
-          className="ml-auto inline-flex items-center gap-1.5 px-4 py-2 text-[10px] uppercase tracking-widest text-accent transition hover:text-white">
-          <Maximize2 className="size-3.5" /> Full screen
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
+          <Maximize2 className="size-3.5" /> Open in editor
         </button>
       </div>
-      {/* Breadcrumb */}
-      <div className="shrink-0 border-b border-black/40 px-4 py-1 text-[11px] text-white/35">
-        {dir.split("/").join("  ›  ")}  ›  {name}
+
+      <p className="px-4 pt-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
+        Everything on this page, and the real files behind it. Click one — the
+        full-screen editor opens with its exact lines highlighted.
+      </p>
+
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-4 py-3">
+        {items.length === 0 && (
+          <p className="font-mono text-[11px] text-muted-foreground/70">reading the page…</p>
+        )}
+        {items.map(({ id, target }) => (
+          <button key={id} onClick={() => openCode({ kind: "target", target })}
+            className="group w-full rounded-xl px-3 py-2.5 text-left ring-1 ring-border transition hover:bg-white/[0.03] hover:ring-accent/60">
+            <span className="flex items-center justify-between gap-2">
+              <span className="text-[13px] text-foreground">{target.title}</span>
+              <ArrowUpRight className="size-3.5 shrink-0 text-muted-foreground transition group-hover:text-accent" />
+            </span>
+            <span className="mt-1.5 flex flex-wrap gap-1">
+              {target.refs.map((r, k) => {
+                const sql = r.file.endsWith(".sql")
+                const Icon = sql ? Database : FileCode2
+                return (
+                  <span key={k} className="inline-flex items-center gap-1 rounded-md bg-[#1e1e1e] px-1.5 py-0.5 font-mono text-[10px] text-white/75 ring-1 ring-white/10">
+                    <Icon className={sql ? "size-3 text-[#4fc1ff]" : "size-3 text-[#519aba]"} />
+                    {r.file.split("/").pop()}
+                    <span className="text-white/35">· {r.label}</span>
+                  </span>
+                )
+              })}
+            </span>
+          </button>
+        ))}
       </div>
 
-      {/* Code */}
-      <div className="code-shiki min-h-0 flex-1 overflow-auto">
-        {loading && <pre className="px-4 py-4 text-[12.5px] text-white/50">loading source…</pre>}
-        {!loading && html != null && (
-          // Safe: Shiki's escaped output of our OWN build-time source (?raw).
-          <div dangerouslySetInnerHTML={{ __html: html }} />
-        )}
-        {!loading && html == null && raw != null && (
-          <pre className="px-4 py-4 text-[12.5px] leading-[1.65] text-white/70">{raw}</pre>
-        )}
-      </div>
-
-      {/* Status bar — matches the landing editor */}
-      <div className="flex h-6 shrink-0 items-center gap-4 bg-accent px-3 text-[11px] font-medium text-accent-foreground">
-        <span>⎇ main</span>
-        <span className="ml-auto">TypeScript JSX</span>
-        <span>UTF-8</span>
-        <span className="hidden sm:inline">the component rendering this page</span>
+      <div className="border-t border-border px-4 py-3">
+        <button onClick={() => { setOpen(false); setInspecting(true) }}
+          className="inline-flex items-center gap-2 font-mono text-[11px] text-muted-foreground transition hover:text-accent">
+          <MousePointerClick className="size-3.5" /> Or point at it: X-ray code → click any chart on the page
+        </button>
       </div>
     </div>
   )

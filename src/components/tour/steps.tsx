@@ -322,8 +322,8 @@ export const STEPS: Step[] = [
   },
   {
     id: "xray-code", chapter: "X-ray", route: "/reports", xray: "code", target: "xray-code",
-    title: "The real code of this page",
-    body: "The React component that rendered the page you're on — the actual repository file, not a screenshot. Open it full screen and it's a proper code editor with an Explorer of the files behind every chart.",
+    title: "Where every element lives in the code",
+    body: "Every chart, table and control on this page — and the real files behind each one: where it's drawn, the component, the math or SQL. Click one and a full-screen code editor opens with exactly those lines highlighted.",
     render: () => <OpenPageCode />,
   },
   {
