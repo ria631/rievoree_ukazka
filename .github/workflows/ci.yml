@@ -19,6 +19,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build   # tsc -b && vite build
+      - run: node scripts/check-code-map.mjs   # every "show me the code" target exists
 
   worker:
     name: Worker tests (Deno)

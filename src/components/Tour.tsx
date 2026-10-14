@@ -1,232 +1,366 @@
-import { useEffect, useState, type ReactNode } from "react"
-import { useNavigate } from "@tanstack/react-router"
+import { useEffect, useRef, useState } from "react"
+import { useNavigate, useRouterState } from "@tanstack/react-router"
 import { AnimatePresence, motion } from "motion/react"
-import { ScanLine, X, Check, Wand2, MousePointerClick } from "lucide-react"
-import { useXrayPanel, type XrayTab } from "@/components/xray/XrayPanelContext"
-import { DataGenerator } from "@/components/DataGenerator"
-import { Spotlight } from "@/components/Spotlight"
+import {
+  ScanLine, X, Wand2, MousePointerClick, Code2, List, Play, Pause, RotateCcw, Database, Check, Radio,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
+import { useAuth } from "@/lib/auth/useAuth"
+import { tourControl } from "@/lib/tourBus"
+import { useXrayPanel } from "@/components/xray/XrayPanelContext"
+import { CODE_MAP } from "@/components/xray/codeMap"
+import { CodeXrayButton } from "@/components/xray/CodeInspect"
+import { Spotlight, type Rect } from "@/components/Spotlight"
+import { STEPS, CHAPTERS, type Side, type Chapter } from "@/components/tour/steps"
+import { AskFeedback } from "@/components/tour/slots"
 
 /**
- * Guided tour — the part that SELLS the project. It actually DRIVES the demo:
- * it walks the real menu pages (Dashboard, P&L, Balance, Pivot, Variance, Aging,
- * Reports), opens the X-ray to the right lens at each stop, and even plays the
- * "same query as three roles" RLS demo for you. At each step it says what you're
- * seeing AND where that skill matters in a real product. Fully client-safe: no
- * writes to tenant data.
- *
- * When a visitor enters the demo they first choose: let the tour drive (with
- * animation), or explore on their own.
+ * Guided tour — the part that SELLS the project. It drives the real app: for
+ * every chart, table and control it spotlights that one element, anchors its
+ * card right next to it (never on top of it), and an animated cursor clicks the
+ * real controls so the visitor watches the app respond. Each step says what the
+ * element shows, how to read it, what it means for the money, and how its data
+ * is pulled and protected — with a button that opens the element's real code.
+ * The script lives in tour/steps.tsx; this file is the engine.
  */
 const SEEN_KEY = "xray-tour-choice"
-
-interface StepCtx {
-  runRls: () => void
-  navigate: (to: string) => void
-  signInAs: (email: string) => Promise<void>
-}
-interface Step {
-  title: string
-  body: string
-  sell?: string                 // "where this helps" line
-  go?: string                   // navigate here
-  xray?: XrayTab                // open the panel on this tab
-  highlight?: string            // CSS selector to spotlight (dim everything else)
-  onEnter?: (ctx: StepCtx) => void | Promise<void>
-  render?: () => ReactNode      // custom content (generator, feedback)
-}
-
 const DEMO_PASSWORD = "demo123456"
+const MANAGER = "manager@demo.local"
+const HEADER = 64
+const GAP = 18
+const MARGIN = 14
+const PAD = 10 // spotlight padding around the target
+const DOCK_H = 232 // height of the bottom-docked card
 
-const STEPS: Step[] = [
-  {
-    title: "See the machinery — I'll drive",
-    body: "This is a financial reporting engine built backend-first by Mariia Chernenko. In about three minutes I'll click through the whole thing myself — the reports that tell you if you're making money, and the secured backend working under every number. I'll spotlight what matters as we go.",
-    sell: "What this demonstrates: production-grade full-stack — security, data pipelines, and the judgement to make them observable.",
-    go: "/dashboard",
-  },
-  {
-    title: "1 · The CFO snapshot",
-    body: "Start here every month. These four tiles — revenue, EBITDA, cash position and DSO — are the one-glance “are we healthy?”, each with an 18-month sparkline and its month-over-month move. Scroll down and you'll find the revenue-vs-margin trend, momentum, and the cost structure.",
-    sell: "How it counts money: margin falling, cash rising, how fast customers actually pay — the health read a CFO scans first.",
-    go: "/dashboard",
-    highlight: "[data-tour=\"dash-kpis\"]",
-  },
-  {
-    title: "2 · How every number arrives",
-    body: "Open the X-ray. Every figure on that dashboard came through ONE instrumented fetch layer — and here it is, logged live: each request's endpoint, status and milliseconds. Nothing is faked or hard-coded; the data is pulled exactly like this, in the open.",
-    sell: "Where it helps: an engineer sees the real request path and timings — observability built in, not bolted on.",
-    go: "/dashboard",
-    xray: "calls",
-    highlight: "[data-tour=\"xray-calls\"]",
-  },
-  {
-    title: "3 · The real code, in place",
-    body: "Same panel, Code tab: the actual React component rendering this page — real repo source, syntax-highlighted. Hit “Full screen” and it reads like an IDE. No screenshots, no hand-waving — what you see is what's shipped.",
-    sell: "Where it helps: honesty. A reviewer reads exactly how it's built, line by line.",
-    go: "/dashboard",
-    xray: "code",
-    highlight: "[data-tour=\"xray-code\"]",
-  },
-  {
-    title: "4 · Did we make money? (P&L)",
-    body: "The income statement. This bridge walks revenue → gross profit → EBITDA; beside it, the biggest lines of money. Below, every line as Actual vs Budget vs Variance with the accounting sign convention and a per-line trend.",
-    sell: "How it counts money: THE monthly report — did we profit, and where did it come from?",
-    go: "/pl",
-    highlight: "[data-tour=\"pl-charts\"]",
-  },
-  {
-    title: "5 · What we own vs owe (Balance sheet)",
-    body: "Assets, liabilities and equity — and this badge is the proof it ties: Assets = Liabilities + Equity, to the cent. Below it, an indirect cash-flow waterfall showing where the cash actually went this year.",
-    sell: "How it counts money: is the business solvent, and did the cash move where you'd expect?",
-    go: "/balance",
-    highlight: "[data-tour=\"balance-check\"]",
-  },
-  {
-    title: "6 · Where does money move? (Pivot)",
-    body: "Pivot the entire ledger across any two dimensions — entity, account, type, period — heat-mapped by magnitude. Swap orientation, change the measure. Multi-entity pivoting most dashboards skip.",
-    sell: "How it counts money: find the leak — which account, which month, which entity is bleeding cash.",
-    go: "/pivot",
-    highlight: "[data-tour=\"pivot-grid\"]",
-  },
-  {
-    title: "7 · Why did profit move? (Variance)",
-    body: "An operating-income bridge: base → each line's favourable or unfavourable driver → actual. The drivers sum exactly to the total variance, so you can trace a swing from end to end.",
-    sell: "How it counts money: explain a profit swing to the board in one chart.",
-    go: "/variance",
-    highlight: "[data-tour=\"variance-bridge\"]",
-  },
-  {
-    title: "8 · Who owes you, and how late (Aging)",
-    body: "AR and AP open balances bucketed by days past due — 0–30 / 31–60 / 61–90 / 90+. The further right the weight sits, the slower the cash and the harder it is to collect.",
-    sell: "How it counts money: chase the right invoices first; 90+ is money at real risk.",
-    go: "/aging",
-    highlight: "[data-tour=\"aging-chart\"]",
-  },
-  {
-    title: "9 · How your data is protected",
-    body: "The core trick. The SAME query runs as Viewer, Manager and Admin — I'm switching identity for you now, in an isolated session. Different rows each time, decided by Postgres row-level security, NOT the frontend. One tenant can never see another's numbers.",
-    sell: "Where it helps: multi-tenant SaaS, where a leak between customers is a company-ending bug. (The SQL tab shows the exact policy and the privilege-escalation it was hardened against.)",
-    go: "/reports",
-    xray: "rls",
-    highlight: "[data-tour=\"xray-rls\"]",
-    onEnter: ({ runRls }) => runRls(),
-  },
-  {
-    title: "10 · Watch the menu change",
-    body: "Now I'm signing you in as a Manager. Watch the top navigation — new pages appear: Upload data and Connectors. This is the write side of the app, the part a Viewer role never even sees.",
-    sell: "How roles count money: who may approve a figure into the books is itself a control — segregation of duties, enforced server-side.",
-    highlight: "[data-tour=\"main-nav\"]",
-    onEnter: async ({ signInAs, navigate }) => { await signInAs("manager@demo.local"); navigate("/ingest") },
-  },
-  {
-    title: "11 · Messy spreadsheets in → clean reports out",
-    body: "This is Upload data — where a client's raw books come in. We check each row and flag anything far outside its own history (a z-score screen) before it can reach a report. A manager approves, it loads, and every report above refreshes automatically. Here's data shaped like yours to try, with a planted anomaly:",
-    sell: "How it counts money: this is the whole value — turn raw books into trustworthy reports, and catch the bad number before it costs someone a decision.",
-    go: "/ingest",
-    highlight: "[data-tour=\"ingest-upload\"]",
-    render: () => <DataGenerator />,
-  },
-  {
-    title: "12 · The async machinery, live",
-    body: "A batch sits at “Needs review” until approved. On approval, database triggers + pg_cron + pg_net load the rows and rebuild the materialized views — and the Pipeline tab streams each event as it fires. The backend talking to itself, in the open.",
-    sell: "Where it helps: scheduled, event-driven jobs you can actually watch instead of trusting a black box.",
-    go: "/ingest",
-    xray: "pipeline",
-    highlight: "[data-tour=\"ingest-batches\"]",
-  },
-  {
-    title: "13 · Skip the manual step — pin a connector",
-    body: "Don't want to upload by hand? Pin a connector. A Google Drive folder (real OAuth, resumable page token) or an HMAC-signed webhook — new files flow through the EXACT same validate → z-score → review path. One click of “Simulate sync” runs a file through the whole chain live.",
-    sell: "Where it helps: real, automated ingestion — the same pipeline, now fed by a source instead of a person.",
-    go: "/connectors",
-    highlight: "[data-tour=\"connectors-add\"]",
-  },
-  {
-    title: "You saw everything — and could change nothing",
-    body: "That's the full picture: the reports, the security, the pipeline, the connectors, the real code. As a read-only demo you could look everywhere but write nowhere — which is exactly the guarantee a real tenant needs, enforced by the database, not the UI. To make it yours — upload your own data, switch your own roles, approve batches, pin a connector — grab a free account. Or just tell me what you thought:",
-    render: () => <TourClose />,
-  },
-]
+const sel = (id: string) => `[data-tour="${id}"]`
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+function shown(el: Element | null): el is HTMLElement {
+  if (!el) return false
+  const r = el.getBoundingClientRect()
+  return r.width > 0 && r.height > 0
+}
+
+async function waitFor(selector: string, timeout: number, alive: () => boolean) {
+  const t0 = performance.now()
+  while (alive() && performance.now() - t0 < timeout) {
+    const el = document.querySelector(selector)
+    if (shown(el)) return el
+    await sleep(100)
+  }
+  return null
+}
+
+/** Scroll so the target AND its card fit on screen together. */
+function scrollForCard(el: HTMLElement, cw: number) {
+  if (el.closest('[data-slot="sheet-content"], header')) { el.scrollIntoView({ block: "nearest" }); return }
+  const r = el.getBoundingClientRect()
+  const vw = window.innerWidth, vh = window.innerHeight
+  const top0 = HEADER + 20
+  const sideFits = r.right + PAD + GAP + cw <= vw - MARGIN || r.left - PAD - GAP - cw >= MARGIN
+  // Side room → centre it; otherwise pin it under the header so the card (or the
+  // bottom dock) fits beneath. The tour adds space below the page so even the
+  // last element on a page can be lifted this high.
+  const want = sideFits && r.height < vh - top0 - 24 ? top0 + (vh - top0 - r.height) / 2 - 20 : top0
+  const delta = r.top - want
+  if (Math.abs(delta) > 6) window.scrollTo({ top: window.scrollY + delta, behavior: "smooth" })
+}
+
+interface Placement { left: number; top: number; side: Side | "none" | "dock" }
+
+function place(r: Rect | null, cw: number, ch: number, prefer: Side[] = []): Placement {
+  const vw = window.innerWidth, vh = window.innerHeight
+  if (!r) return { left: Math.max(MARGIN, (vw - cw) / 2), top: Math.max(HEADER + 24, (vh - ch) / 2), side: "none" }
+  const R = { top: r.top - PAD, left: r.left - PAD, right: r.left + r.width + PAD, bottom: r.top + r.height + PAD }
+  const clampY = (t: number) => Math.min(Math.max(t, HEADER + 8), vh - ch - MARGIN)
+  const clampX = (l: number) => Math.min(Math.max(l, MARGIN), vw - cw - MARGIN)
+  const opts: Record<Side, () => Placement | null> = {
+    right: () => (R.right + GAP + cw <= vw - MARGIN ? { left: R.right + GAP, top: clampY(R.top), side: "right" } : null),
+    left: () => (R.left - GAP - cw >= MARGIN ? { left: R.left - GAP - cw, top: clampY(R.top), side: "left" } : null),
+    bottom: () => (R.bottom + GAP + ch <= vh - MARGIN ? { left: clampX(R.left), top: R.bottom + GAP, side: "bottom" } : null),
+    top: () => (R.top - GAP - ch >= HEADER + 4 ? { left: clampX(R.left), top: R.top - GAP - ch, side: "top" } : null),
+  }
+  for (const s of [...prefer, "right", "left", "bottom", "top"] as Side[]) {
+    const p = opts[s]()
+    if (p) return p
+  }
+  // No clean side (a wide AND tall target on a smaller screen): the card becomes
+  // a low strip docked to the bottom edge, and the page is scrolled so the target
+  // sits above it — the card never lands on top of what it's explaining.
+  return { left: MARGIN, top: vh - DOCK_H - MARGIN, side: "dock" }
+}
+
+interface Cursor { x: number; y: number; on: boolean; instant: boolean; click: number }
 
 export function Tour({ autoOffer }: { autoOffer?: boolean }) {
   const navigate = useNavigate()
-  const { openTo, setOpen, runRls } = useXrayPanel()
+  const path = useRouterState({ select: (s) => s.location.pathname })
+  const { session, role } = useAuth()
+  const { openTo, setOpen, openCode, closeCode, code, setInspecting } = useXrayPanel()
+
   const [running, setRunning] = useState(false)
   const [i, setI] = useState(0)
+  const [replay, setReplay] = useState(0)
   const [choice, setChoice] = useState<"pending" | "made">("made")
+  const [phase, setPhase] = useState<"entering" | "acting" | "idle">("idle")
+  const [caption, setCaption] = useState<string | null>(null)
+  const [targetSel, setTargetSel] = useState<string | null>(null)
+  const [rect, setRect] = useState<Rect | null>(null)
+  const [cursor, setCursor] = useState<Cursor>({ x: 0, y: 0, on: false, instant: true, click: 0 })
+  const [live, setLive] = useState<string[]>([])
+  const [auto, setAuto] = useState(false)
+  const [hovering, setHovering] = useState(false)
+  const [menu, setMenu] = useState(false)
+  const [size, setSize] = useState({ w: 384, h: 380 })
+
+  const email = session?.user.email ?? ""
+  const isDemo = email.toLowerCase().endsWith("@demo.local")
+  const step = STEPS[i]
+
+  // Refs the async step runner reads (it outlives renders).
+  const runId = useRef(0)
+  const live$ = useRef({ path, email, role, isDemo, running, size })
+  live$.current = { path, email, role, isDemo, running, size }
+  const cardRef = useRef<HTMLDivElement>(null)
+  const cursorRef = useRef(cursor)
+  cursorRef.current = cursor
+  const lastPos = useRef<Placement | null>(null)
+  const dockedRef = useRef(false)
 
   // First visit: offer the choice (guided vs self). Remembered per browser.
   useEffect(() => {
     if (!autoOffer) return
-    try {
-      if (localStorage.getItem(SEEN_KEY) !== "1") setChoice("pending")
-    } catch { /* private mode → skip the offer */ }
+    try { if (localStorage.getItem(SEEN_KEY) !== "1") setChoice("pending") } catch { /* private mode */ }
   }, [autoOffer])
-
   function remember() { try { localStorage.setItem(SEEN_KEY, "1") } catch { /* ignore */ } }
 
-  async function signInAs(email: string) {
-    await supabase.auth.signInWithPassword({ email, password: DEMO_PASSWORD })
-    // Give AuthProvider a tick to propagate the new session before we navigate.
-    await new Promise((r) => setTimeout(r, 350))
-  }
-  function applyStep(step: Step) {
-    if (step.go) navigate({ to: step.go })
-    // Open the X-ray to the step's tab, or close it so a highlighted chart on the
-    // page isn't covered by the drawer.
-    if (step.xray) openTo(step.xray)
-    else setOpen(false)
-    void step.onEnter?.({ runRls, navigate: (to) => navigate({ to }), signInAs })
-  }
-  function start() { remember(); setChoice("made"); setI(0); setRunning(true); applyStep(STEPS[0]) }
-  function chooseSelf() { remember(); setChoice("made") }
-  function next() { if (i >= STEPS.length - 1) { end(); return } const n = i + 1; setI(n); applyStep(STEPS[n]) }
-  function back() { if (i === 0) return; const n = i - 1; setI(n); applyStep(STEPS[n]) }
-  function end() { setRunning(false); setOpen(false) }
+  // While touring: room below the page (so any element can be scrolled up to sit
+  // above the card) and no browser scroll-anchoring (a table that grows after a
+  // re-pivot must not drag the page away from the element being explained).
+  useEffect(() => {
+    if (!running) return
+    const html = document.documentElement, body = document.body
+    const prev = [html.style.overflowAnchor, body.style.paddingBottom]
+    html.style.overflowAnchor = "none"
+    body.style.paddingBottom = "75vh"
+    return () => { html.style.overflowAnchor = prev[0]; body.style.paddingBottom = prev[1] }
+  }, [running])
 
-  const step = STEPS[i]
-  const isLast = i >= STEPS.length - 1
+  // Card size → placement.
+  useEffect(() => {
+    const el = cardRef.current
+    if (!el) return
+    // Only the floating card's size drives placement — never the docked strip's,
+    // or the two layouts would flip back and forth.
+    const ro = new ResizeObserver(() => { if (!dockedRef.current) setSize({ w: el.offsetWidth, h: el.offsetHeight }) })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [running])
+
+  async function moveCursorTo(el: Element) {
+    const r = el.getBoundingClientRect()
+    const vw = window.innerWidth, vh = window.innerHeight
+    const x = Math.min(vw - 30, Math.max(10, r.left + Math.min(r.width / 2, 160)))
+    const y = Math.min(vh - 30, Math.max(70, r.top + Math.min(r.height / 2, 40)))
+    if (!cursorRef.current.on) {
+      // Reach out from the card.
+      const c = cardRef.current?.getBoundingClientRect()
+      setCursor((p) => ({ ...p, x: c ? c.left + c.width - 40 : vw / 2, y: c ? c.top + 30 : vh / 2, on: true, instant: true }))
+      await sleep(60)
+    }
+    setCursor((p) => ({ ...p, x, y, instant: false }))
+    await sleep(760)
+  }
+
+  // ── The step runner: identity → route → X-ray → find target → scroll → act.
+  useEffect(() => {
+    if (!running) return
+    const s = STEPS[i]
+    const id = ++runId.current
+    const alive = () => runId.current === id && live$.current.running
+    setPhase("entering"); setCaption(null); setLive([]); setMenu(false)
+    setCursor((p) => ({ ...p, on: false }))
+    ;(async () => {
+      closeCode()
+      if (s.as === "manager" && live$.current.isDemo && live$.current.email !== MANAGER) {
+        setCaption("Signing you in as the Manager demo…")
+        await supabase.auth.signInWithPassword({ email: MANAGER, password: DEMO_PASSWORD })
+        const t0 = performance.now()
+        while (alive() && live$.current.role !== "manager" && performance.now() - t0 < 5000) await sleep(100)
+        setCaption(null)
+      }
+      if (!alive()) return
+      if (s.route && live$.current.path !== s.route) { navigate({ to: s.route }); await sleep(250) }
+      if (!alive()) return
+      if (s.xray === "keep") { /* leave the panel as is */ }
+      else if (s.xray) openTo(s.xray)
+      else setOpen(false)
+
+      setTargetSel(null)
+      if (s.target) {
+        const el = await waitFor(sel(s.target), 8000, alive)
+        if (!alive()) return
+        if (el) {
+          if (s.xray) await sleep(380) // let the drawer finish sliding in
+          scrollForCard(el, live$.current.size.w)
+          setTargetSel(sel(s.target))
+          await sleep(650)
+        }
+      }
+      if (!alive()) return
+
+      if (s.actions?.length) {
+        setPhase("acting")
+        for (const a of s.actions) {
+          if (!alive()) return
+          if (a.demoOnly && !live$.current.isDemo) continue
+          const t = await waitFor(sel(a.to), 4500, alive)
+          if (!alive()) return
+          if (!t || a.skipIf?.(t)) continue
+          if (a.spot) setTargetSel(sel(a.spot))
+          setCaption(a.say)
+          await moveCursorTo(t)
+          if (!alive()) return
+          setCursor((p) => ({ ...p, click: p.click + 1 }))
+          await sleep(170)
+          if (a.control) tourControl(a.control[0], a.control[1])
+          else t.click()
+          await sleep(a.wait ?? 1100)
+        }
+        if (!alive()) return
+        if (s.target) {
+          setTargetSel(sel(s.target))
+          const el = document.querySelector<HTMLElement>(sel(s.target))
+          if (el) {
+            const r = el.getBoundingClientRect()
+            if (r.bottom < HEADER + 40 || r.top > window.innerHeight - 80) scrollForCard(el, live$.current.size.w)
+          }
+        }
+        setCaption(null)
+      }
+      setPhase("idle")
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running, i, replay])
+
+  // Track the target every frame (drawer sliding, charts growing, scrolling).
+  useEffect(() => {
+    if (!running || !targetSel) { setRect(null); return }
+    let raf = 0, last = ""
+    const loop = () => {
+      const el = document.querySelector(targetSel)
+      if (shown(el)) {
+        const r = el.getBoundingClientRect()
+        const key = `${Math.round(r.top)}|${Math.round(r.left)}|${Math.round(r.width)}|${Math.round(r.height)}`
+        if (key !== last) { last = key; setRect({ top: r.top, left: r.left, width: r.width, height: r.height }) }
+      } else if (last !== "none") { last = "none"; setRect(null) }
+      raf = requestAnimationFrame(loop)
+    }
+    raf = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(raf)
+  }, [running, targetSel])
+
+  // Live figures, read straight off the page (data-live), refreshed as it reacts.
+  useEffect(() => {
+    if (!running || !step.live) { setLive([]); return }
+    const from = typeof step.live === "string" ? sel(step.live) : step.target ? sel(step.target) : null
+    if (!from) return
+    const read = () => {
+      const root = document.querySelector(from)
+      if (!root) return
+      const els = [...(root.matches("[data-live]") ? [root] : []), ...root.querySelectorAll("[data-live]")]
+      setLive(els.map((e) => (e as HTMLElement).dataset.live ?? "").filter(Boolean).slice(0, 6))
+    }
+    read()
+    const t = setInterval(read, 600)
+    return () => clearInterval(t)
+  }, [running, i, step.live, step.target])
+
+  // Auto-play: after a step has finished acting, give it reading time, then go on.
+  const autoMs = (() => {
+    const words = `${step.body} ${step.money ?? ""} ${step.tech ?? ""}`.split(/\s+/).length
+    return Math.min(20000, Math.max(6500, words * 250))
+  })()
+  const autoWaiting = running && auto && phase === "idle" && !hovering && !code && !step.ask && !step.render
+  useEffect(() => {
+    if (!autoWaiting) return
+    const t = setTimeout(() => next(), autoMs)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoWaiting, i, autoMs])
+
+  function go(n: number) { setI(Math.max(0, Math.min(STEPS.length - 1, n))) }
+  function next() { if (i >= STEPS.length - 1) end(); else go(i + 1) }
+  function back() { if (i > 0) go(i - 1) }
+  function start() {
+    remember(); setChoice("made"); setInspecting(false)
+    setI(0); setReplay((r) => r + 1); setRunning(true)
+  }
+  function chooseSelf() { remember(); setChoice("made") }
+  function end() {
+    runId.current++
+    setRunning(false); setOpen(false); setTargetSel(null); setRect(null)
+    setCursor((p) => ({ ...p, on: false })); setAuto(false)
+  }
+
+  const chapterSteps = STEPS.filter((s) => s.chapter === step.chapter)
+  const inChapter = chapterSteps.findIndex((s) => s.id === step.id) + 1
+  const target = step.code ? CODE_MAP[step.code] : null
+
+  // Where the card goes: next to the target, never over it.
+  const computed = place(rect, size.w, size.h, step.prefer)
+  // While the next target is being found, hold the last floating position (a
+  // docked strip is never held — the new step gets measured as a card first).
+  const held = !rect && phase === "entering" && step.target && lastPos.current?.side !== "dock" ? lastPos.current : null
+  const pos = held ?? computed
+  if (rect) lastPos.current = computed
+  const docked = pos.side === "dock"
+  dockedRef.current = docked
+  const arrow = rect && pos.side !== "none" && !docked ? arrowStyle(pos, rect, size) : null
+  const dockW = typeof window === "undefined" ? 0 : Math.min(window.innerWidth - MARGIN * 2, 1120)
+  const cardStyle: React.CSSProperties = docked
+    ? { left: (window.innerWidth - dockW) / 2, top: window.innerHeight - DOCK_H - MARGIN, width: dockW, height: DOCK_H }
+    : { left: pos.left, top: pos.top }
 
   return (
     <>
-      {/* Persistent launcher */}
+      {/* Launch dock: the tour + the X-RAY CODE inspector, side by side. */}
       {!running && (
-        <button onClick={start}
-          className="fixed bottom-5 left-5 z-50 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-accent-foreground shadow-soft transition hover:brightness-110">
-          <ScanLine className="size-3.5" strokeWidth={2.25} /> Take the tour
-        </button>
+        <div className="fixed bottom-5 left-5 z-50 flex flex-wrap items-center gap-2.5">
+          <button onClick={start}
+            className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-accent-foreground shadow-soft transition hover:brightness-110">
+            <ScanLine className="size-3.5" strokeWidth={2.25} /> Take the tour
+          </button>
+          <CodeXrayButton />
+        </div>
       )}
 
       {/* First-visit choice — guided agent vs explore yourself */}
       <AnimatePresence>
         {choice === "pending" && !running && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-6 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+            <motion.div initial={{ opacity: 0, y: 20, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
               className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-soft ring-1 ring-border md:p-8">
               <span className="font-mono text-xs font-semibold uppercase tracking-widest text-accent">Welcome to the demo</span>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight">How do you want to look around?</h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                It's read-only — nothing you do is saved. Pick a path:
-              </p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">It's read-only — nothing you do is saved.</p>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <button onClick={start}
-                  className="group flex flex-col items-start gap-2 rounded-xl border border-accent bg-accent/10 p-4 text-left transition hover:bg-accent/15">
+                  className="flex flex-col items-start gap-2 rounded-xl border border-accent bg-accent/10 p-4 text-left transition hover:bg-accent/15">
                   <Wand2 className="size-5 text-accent" />
-                  <span className="font-semibold">Guide me through it</span>
+                  <span className="font-semibold">Show me everything</span>
                   <span className="text-xs leading-relaxed text-muted-foreground">
-                    A 3-minute animated walkthrough — I open each page and show the backend working.
+                    I point at every chart and table, click things for you, and explain how each number is made and protected.
                   </span>
                 </button>
                 <button onClick={chooseSelf}
-                  className="group flex flex-col items-start gap-2 rounded-xl border border-border p-4 text-left transition hover:border-accent/60 hover:bg-foreground/[0.03]">
+                  className="flex flex-col items-start gap-2 rounded-xl border border-border p-4 text-left transition hover:border-accent/60 hover:bg-foreground/[0.03]">
                   <MousePointerClick className="size-5 text-foreground" />
                   <span className="font-semibold">I'll explore myself</span>
                   <span className="text-xs leading-relaxed text-muted-foreground">
-                    Click around freely. You can start the tour any time from the button, bottom-left.
+                    Click around freely. “X-ray code” (bottom-left) opens the real code of any chart you click.
                   </span>
                 </button>
               </div>
@@ -235,108 +369,182 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
         )}
       </AnimatePresence>
 
-      {/* Spotlight — dims the page and rings the element this step points at. */}
-      {running && <Spotlight selector={step.highlight ?? null} />}
+      {running && <Spotlight rect={rect} pad={PAD} />}
 
-      {/* The step card — above the spotlight dim (z-55) so it stays readable. */}
+      {/* The agent's cursor */}
       <AnimatePresence>
-        {running && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }}
-            className="fixed bottom-5 left-5 z-[60] flex max-h-[85vh] w-[min(93vw,24rem)] flex-col rounded-2xl border border-border bg-card shadow-soft ring-1 ring-border">
-            <div className="flex items-start justify-between gap-3 px-5 pt-4">
-              <span className="font-mono text-[10px] uppercase tracking-widest text-accent">Tour · {i + 1} / {STEPS.length}</span>
-              <button onClick={end} aria-label="End tour" className="text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
-            </div>
-            <div className="flex gap-1 px-5 pt-2">
-              {STEPS.map((_, idx) => (
-                <span key={idx} className={`h-1 flex-1 rounded-full ${idx <= i ? "bg-accent" : "bg-border"}`} />
-              ))}
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
-              <h3 className="text-lg font-semibold tracking-tight">{step.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
-              {step.sell && (
-                <p className="mt-3 border-l-2 border-accent/50 pl-3 text-sm leading-relaxed text-foreground/90">{step.sell}</p>
+        {running && cursor.on && (
+          <motion.div key="cursor" className="pointer-events-none fixed left-0 top-0 z-[68]"
+            initial={{ opacity: 0, x: cursor.x, y: cursor.y }}
+            animate={{ opacity: 1, x: cursor.x, y: cursor.y }}
+            exit={{ opacity: 0 }}
+            transition={cursor.instant ? { duration: 0 } : { x: { duration: 0.72, ease: [0.22, 1, 0.36, 1] }, y: { duration: 0.72, ease: [0.22, 1, 0.36, 1] }, opacity: { duration: 0.2 } }}>
+            <AnimatePresence>
+              {cursor.click > 0 && (
+                <motion.span key={cursor.click} className="absolute -left-5 -top-5 size-10 rounded-full border-2 border-accent"
+                  initial={{ scale: 0.3, opacity: 0.9 }} animate={{ scale: 1.6, opacity: 0 }} transition={{ duration: 0.55 }} />
               )}
-              {step.render && <div className="mt-4">{step.render()}</div>}
-            </div>
-
-            <div className="flex items-center justify-between gap-2 border-t border-border px-5 py-3">
-              <button onClick={back} disabled={i === 0}
-                className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground disabled:opacity-40 hover:text-foreground">← Back</button>
-              <button onClick={next}
-                className="rounded-full bg-foreground px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-background transition hover:scale-[1.03]">
-                {isLast ? "Done" : "Next →"}
-              </button>
-            </div>
+            </AnimatePresence>
+            <svg width="26" height="30" viewBox="0 0 26 30" className="drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
+              <path d="M2 2 L2 24 L8 18.5 L12.5 28 L16.5 26 L12 16.8 L20 16.8 Z" fill="#fff" stroke="#0b0f0a" strokeWidth="1.6" strokeLinejoin="round" />
+            </svg>
+            <span className="absolute left-5 top-6 whitespace-nowrap rounded-full bg-accent px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-accent-foreground shadow-soft">guide</span>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* The step card — anchored next to the element it explains */}
+      {running && (
+        <div ref={cardRef} role="dialog" aria-label={`Tour: ${step.title}`} data-step={step.id} data-phase={phase}
+          onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}
+          className={cn("fixed z-[60] flex flex-col rounded-2xl border border-border bg-card shadow-[0_24px_70px_-20px_rgba(0,0,0,0.9)] ring-1 ring-accent/25 transition-[left,top] duration-300 ease-out",
+            docked ? "" : "max-h-[calc(100vh-96px)] w-[min(92vw,384px)]")}
+          style={cardStyle}>
+          {arrow && <span aria-hidden className="absolute size-3.5 rotate-45 border-border bg-card" style={arrow} />}
+
+          {/* Header: chapter, chapter list, auto, close */}
+          <div className="relative flex items-center gap-2 px-4 pt-3.5">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-accent">{step.chapter}</span>
+            <span className="font-mono text-[10px] tabular-nums text-muted-foreground">{inChapter}/{chapterSteps.length}</span>
+            <div className="ml-auto flex items-center gap-1">
+              <button onClick={() => setAuto((a) => !a)} title={auto ? "Pause auto-play" : "Auto-play the tour"}
+                className={cn("inline-flex items-center gap-1 rounded-full px-2 py-1 font-mono text-[9px] uppercase tracking-widest transition",
+                  auto ? "bg-accent text-accent-foreground" : "text-muted-foreground ring-1 ring-border hover:text-foreground")}>
+                {auto ? <Pause className="size-3" /> : <Play className="size-3" />} auto
+              </button>
+              <button onClick={() => setMenu((m) => !m)} aria-label="Chapters" title="Jump to a chapter"
+                className={cn("rounded-full p-1.5 transition", menu ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground")}>
+                <List className="size-3.5" />
+              </button>
+              <button onClick={end} aria-label="End tour" className="rounded-full p-1.5 text-muted-foreground hover:text-foreground"><X className="size-3.5" /></button>
+            </div>
+            {menu && <ChapterMenu current={step.chapter} onPick={(c) => { setMenu(false); go(STEPS.findIndex((s) => s.chapter === c)) }} />}
+          </div>
+          <div className="mx-4 mt-2.5 h-1 overflow-hidden rounded-full bg-border">
+            <div className="h-full rounded-full bg-accent transition-[width] duration-500" style={{ width: `${((i + 1) / STEPS.length) * 100}%` }} />
+          </div>
+
+          <div className={cn("min-h-0 flex-1 overflow-y-auto px-4 pb-3 pt-3", docked && "grid gap-x-8 md:grid-cols-2 md:content-start")}>
+            <div>
+            <h3 className="text-[17px] font-semibold leading-snug tracking-tight">{step.title}</h3>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{step.body}</p>
+
+            {caption && (
+              <p className="mt-3 flex items-center gap-2 rounded-lg bg-accent/10 px-3 py-2 font-mono text-[11px] text-accent">
+                <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-accent" /> {caption}
+              </p>
+            )}
+
+            {live.length > 0 && (
+              <div className="mt-3 rounded-lg border border-border bg-background/50 px-3 py-2">
+                <p className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
+                  <Radio className="size-3 text-accent" /> live on this page
+                </p>
+                <ul className="mt-1 space-y-0.5 font-mono text-[11px] tabular-nums text-foreground/90">
+                  {live.map((l) => <li key={l}>{l}</li>)}
+                </ul>
+              </div>
+            )}
+
+            {step.chapter === "Welcome" && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {CHAPTERS.slice(1).map((c) => (
+                  <button key={c} onClick={() => go(STEPS.findIndex((s) => s.chapter === c))}
+                    className="rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground ring-1 ring-border transition hover:text-accent hover:ring-accent/60">
+                    {c}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            </div>
+            <div>
+            {step.money && (
+              <div className={cn("border-l-2 border-accent/60 pl-3", docked ? "mt-1" : "mt-3")}>
+                <p className="font-mono text-[9px] uppercase tracking-widest text-accent">What it tells you</p>
+                <p className="mt-0.5 text-[13px] leading-relaxed text-foreground/90">{step.money}</p>
+              </div>
+            )}
+            {step.tech && (
+              <div className="mt-3 rounded-lg bg-secondary/60 px-3 py-2">
+                <p className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
+                  <Database className="size-3" /> {step.chapter === "Welcome" ? "How to use the tour" : "Under the hood · how it's pulled & protected"}
+                </p>
+                <p className="mt-1 text-[12px] leading-relaxed text-foreground/80">{step.tech}</p>
+              </div>
+            )}
+
+            {step.render && <div className="mt-3">{step.render()}</div>}
+            {step.ask && <div className="mt-3"><AskFeedback step={step.id} question={step.ask} /></div>}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center gap-2 border-t border-border px-4 py-2.5">
+            <button onClick={back} disabled={i === 0}
+              className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition hover:text-foreground disabled:opacity-40">← Back</button>
+            <div className="ml-auto flex items-center gap-1.5">
+              {step.actions?.length ? (
+                <button onClick={() => setReplay((r) => r + 1)} disabled={phase !== "idle"} title="Show it again"
+                  className="rounded-full p-2 text-muted-foreground ring-1 ring-border transition hover:text-foreground disabled:opacity-40">
+                  <RotateCcw className="size-3.5" />
+                </button>
+              ) : null}
+              {target && (
+                <button onClick={() => openCode({ kind: "target", target })}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#0b0f0a] px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-accent ring-1 ring-accent/70 transition hover:ring-accent">
+                  <Code2 className="size-3.5" /> Show the code
+                </button>
+              )}
+              <button onClick={next}
+                className="rounded-full bg-foreground px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-background transition hover:scale-[1.03]">
+                {i >= STEPS.length - 1 ? "Done" : "Next →"}
+              </button>
+            </div>
+          </div>
+          {autoWaiting && (
+            <div className="h-0.5 overflow-hidden rounded-b-2xl bg-transparent">
+              <div key={i} className="h-full bg-accent" style={{ animation: `tour-progress ${autoMs}ms linear forwards` }} />
+            </div>
+          )}
+        </div>
+      )}
     </>
   )
 }
 
-/** Closing step: a quick 👍/👎 + note (→ tour_feedback), an email capture
- *  (→ leads), and the CTAs. All insert-only, read-nobody tables. */
-function TourClose() {
-  const [helpful, setHelpful] = useState<boolean | null>(null)
-  const [note, setNote] = useState("")
-  const [email, setEmail] = useState("")
-  const [sentFb, setSentFb] = useState(false)
-  const [sentEmail, setSentEmail] = useState(false)
-
-  async function sendFeedback(h: boolean) {
-    setHelpful(h)
-    try { await supabase.from("tour_feedback").insert({ helpful: h, note: note.trim() || null, step: "end" }) } catch { /* best-effort */ }
-    setSentFb(true)
+/** A small diamond on the card edge pointing at the target. */
+function arrowStyle(pos: Placement, r: Rect, size: { w: number; h: number }): React.CSSProperties {
+  const midY = Math.min(Math.max(r.top + r.height / 2 - pos.top, 22), size.h - 22)
+  const midX = Math.min(Math.max(r.left + r.width / 2 - pos.left, 22), size.w - 22)
+  switch (pos.side) {
+    case "right": return { left: -7.5, top: midY - 7, borderLeftWidth: 1, borderBottomWidth: 1 }
+    case "left": return { right: -7.5, top: midY - 7, borderRightWidth: 1, borderTopWidth: 1 }
+    case "bottom": return { top: -7.5, left: midX - 7, borderLeftWidth: 1, borderTopWidth: 1 }
+    case "top": return { bottom: -7.5, left: midX - 7, borderRightWidth: 1, borderBottomWidth: 1 }
+    default: return {}
   }
-  async function sendEmail(e: React.FormEvent) {
-    e.preventDefault()
-    if (!email.trim()) return
-    try { await supabase.from("leads").insert({ email: email.trim(), source: "tour" }) } catch { /* best-effort */ }
-    setSentEmail(true); setEmail("")
-  }
+}
 
+function ChapterMenu({ current, onPick }: { current: Chapter; onPick: (c: Chapter) => void }) {
+  const at = CHAPTERS.indexOf(current)
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-border bg-background/40 p-3">
-        <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Was this useful?</p>
-        {sentFb ? (
-          <p className="mt-2 flex items-center gap-1.5 text-sm text-accent"><Check className="size-4" /> Thanks for the feedback.</p>
-        ) : (
-          <>
-            <div className="mt-2 flex gap-2">
-              <button onClick={() => sendFeedback(true)}
-                className={`rounded-md border px-3 py-1.5 text-sm transition ${helpful === true ? "border-accent bg-accent/10" : "border-border hover:border-accent"}`}>👍 Yes</button>
-              <button onClick={() => sendFeedback(false)}
-                className={`rounded-md border px-3 py-1.5 text-sm transition ${helpful === false ? "border-accent bg-accent/10" : "border-border hover:border-accent"}`}>👎 Not really</button>
-            </div>
-            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="optional — one line of feedback"
-              className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-xs outline-none transition focus:border-accent" />
-          </>
-        )}
-      </div>
-
-      <div className="rounded-xl border border-border bg-background/40 p-3">
-        <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Leave an email (optional)</p>
-        {sentEmail ? (
-          <p className="mt-2 flex items-center gap-1.5 text-sm text-accent"><Check className="size-4" /> Noted — thank you.</p>
-        ) : (
-          <form onSubmit={sendEmail} className="mt-2 flex gap-2">
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com"
-              className="min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-2 text-xs outline-none transition focus:border-accent" />
-            <button type="submit" className="shrink-0 rounded-md bg-foreground px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-background">Send</button>
-          </form>
-        )}
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <a href="/register" className="rounded-full bg-accent px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">Create account</a>
-        <a href="/login" className="rounded-full border border-border px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-foreground transition hover:border-accent">Sign in</a>
-        <a href="https://github.com/ria631/rievoree_ukazka" target="_blank" rel="noreferrer" className="rounded-full border border-border px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-foreground transition hover:border-accent">Code ↗</a>
-      </div>
+    <div className="absolute right-3 top-10 z-10 w-56 rounded-xl bg-card p-1.5 shadow-soft ring-1 ring-border">
+      <p className="px-2.5 pb-1 pt-1.5 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">Jump to</p>
+      {CHAPTERS.map((c, k) => {
+        const n = STEPS.filter((s) => s.chapter === c).length
+        return (
+          <button key={c} onClick={() => onPick(c)}
+            className={cn("flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition hover:bg-secondary",
+              c === current && "bg-accent/10 text-accent")}>
+            <span className="grid size-4 place-items-center">
+              {k < at ? <Check className="size-3 text-accent" /> : <span className={cn("size-1.5 rounded-full", c === current ? "bg-accent" : "bg-border")} />}
+            </span>
+            <span className="flex-1">{c}</span>
+            <span className="font-mono text-[10px] text-muted-foreground">{n}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }

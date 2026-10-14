@@ -10,7 +10,8 @@ import { LoadingNote, ErrorNote, EmptyNote } from "@/components/StateNote"
 import { SimpleSelect } from "@/components/ui/select"
 
 const eur = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 })
-const money = (n: number) => (n < 0 ? `(${eur.format(Math.abs(n))})` : eur.format(n))
+// Accounting format; anything that rounds to zero prints as €0 (never "-€0").
+const money = (n: number) => (Math.round(n) === 0 ? eur.format(0) : n < 0 ? `(${eur.format(Math.abs(n))})` : eur.format(n))
 
 export function Variance() {
   const { data: rows, isLoading, error } = useReport()
@@ -53,7 +54,7 @@ export function Variance() {
         <EmptyNote title="No report data for your entities" hint="Approve and load a batch on the Ingest page." />
       ) : (
         <div className="space-y-5">
-          <div className="flex flex-wrap items-center gap-3">
+          <div data-tour="variance-controls" className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
               Entity
               <SimpleSelect
@@ -85,7 +86,7 @@ export function Variance() {
                 </button>
               ))}
             </div>
-            <span className={cn("ml-auto rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-widest ring-1",
+            <span data-live={`Total variance ${money(totalVar)} (${periodKey} vs ${bridge.baseLabel})`} className={cn("ml-auto rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-widest ring-1",
               totalVar >= 0 ? "bg-accent/12 text-accent ring-accent/30" : "bg-destructive/15 text-destructive ring-destructive/40")}>
               Total variance {money(totalVar)}
             </span>
@@ -101,7 +102,7 @@ export function Variance() {
                 </ChartCard>
               </div>
 
-              <div className="overflow-hidden rounded-[1.5rem] bg-card shadow-soft ring-1 ring-border">
+              <div data-tour="variance-table" className="overflow-hidden rounded-[1.5rem] bg-card shadow-soft ring-1 ring-border">
                 <div className="grid grid-cols-[1.4fr_repeat(4,1fr)] gap-x-3 border-b border-border px-5 py-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
                   <span>Driver</span><span className="text-right">{bridge.baseLabel === "Budget" ? "Budget" : "Base"}</span>
                   <span className="text-right">Actual</span><span className="text-right">Variance</span><span className="text-right">Impact on OI</span>

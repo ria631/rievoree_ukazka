@@ -16,7 +16,7 @@ import { PAGE_SOURCES } from "@/components/xray/pageSources"
  * machinery, made visible".
  */
 export function CodeTab() {
-  const { setCodeFullscreen } = useXrayPanel()
+  const { openCode } = useXrayPanel()
   const path = useRouterState({ select: (s) => s.location.pathname })
   const entry = PAGE_SOURCES[path]
   const [raw, setRaw] = useState<string | null>(null)
@@ -66,7 +66,7 @@ export function CodeTab() {
         <span className="flex items-center gap-2 border-r border-black/30 bg-[#1e1e1e] px-4 py-2 text-white">
           <Code2 className="size-3.5 text-accent" /> {name}
         </span>
-        <button onClick={() => setCodeFullscreen(true)}
+        <button data-tour="code-fullscreen" onClick={() => openCode({ kind: "page" })}
           className="ml-auto inline-flex items-center gap-1.5 px-4 py-2 text-[10px] uppercase tracking-widest text-accent transition hover:text-white">
           <Maximize2 className="size-3.5" /> Full screen
         </button>

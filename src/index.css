@@ -205,6 +205,14 @@
     counter-increment: ln;
     padding-right: 1.5rem;
   }
+  /* The element's own block, when the code view opens on one element. */
+  .code-shiki .line.xray-hl {
+    background: oklch(0.86 0.21 126 / 0.09);
+    box-shadow: inset 3px 0 0 #a3e635;
+  }
+  .code-shiki .line.xray-hl::before { color: #c6f36b; }
+  .code-shiki .line.xray-hl-first { box-shadow: inset 3px 0 0 #a3e635, inset 0 1px 0 oklch(0.86 0.21 126 / 0.25); }
+  .code-shiki .line.xray-hl-last { box-shadow: inset 3px 0 0 #a3e635, inset 0 -1px 0 oklch(0.86 0.21 126 / 0.25); }
   .code-shiki .line::before {
     content: counter(ln);
     display: inline-block;
@@ -527,3 +535,21 @@
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 }
+
+/* Compact gutter for snippet-sized code windows inside the X-ray panel. */
+.code-shiki-sm pre { font-size: 11.5px; line-height: 1.6; padding: 0.6rem 0.9rem 0.6rem 0; }
+.code-shiki-sm .line::before { width: 2.25rem; margin-right: 0.75rem; }
+
+/* X-RAY CODE button — a slow accent pulse so it reads as "live, click me". */
+@keyframes xray-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(163, 230, 53, 0.55), 0 0 16px 1px rgba(163, 230, 53, 0.35); }
+  50% { box-shadow: 0 0 0 7px rgba(163, 230, 53, 0), 0 0 30px 6px rgba(163, 230, 53, 0.55); }
+}
+.xray-glow { animation: xray-glow 2.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .xray-glow { animation: none; } }
+/* Inspect mode: a crosshair everywhere signals "pick an element". */
+.xray-inspecting, .xray-inspecting * { cursor: crosshair !important; }
+.xray-inspecting [data-inspect-ui], .xray-inspecting [data-inspect-ui] * { cursor: pointer !important; }
+
+/* Tour auto-play countdown under the step card. */
+@keyframes tour-progress { from { width: 0% } to { width: 100% } }

@@ -115,7 +115,7 @@ export function Connectors() {
  *  whole connector machinery is actually built. Reassures that it's real code. */
 function HowItWorks() {
   return (
-    <section className="mt-16 grid gap-4 lg:grid-cols-2">
+    <section data-tour="connectors-how" className="mt-16 grid gap-4 lg:grid-cols-2">
       <div className="rounded-[1.5rem] border border-accent/20 bg-accent/[0.05] p-6 md:p-7">
         <div className="flex items-center gap-2">
           <AlertTriangle className="size-4 text-accent" />

@@ -257,7 +257,8 @@ export function Ingest() {
 
       {/* Batches */}
       <section data-tour="ingest-batches" className="mt-12">
-        <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-muted-foreground">
+        <h2 data-live={`${batches.data?.length ?? 0} batches · ${(batches.data ?? []).filter((b) => b.status === "awaiting_review").length} waiting for review · ${(batches.data ?? []).filter((b) => b.status === "loaded").length} loaded`}
+          className="mb-4 font-mono text-xs uppercase tracking-widest text-muted-foreground">
           Batches <span className="text-accent">· live</span>
         </h2>
         {batches.isLoading ? (
@@ -274,7 +275,7 @@ export function Ingest() {
             }
           />
         ) : (
-          <div className="overflow-hidden rounded-[1.5rem] bg-card shadow-soft ring-1 ring-border">
+          <div data-tour="batches-table" className="overflow-hidden rounded-[1.5rem] bg-card shadow-soft ring-1 ring-border">
             <Table className="min-w-[640px]">
               <TableHeader className="bg-secondary/50">
                 <TableRow>
@@ -288,7 +289,7 @@ export function Ingest() {
               </TableHeader>
               <TableBody>
                 {batches.data!.map((b) => (
-                  <TableRow key={b.id} className={cn("cursor-pointer transition-colors hover:bg-foreground/[0.03]", selectedId === b.id && "bg-foreground/[0.04]")} onClick={() => setSelectedId((cur) => (cur === b.id ? null : b.id))}>
+                  <TableRow key={b.id} data-tour={b.status === "awaiting_review" ? "batch-review-row" : undefined} className={cn("cursor-pointer transition-colors hover:bg-foreground/[0.03]", selectedId === b.id && "bg-foreground/[0.04]")} onClick={() => setSelectedId((cur) => (cur === b.id ? null : b.id))}>
                     <TableCell className="max-w-40 truncate font-mono text-xs underline-offset-4 hover:underline">{b.file_name}</TableCell>
                     <TableCell className="font-mono text-xs">{names.get(b.entity_id) ?? b.entity_id.slice(0, 8)}</TableCell>
                     <TableCell className="font-mono text-xs tabular-nums">{b.period.slice(0, 7)}</TableCell>
@@ -371,8 +372,8 @@ function UploadGuide() {
     URL.revokeObjectURL(url)
   }
   return (
-    <details className="mb-6 rounded-[1.5rem] border border-border bg-card/40 p-5 open:bg-card/60">
-      <summary className="cursor-pointer select-none font-mono text-xs uppercase tracking-widest text-muted-foreground">
+    <details data-tour="ingest-guide" className="mb-6 rounded-[1.5rem] border border-border bg-card/40 p-5 open:bg-card/60">
+      <summary data-tour="ingest-guide-toggle" className="cursor-pointer select-none font-mono text-xs uppercase tracking-widest text-muted-foreground">
         What file do I upload? <span className="text-accent">(click)</span>
       </summary>
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">

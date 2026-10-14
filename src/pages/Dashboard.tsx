@@ -8,6 +8,7 @@ import { ChartCard, PnlTrend, ExpenseTreemap, RevenueMarginCombo, GrowthBars, Sp
 import { CountUp } from "@/components/CountUp"
 import { LoadingNote, ErrorNote, EmptyNote } from "@/components/StateNote"
 import { SimpleSelect } from "@/components/ui/select"
+import { useTourControl } from "@/lib/tourBus"
 
 const eur = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 })
 
@@ -18,6 +19,8 @@ export function Dashboard() {
 
   const names = useMemo(() => new Map((entities ?? []).map((e) => [e.id, e.name])), [entities])
   const filtered = useMemo(() => (rows ?? []).filter((r) => entityId === "all" || r.entity_id === entityId), [rows, entityId])
+  // The guided tour can flip the entity filter to show the numbers re-computing.
+  useTourControl("entity", (v) => setEntityId(v === "@first" ? ([...names.keys()][0] ?? "all") : v))
 
   const exec = useMemo(() => executiveSeries(filtered), [filtered])
   const k = useMemo(() => executiveKpis(exec), [exec])
@@ -56,8 +59,10 @@ export function Dashboard() {
           hint="Once a batch is approved and loaded, figures appear here." />
       ) : (
         <div className="space-y-8">
+          {/* Filter + KPI tiles grouped, so the tour can show the tiles re-computing. */}
+          <div data-tour="dash-top" className="space-y-8">
           {names.size > 1 && (
-            <div className="flex items-center gap-3">
+            <div data-tour="dash-filter" className="flex w-fit items-center gap-3">
               <label className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
                 Entity
                 <SimpleSelect
@@ -78,6 +83,7 @@ export function Dashboard() {
             {cards.map((c, i) => (
               <motion.div key={c.label}
                 initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: i * 0.06, ease: "easeOut" }}
+                data-live={`${c.label.replace(" · last mo.", "")} ${c.fmt(c.kpi.value)}${c.kpi.delta == null ? "" : ` (${c.kpi.delta >= 0 ? "▲" : "▼"}${Math.abs(c.kpi.delta).toFixed(1)}% m/m)`}`}
                 className="rounded-2xl bg-card p-5 shadow-soft ring-1 ring-border">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{c.label}</span>
@@ -91,8 +97,10 @@ export function Dashboard() {
             ))}
           </div>
 
+          </div>
+
           {/* Key financial ratios — the health read execs scan first. */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
+          <div data-tour="dash-ratios" className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
             <RatioTile label="Gross margin" value={`${ratios.grossMarginPct.toFixed(1)}%`}
               hint="revenue kept after COGS" good={ratios.grossMarginPct >= 40} />
             <RatioTile label="Current ratio" value={`${ratios.currentRatio.toFixed(2)}×`}
@@ -107,14 +115,14 @@ export function Dashboard() {
 
           {/* Combo: revenue bars + operating margin % line */}
           <motion.div initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-40px" }} transition={{ duration: 0.45 }}>
-            <ChartCard title="Revenue & operating margin" hint="18 months">
+            <ChartCard tour="dash-combo" title="Revenue & operating margin" hint="18 months">
               <RevenueMarginCombo data={combo} />
             </ChartCard>
           </motion.div>
 
           {/* Momentum — month-over-month growth of revenue vs expenses. */}
           <motion.div initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-40px" }} transition={{ duration: 0.45 }}>
-            <ChartCard title="Momentum · month-over-month growth" hint="revenue vs expenses">
+            <ChartCard tour="dash-growth" title="Momentum · month-over-month growth" hint="revenue vs expenses">
               <GrowthBars data={growth} />
             </ChartCard>
           </motion.div>
@@ -122,10 +130,10 @@ export function Dashboard() {
           {/* Revenue vs expenses + expense mix */}
           <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
             <motion.div initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-40px" }} transition={{ duration: 0.45 }}>
-              <ChartCard title="Revenue vs expenses" hint="€"><PnlTrend data={pnl} /></ChartCard>
+              <ChartCard tour="dash-pnl" title="Revenue vs expenses" hint="€"><PnlTrend data={pnl} /></ChartCard>
             </motion.div>
             <motion.div initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-40px" }} transition={{ duration: 0.45, delay: 0.08 }}>
-              <ChartCard title="Cost structure" hint="COGS + opex"><ExpenseTreemap data={expenses} /></ChartCard>
+              <ChartCard tour="dash-treemap" title="Cost structure" hint="COGS + opex"><ExpenseTreemap data={expenses} /></ChartCard>
             </motion.div>
           </div>
         </div>
@@ -137,7 +145,7 @@ export function Dashboard() {
 /** A compact ratio tile — value + one-line meaning, accent when healthy. */
 function RatioTile({ label, value, hint, good }: { label: string; value: string; hint: string; good: boolean }) {
   return (
-    <div className="rounded-2xl bg-card p-5 shadow-soft ring-1 ring-border">
+    <div data-live={`${label} ${value}`} className="rounded-2xl bg-card p-5 shadow-soft ring-1 ring-border">
       <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{label}</span>
       <div className={cn("mt-2 text-2xl font-semibold tabular-nums lg:text-3xl", good ? "text-accent" : "text-foreground")}>{value}</div>
       <div className="mt-1 font-mono text-[10px] leading-snug text-muted-foreground/80">{hint}</div>
@@ -147,6 +155,8 @@ function RatioTile({ label, value, hint, good }: { label: string; value: string;
 
 function DeltaChip({ delta, goodUp }: { delta: number | null; goodUp: boolean }) {
   if (delta == null) return null
+  // No change is neutral — not a red "▲ 0.0%".
+  if (Math.abs(delta) < 0.05) return <span className="font-mono text-[10px] tabular-nums text-muted-foreground">— 0.0%</span>
   const up = delta >= 0
   const good = goodUp ? up : !up
   return (

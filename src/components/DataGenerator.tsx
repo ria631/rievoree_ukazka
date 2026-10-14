@@ -50,7 +50,8 @@ function buildCsv(): { csv: string; rows: number; anomaly: string } {
   return { csv: lines.join("\n") + "\n", rows: lines.length - 1, anomaly: `${year}-${month} · Utilities ~10× its usual — the z-score screen flags it` }
 }
 
-export function DataGenerator() {
+/** `compact` (inside the tour card): no CSV preview, one-line intro. */
+export function DataGenerator({ compact = false }: { compact?: boolean } = {}) {
   const [gen, setGen] = useState(() => buildCsv())
   const preview = useMemo(() => gen.csv.split("\n").slice(0, 5).join("\n"), [gen])
 
@@ -72,14 +73,19 @@ export function DataGenerator() {
           Generate data like yours
         </span>
       </div>
-      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-        A month of books in the exact format the pipeline reads — with one planted
-        anomaly. Download it, then upload it as a real account to watch it get
-        validated, flagged and loaded.
-      </p>
-
-      <pre className="mt-3 overflow-x-auto rounded-lg bg-background p-3 font-mono text-[10px] leading-relaxed text-foreground/75">{preview}
+      {compact ? (
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">A month of books in the exact upload format, with one planted anomaly.</p>
+      ) : (
+        <>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            A month of books in the exact format the pipeline reads — with one planted
+            anomaly. Download it, then upload it as a real account to watch it get
+            validated, flagged and loaded.
+          </p>
+          <pre className="mt-3 overflow-x-auto rounded-lg bg-background p-3 font-mono text-[10px] leading-relaxed text-foreground/75">{preview}
 …</pre>
+        </>
+      )}
       <p className="mt-1.5 font-mono text-[10px] text-accent">⚠ {gen.anomaly}</p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">

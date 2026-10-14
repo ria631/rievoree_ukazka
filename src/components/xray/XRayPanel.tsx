@@ -49,6 +49,7 @@ export function XRayPanel() {
           size="sm"
           className="gap-2 rounded-full font-mono text-xs"
           aria-label="Open X-ray panel"
+          data-tour="xray-button"
         >
           <ScanLine className="size-3.5" strokeWidth={2.25} />
           X-RAY
@@ -90,6 +91,7 @@ export function XRayPanel() {
               <button
                 key={t.id}
                 role="tab"
+                data-tour={`xray-tab-${t.id}`}
                 aria-selected={active}
                 onClick={() => setTab(t.id)}
                 className={cn(

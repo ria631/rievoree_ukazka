@@ -61,13 +61,13 @@ export function Balance() {
                 ]}
               />
             </label>
-            <span data-tour="balance-check" className={cn("ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-widest",
+            <span data-tour="balance-check" data-live={balanced ? `In balance: assets ${money(bs.totalAssets)} = liabilities ${money(bs.totalLiabilities)} + equity ${money(bs.totalEquity)}` : `Out of balance by ${money(bs.check)}`} className={cn("ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-widest",
               balanced ? "bg-accent/12 text-accent ring-1 ring-accent/30" : "bg-destructive/15 text-destructive ring-1 ring-destructive/40")}>
               {balanced ? <><Check className="size-3" strokeWidth={3} /> In balance · A = L + E</> : <>Out of balance by {money(bs.check)}</>}
             </span>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div data-tour="balance-sections" className="grid gap-5 lg:grid-cols-2">
             <Section title="Assets" lines={bs.assets} total={bs.totalAssets} totalLabel="Total assets" />
             <div className="space-y-5">
               <Section title="Liabilities" lines={bs.liabilities} total={bs.totalLiabilities} totalLabel="Total liabilities" />
@@ -76,10 +76,10 @@ export function Balance() {
           </div>
 
           <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
-            <ChartCard title="Cash position" hint="18 months">
+            <ChartCard tour="balance-cash" title="Cash position" hint="18 months">
               <CashTrend data={cashTrend} />
             </ChartCard>
-            <ChartCard title="Capital structure" hint="how it's financed">
+            <ChartCard tour="balance-capital" title="Capital structure" hint="how it's financed">
               <div className="flex h-full flex-col justify-center">
                 <CompositionBar parts={capital} />
                 <p className="mt-4 font-mono text-[10px] leading-relaxed text-muted-foreground/80">
@@ -89,7 +89,7 @@ export function Balance() {
             </ChartCard>
           </div>
 
-          <ChartCard title="Cash flow · indirect" hint="trailing 12 months">
+          <ChartCard tour="balance-cf" title="Cash flow · indirect" hint="trailing 12 months">
             <Waterfall steps={cf} />
           </ChartCard>
         </div>

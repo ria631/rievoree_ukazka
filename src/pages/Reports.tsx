@@ -9,6 +9,7 @@ import { monthlyPnl, expenseByAccount } from "@/lib/data/aggregate"
 import { ChartCard, PnlTrend, ExpenseTreemap } from "@/components/charts/FinancialCharts"
 import { LoadingNote, ErrorNote, EmptyNote } from "@/components/StateNote"
 import { SimpleSelect } from "@/components/ui/select"
+import { useTourControl } from "@/lib/tourBus"
 
 const eur = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 })
 
@@ -34,6 +35,9 @@ export function Reports() {
     () => entityRows.filter((r) => period === "all" || r.period === period),
     [entityRows, period],
   )
+
+  // The guided tour drills into the latest month the same way a click would.
+  useTourControl("period", (v) => setPeriod(v === "@latest" ? (periods[0] ?? "all") : v))
 
   // Clicking a month on the trend sets the period filter (interactive drill-in).
   function selectMonth(month: string) {
@@ -66,7 +70,7 @@ export function Reports() {
           {/* Charts */}
           <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
             <motion.div initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-40px" }} transition={{ duration: 0.45 }}>
-              <ChartCard title="Revenue vs expenses" hint="click a month to filter ↓">
+              <ChartCard tour="reports-trend" title="Revenue vs expenses" hint="click a month to filter ↓">
                 <PnlTrend data={pnl} onSelectMonth={selectMonth} />
               </ChartCard>
             </motion.div>
@@ -78,7 +82,7 @@ export function Reports() {
           </div>
 
           {/* Filters */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div data-tour="reports-filters" className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
               Entity
               <SimpleSelect
@@ -103,7 +107,7 @@ export function Reports() {
                 ]}
               />
             </label>
-            <span className="ml-auto rounded-full bg-secondary px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground ring-1 ring-border tabular-nums">
+            <span data-live={`${filtered.length.toLocaleString("en")} rows · period ${period === "all" ? "all" : period.slice(0, 7)}`} className="ml-auto rounded-full bg-secondary px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground ring-1 ring-border tabular-nums">
               {filtered.length.toLocaleString("en")} rows
             </span>
           </div>
@@ -114,6 +118,7 @@ export function Reports() {
             <motion.div
               initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-40px" }}
               transition={{ duration: 0.45, ease: "easeOut" }}
+              data-tour="reports-table"
               className="overflow-hidden rounded-[1.5rem] bg-card shadow-soft ring-1 ring-border">
               <div className="max-h-[60vh] overflow-y-auto">
                 <Table className="min-w-[720px]">

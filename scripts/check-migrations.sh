@@ -19,11 +19,13 @@ else
   echo "✓ migration-safety: no fake-RLS predicates"
 fi
 
-# The leads table legitimately allows anonymous INSERT with check (true); that
-# is an append-only contact form, not tenant data. Allowlist it explicitly.
-# (If the only hit is leads.sql, treat as pass.)
-if [ "$status" -eq 1 ] && [ -z "$(echo "$hits" | grep -v 'leads.sql' || true)" ]; then
-  echo "  (only the allowlisted leads INSERT — OK)"
+# Two tables legitimately allow anonymous INSERT with check (true): both are
+# append-only visitor forms (leads = contact email, tour_feedback = 👍/👎 + note),
+# with NO select policy, so nothing is readable back through the API — not
+# tenant data. Allowlist exactly those files; any other hit still fails.
+ALLOW='leads.sql|tour_feedback.sql'
+if [ "$status" -eq 1 ] && [ -z "$(echo "$hits" | grep -vE "$ALLOW" || true)" ]; then
+  echo "  (only the allowlisted append-only visitor INSERTs: leads, tour_feedback — OK)"
   status=0
 fi
 

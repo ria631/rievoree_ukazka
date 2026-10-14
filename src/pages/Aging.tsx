@@ -61,9 +61,9 @@ export function Aging() {
       ) : (
         <div className="space-y-5">
           {/* AR / AP toggle */}
-          <div className="inline-flex overflow-hidden rounded-lg border border-border">
+          <div data-tour="aging-toggle" className="inline-flex overflow-hidden rounded-lg border border-border">
             {(["ar", "ap"] as const).map((k) => (
-              <button key={k} onClick={() => setKind(k)}
+              <button key={k} data-tour={`aging-${k}`} onClick={() => setKind(k)}
                 className={cn("px-4 py-1.5 font-mono text-[10px] uppercase tracking-widest transition-colors",
                   kind === k ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground")}>
                 {k === "ar" ? "Receivables" : "Payables"}
@@ -71,20 +71,20 @@ export function Aging() {
             ))}
           </div>
 
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
+          <div data-tour="aging-kpis" className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
             {kpis.map((k) => (
-              <div key={k.label} className="rounded-2xl bg-card p-5 shadow-soft ring-1 ring-border">
+              <div key={k.label} data-live={`${k.label} ${k.value}`} className="rounded-2xl bg-card p-5 shadow-soft ring-1 ring-border">
                 <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{k.label}</div>
                 <div className="mt-2 text-2xl font-semibold tabular-nums">{k.value}</div>
               </div>
             ))}
           </div>
 
-          <div data-tour="aging-chart" className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
-            <ChartCard title={`${kind === "ar" ? "Receivables" : "Payables"} aging by entity`} hint="stacked by bucket">
+          <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
+            <ChartCard tour="aging-stacked" title={`${kind === "ar" ? "Receivables" : "Payables"} aging by entity`} hint="stacked by bucket">
               <AgingStacked data={chartData} buckets={BUCKETS} />
             </ChartCard>
-            <ChartCard title="Collection risk · share by age" hint={`${overduePct.toFixed(0)}% overdue`}>
+            <ChartCard tour="aging-risk" title="Collection risk · share by age" hint={`${overduePct.toFixed(0)}% overdue`}>
               <div className="flex h-full flex-col justify-center">
                 <CompositionBar parts={BUCKETS.map((b, i) => ({ name: b, value: aging.bucketTotals[i], color: BUCKET_COLORS[i] }))} />
                 <p className="mt-4 font-mono text-[10px] leading-relaxed text-muted-foreground/80">
@@ -95,7 +95,7 @@ export function Aging() {
           </div>
 
           {/* Heatmap table — entity × bucket */}
-          <div className="overflow-x-auto rounded-[1.5rem] bg-card shadow-soft ring-1 ring-border">
+          <div data-tour="aging-heat" className="overflow-x-auto rounded-[1.5rem] bg-card shadow-soft ring-1 ring-border">
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border">

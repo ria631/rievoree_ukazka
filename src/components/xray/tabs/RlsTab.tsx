@@ -145,7 +145,7 @@ export function RlsTab() {
       </div>
 
       {/* Three identity cards, side by side — the comparison. */}
-      <div className="grid grid-cols-3 gap-px bg-border">
+      <div data-tour="rls-cards" className="grid grid-cols-3 gap-px bg-border">
         {IDENTITIES.map((id) => (
           <IdentityCard
             key={id.role}
@@ -217,6 +217,7 @@ function IdentityCard({
       </p>
 
       <Button
+        data-tour={`rls-run-${label.toLowerCase()}`}
         variant={active ? "default" : "outline"}
         size="xs"
         className="mt-auto font-mono text-[10px]"

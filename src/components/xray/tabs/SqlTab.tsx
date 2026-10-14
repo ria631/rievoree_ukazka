@@ -1,5 +1,7 @@
 import { useMemo } from "react"
 import { useXRayEvents } from "@/lib/xray/useXRayEvents"
+import { CodeBlock } from "@/components/xray/CodeBlock"
+import { useXrayPanel } from "@/components/xray/XrayPanelContext"
 
 /**
  * SQL — reference definitions behind the calls, pulled VERBATIM from the
@@ -16,6 +18,8 @@ interface SqlEntry {
   migration: string
   note: string
   sql: string
+  file: string // the migration it comes from — "open file" jumps there
+  focus: string
 }
 
 const ENTRIES: SqlEntry[] = [
@@ -24,6 +28,7 @@ const ENTRIES: SqlEntry[] = [
     title: "entities — row-level security",
     migration: "migration 1",
     note: "The policy the RLS tab demonstrates: admin sees all, others only assigned entities.",
+    file: "supabase/migrations/20260605000001_identity_and_tenancy.sql", focus: "create policy entities_select",
     sql: `create policy entities_select on public.entities
   for select to authenticated
   using (
@@ -36,6 +41,7 @@ const ENTRIES: SqlEntry[] = [
     title: "report_account_monthly — tenant-filtered view",
     migration: "migrations 11 + 12",
     note: "security_invoker view over a private MV; the WHERE is the sole cross-tenant barrier.",
+    file: "supabase/migrations/20260610000002_report_account_monthly.sql", focus: "create view public.report_account_monthly",
     sql: `create view public.report_account_monthly as
 select m.entity_id, m.period, m.account_id, m.account_code,
        m.account_name, m.account_type, m.debit, m.credit, m.net, m.entry_count
@@ -51,6 +57,7 @@ alter view public.report_account_monthly set (security_invoker = on);`,
     title: "pipeline_events — RLS for the live timeline",
     migration: "migration 13",
     note: "What scopes the PIPELINE tab: managers see their entities, admin sees all.",
+    file: "supabase/migrations/20260610000004_pipeline_events_and_refresh_queue.sql", focus: "create policy pipeline_events_select",
     sql: `create policy pipeline_events_select on public.pipeline_events
   for select to authenticated
   using (
@@ -66,6 +73,7 @@ alter view public.report_account_monthly set (security_invoker = on);`,
     title: "approve_batch — permission gate",
     migration: "migrations 14 + 27",
     note: "FOR UPDATE locks the row before the check; coalesce(...,false) fails closed. Managers and (scoped) admins may approve their own entities.",
+    file: "supabase/migrations/20260626000007_scoped_admin.sql", focus: "create or replace function public.approve_batch",
     sql: `select * into v_batch from public.ingest_batches
   where id = p_batch_id for update;
 
@@ -83,6 +91,7 @@ end if;`,
     title: "is_admin() — scoped global admin (security hardening)",
     migration: "migration 34",
     note: "Global cross-tenant access requires an explicit is_platform_staff flag — a self-registered admin stays scoped to their own entities. This closed a privilege-escalation found in review.",
+    file: "supabase/migrations/20261013000001_security_hardening_demo_lockdown.sql", focus: "create or replace function private.is_admin",
     sql: `create or replace function private.is_admin()
 returns boolean language sql stable security definer
 set search_path = '' as $$
@@ -99,6 +108,7 @@ $$;`,
 
 export function SqlTab() {
   const events = useXRayEvents()
+  const { openCode } = useXrayPanel()
   const seen = useMemo(
     () => new Set(events.map((e) => e.target)),
     [events],
@@ -128,9 +138,8 @@ export function SqlTab() {
             <div className="mb-1 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
               {entry.migration}
             </div>
-            <pre className="overflow-x-auto bg-secondary/50 px-3 py-2 font-mono text-[11px] leading-relaxed text-foreground">
-              <code>{entry.sql}</code>
-            </pre>
+            <CodeBlock code={entry.sql} lang="sql" file={entry.file.split("/").pop()!}
+              onExpand={() => openCode({ kind: "target", target: { title: entry.title, refs: [{ file: entry.file, focus: entry.focus, label: entry.migration }] } })} />
             <p className="mt-1 font-mono text-[10px] leading-snug text-muted-foreground">
               {entry.note}
             </p>

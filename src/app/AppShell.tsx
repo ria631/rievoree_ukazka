@@ -1,12 +1,13 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Link, Navigate, Outlet, useNavigate, useRouterState } from "@tanstack/react-router"
-import { Menu, ScanLine } from "lucide-react"
+import { ChevronDown, Menu, ScanLine } from "lucide-react"
 import { XRayPanel } from "@/components/xray/XRayPanel"
 import { XrayPanelProvider } from "@/components/xray/XrayPanelContext"
 import { CodeOverlay } from "@/components/xray/CodeOverlay"
+import { InspectLayer } from "@/components/xray/CodeInspect"
 import { Tour } from "@/components/Tour"
 import { OrbsBackground } from "@/components/OrbsBackground"
-import { PaperBackground } from "@/components/PaperBackground"
+import { PaperBackground, PaperGrain } from "@/components/PaperBackground"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useAuth } from "@/lib/auth/useAuth"
@@ -40,9 +41,11 @@ const NAV = [
   { to: "/account", label: "Account" },
 ] as const
 
-// The nav a given role may see (Connectors → managers+, Users → admins).
-function navFor(role: string | null) {
-  return NAV.filter((item) => !("roles" in item) || (item.roles as readonly string[]).includes(role ?? ""))
+// The nav a given role may see (Connectors → managers+, Users → admins). A demo
+// identity has no account of its own to manage, so it never gets "Account".
+function navFor(role: string | null, demo = false) {
+  return NAV.filter((item) =>
+    (!("roles" in item) || (item.roles as readonly string[]).includes(role ?? "")) && !(demo && item.to === "/account"))
 }
 
 // Demo "tour" nav — read-only analytics only. NO Ingest / Users / Account.
@@ -67,6 +70,7 @@ export function AppShell() {
   const navigate = useNavigate()
   const path = useRouterState({ select: (s) => s.location.pathname })
   const onPaper = PAPER_ROUTES.has(path)
+  const scrolled = useScrolled()
   // ANY *@demo.local account is a demo identity (the "Explore the demo" viewer,
   // and the viewer@/manager@/admin@ role accounts the tour signs in as). The UI
   // frames all of them as "exploring the demo as <role> · read-only" — never as a
@@ -130,17 +134,20 @@ export function AppShell() {
       {onPaper ? <PaperBackground /> : <OrbsBackground subtle />}
 
       <header className={onPaper
-        ? "sticky top-0 z-40"
+        // Solid lime block (same paper + grain as the page) so content scrolling
+        // underneath never shows through the logo/menu. Looks identical at the top.
+        ? cn("sticky top-0 z-40 bg-[#A3E635] transition-shadow", scrolled && "shadow-[0_1px_0_oklch(0.2_0.035_150/0.14)]")
         : "sticky top-0 z-40 border-b border-border bg-background/75 shadow-soft backdrop-blur-lg"}>
-        <div className={cn("mx-auto flex h-16 items-center justify-between gap-4 px-6", headerMax)}>
+        {onPaper && <PaperGrain />}
+        <div className={cn("relative mx-auto flex h-16 items-center justify-between gap-4 px-6", headerMax)}>
           <Link to="/" className="shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight">
             X-RAY<span className={onPaper ? "text-accent" : "bg-gradient-to-r from-accent to-signal bg-clip-text text-transparent"}>/</span>
           </Link>
 
           {showProductNav ? (
             <nav data-tour="main-nav" className="hidden items-center gap-0.5 xl:flex">
-              {navFor(role).map((item) => (
-                <Link key={item.to} to={item.to} className={navLinkCompact}
+              {navFor(role, isDemo).map((item) => (
+                <Link key={item.to} to={item.to} data-tour={`nav-${item.to.slice(1)}`} className={navLinkCompact}
                   activeProps={{ className: navLinkActive }} inactiveProps={{ className: navLinkIdle }}>
                   {item.label}
                 </Link>
@@ -168,19 +175,21 @@ export function AppShell() {
             <XRayPanel />
             {realUser && <div className="hidden xl:block"><ActingAs label={role ?? session.user.email ?? "signed in"} /></div>}
             {isDemo && (
-              <div className={cn("hidden items-center gap-2", showProductNav ? "xl:flex" : "lg:flex")}>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground ring-1 ring-border">
-                  <ScanLine className="size-3" strokeWidth={2.25} /> {role ?? "demo"} · demo
-                </span>
-                <Link to="/register" className="rounded-full bg-accent px-4 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
-                  Create account
-                </Link>
+              <div className={cn("hidden shrink-0 items-center gap-2 whitespace-nowrap", showProductNav ? "xl:flex" : "lg:flex")}>
+                <DemoRoleSwitch role={role} email={session.user.email ?? ""} />
+                {/* With the full product nav the bar is tight; the demo banner right
+                    below carries the same CTA, so the header skips it. */}
+                {!showProductNav && (
+                  <Link to="/register" className="whitespace-nowrap rounded-full bg-accent px-4 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
+                    Create account
+                  </Link>
+                )}
                 <button onClick={exitDemo} className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground">Exit</button>
               </div>
             )}
             <div className={realUser ? "xl:hidden" : isDemo && showProductNav ? "xl:hidden" : isDemo ? "lg:hidden" : "md:hidden"}>
               <MobileNav mode={realUser ? "user" : isDemo ? "demo" : "anon"}
-                navItems={isExploreTour ? SHOWCASE : navFor(role)}
+                navItems={isExploreTour ? SHOWCASE : navFor(role, isDemo)}
                 identity={isDemo ? `${role ?? "demo"} · demo` : (role ?? session?.user.email ?? "signed in")}
                 onDemo={exploreDemo} onExitDemo={exitDemo} />
             </div>
@@ -190,7 +199,7 @@ export function AppShell() {
 
       {/* Demo banner — makes the read-only state unmistakable + nudges sign-up. */}
       {isDemo && !onPaper && (
-        <div className="border-b border-accent/20 bg-accent/[0.07]">
+        <div data-tour="demo-banner" className="border-b border-accent/20 bg-accent/[0.07]">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-2 px-6 py-2.5 text-sm">
             <span className="font-medium text-foreground">
               You're exploring the demo{role ? <> as <span className="uppercase">{role}</span></> : null} — read-only.
@@ -220,10 +229,79 @@ export function AppShell() {
           likely to miss the machinery. */}
       {session && !onPaper && <Tour autoOffer={isExploreTour} />}
 
-      {/* Full-screen code reveal (the current page's real source, IDE-style). */}
+      {/* X-RAY CODE inspect mode + the full-screen IDE it (and the tour) opens. */}
+      {session && !onPaper && <InspectLayer />}
       <CodeOverlay />
     </div>
     </XrayPanelProvider>
+  )
+}
+
+function useScrolled() {
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const on = () => setScrolled(window.scrollY > 8)
+    on()
+    window.addEventListener("scroll", on, { passive: true })
+    return () => window.removeEventListener("scroll", on)
+  }, [])
+  return scrolled
+}
+
+// Demo identities a visitor can switch between. Both are DB-locked read-only;
+// the Manager one additionally SEES the write side (Ingest, Connectors).
+const DEMO_ROLES = [
+  { email: DEMO_EMAIL, label: "Viewer", hint: "reads reports only" },
+  { email: "manager@demo.local", label: "Manager", hint: "+ upload, review, connectors" },
+] as const
+
+/** The "<role> · demo" chip — click it to switch demo identity. The guided tour
+ *  clicks it too (data-tour anchors), so a visitor SEES the role change happen. */
+function DemoRoleSwitch({ role, email }: { role: string | null; email: string }) {
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate()
+  const path = useRouterState({ select: (s) => s.location.pathname })
+
+  useEffect(() => {
+    if (!open) return
+    const off = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false) }
+    window.addEventListener("mousedown", off)
+    return () => window.removeEventListener("mousedown", off)
+  }, [open])
+
+  async function pick(target: string) {
+    setOpen(false)
+    if (target === email) return
+    setBusy(true)
+    await supabase.auth.signInWithPassword({ email: target, password: "demo123456" })
+    setBusy(false)
+    // The read-only viewer tour can't open write pages — land on the dashboard.
+    if (target === DEMO_EMAIL && DEMO_BLOCKED.has(path)) navigate({ to: "/dashboard" })
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button data-tour="role-switch" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open}
+        className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-secondary px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground ring-1 ring-border transition hover:text-foreground hover:ring-accent/50">
+        <ScanLine className="size-3" strokeWidth={2.25} /> {busy ? "switching…" : `${role ?? "demo"} · demo`}
+        <ChevronDown className="size-3 opacity-60" />
+      </button>
+      {open && (
+        <div role="menu" data-tour="role-menu" className="absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-xl bg-card p-1 shadow-soft ring-1 ring-border">
+          <p className="px-3 pb-1 pt-2 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">View the demo as</p>
+          {DEMO_ROLES.map((r) => (
+            <button key={r.email} role="menuitem" data-tour={`role-${r.label.toLowerCase()}`} onClick={() => pick(r.email)}
+              className={cn("flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-secondary",
+                r.email === email && "bg-accent/10")}>
+              <span className="font-mono text-xs uppercase tracking-wider">{r.label}</span>
+              <span className="text-[10px] text-muted-foreground">{r.hint}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 

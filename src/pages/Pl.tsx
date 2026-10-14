@@ -10,6 +10,7 @@ import { marginBridge, topAccounts } from "@/lib/data/aggregate"
 import { Sparkline, COLORS, ChartCard, Waterfall, TopAccountsBars } from "@/components/charts/FinancialCharts"
 import { LoadingNote, ErrorNote, EmptyNote } from "@/components/StateNote"
 import { SimpleSelect } from "@/components/ui/select"
+import { useTourControl } from "@/lib/tourBus"
 
 const eur = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 })
 // Accounting format — negatives in parentheses.
@@ -35,6 +36,9 @@ export function Pl() {
   const bridge = useMemo(() => marginBridge(chartRows), [chartRows])
   const top = useMemo(() => topAccounts(chartRows, 6), [chartRows])
 
+  // The guided tour can narrow the statement to one month (and back).
+  useTourControl("period", (v) => setPeriod(v === "@latest" ? (periods[0] ?? "all") : v))
+
   function toggle(id: string) {
     setCollapsed((cur) => { const n = new Set(cur); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
@@ -58,7 +62,7 @@ export function Pl() {
         <EmptyNote title="No report data for your entities" hint="Approve and load a batch on the Ingest page." />
       ) : (
         <div className="space-y-5">
-          <div className="flex flex-wrap items-center gap-3">
+          <div data-tour="pl-filters" className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
               Entity
               <SimpleSelect
@@ -92,16 +96,16 @@ export function Pl() {
 
           {/* Margin bridge + biggest lines of money — the "where did profit come
               from, and which accounts dominate" read, above the detail table. */}
-          <div data-tour="pl-charts" className="grid gap-5 lg:grid-cols-2">
-            <ChartCard title="Operating-income bridge" hint="revenue → EBITDA">
+          <div className="grid gap-5 lg:grid-cols-2">
+            <ChartCard tour="pl-bridge" title="Operating-income bridge" hint="revenue → EBITDA">
               <Waterfall steps={bridge} />
             </ChartCard>
-            <ChartCard title="Biggest lines of money" hint="top accounts">
+            <ChartCard tour="pl-top" title="Biggest lines of money" hint="top accounts">
               <TopAccountsBars data={top} />
             </ChartCard>
           </div>
 
-          <div className="overflow-hidden rounded-[1.5rem] bg-card shadow-soft ring-1 ring-border">
+          <div data-tour="pl-table" className="overflow-hidden rounded-[1.5rem] bg-card shadow-soft ring-1 ring-border">
             {/* column header */}
             <div className={cn(ROW, "border-b border-border py-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground")}>
               <span>Line</span>
@@ -116,7 +120,7 @@ export function Pl() {
               if (r.kind === "section") {
                 const open = !collapsed.has(r.id)
                 return (
-                  <button key={r.id} onClick={() => toggle(r.id)}
+                  <button key={r.id} data-tour="pl-section" onClick={() => toggle(r.id)}
                     className={cn(ROW, "w-full border-t border-border/60 py-2.5 text-left transition-colors hover:bg-secondary first:border-t-0")}>
                     <span className="flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-foreground/80">
                       <ChevronDown className={cn("size-3.5 transition-transform", !open && "-rotate-90")} /> {r.label}
@@ -169,5 +173,6 @@ function Var({ hasBudget, v, favorableUp, bold }: { hasBudget: boolean; v: numbe
 }
 function VarPct({ hasBudget, v, budget, bold }: { hasBudget: boolean; v: number; budget: number; bold?: boolean }) {
   if (!hasBudget || budget === 0) return <span className="text-right font-mono tabular-nums text-muted-foreground">—</span>
-  return <span className={cn("text-right font-mono tabular-nums text-muted-foreground", bold && "font-semibold")}>{((v / Math.abs(budget)) * 100).toFixed(0)}%</span>
+  const pct = Math.round((v / Math.abs(budget)) * 100) || 0 // no "-0%"
+  return <span className={cn("text-right font-mono tabular-nums text-muted-foreground", bold && "font-semibold")}>{pct}%</span>
 }

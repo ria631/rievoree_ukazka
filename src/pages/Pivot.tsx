@@ -9,6 +9,7 @@ import { buildPivot, DIM_LABEL, MEASURE_LABEL, type Dim, type Measure } from "@/
 import { ChartCard, MagnitudeBars } from "@/components/charts/FinancialCharts"
 import { LoadingNote, ErrorNote, EmptyNote } from "@/components/StateNote"
 import { SimpleSelect } from "@/components/ui/select"
+import { useTourControl } from "@/lib/tourBus"
 
 const DIMS: Dim[] = ["entity", "type", "account", "period"]
 const MEASURES: Measure[] = ["net", "debit", "credit"]
@@ -60,6 +61,9 @@ export function Pivot() {
   function setRow(d: Dim) { setRowDim(d); if (d === colDim) setColDim(DIMS.find((x) => x !== d)!) }
   function setCol(d: Dim) { setColDim(d); if (d === rowDim) setRowDim(DIMS.find((x) => x !== d)!) }
   function swap() { setRowDim(colDim); setColDim(rowDim) }
+  // The guided tour drives the same setters to demo a re-pivot.
+  useTourControl("pivot.rows", (v) => setRow(v as Dim))
+  useTourControl("pivot.cols", (v) => setCol(v as Dim))
 
   return (
     <div className="relative">
@@ -80,8 +84,8 @@ export function Pivot() {
         <EmptyNote title="No report data for your entities" hint="Approve and load a batch on the Ingest page." />
       ) : (
         <div className="space-y-5">
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+          <div data-tour="pivot-controls" className="flex flex-wrap items-center gap-3">
+            <label data-tour="pivot-rows" className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
               Rows
               <SimpleSelect
                 aria-label="Row dimension"
@@ -90,11 +94,11 @@ export function Pivot() {
                 options={DIMS.map((d) => ({ value: d, label: DIM_LABEL[d] }))}
               />
             </label>
-            <button onClick={swap} aria-label="Swap rows and columns"
+            <button data-tour="pivot-swap" onClick={swap} aria-label="Swap rows and columns"
               className="rounded-lg border border-border p-2 text-muted-foreground transition hover:border-accent hover:text-accent">
               <ArrowLeftRight className="size-3.5" />
             </button>
-            <label className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            <label data-tour="pivot-cols" className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
               Columns
               <SimpleSelect
                 aria-label="Column dimension"
@@ -151,13 +155,13 @@ export function Pivot() {
               </tfoot>
             </table>
           </motion.div>
-          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+          <p data-tour="pivot-caption" data-live={`${pivot.rows.length} ${DIM_LABEL[rowDim].toLowerCase()} rows × ${pivot.cols.length} ${DIM_LABEL[colDim].toLowerCase()} columns`} className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
             {pivot.rows.length} × {pivot.cols.length} · {MEASURE_LABEL[measure]} · shaded by magnitude · (x) = credit / negative net
           </p>
 
           {/* Magnitude by the row dimension — the table's heat as bars, so the
               biggest buckets of money read at a glance. */}
-          <ChartCard title={`Magnitude by ${DIM_LABEL[rowDim].toLowerCase()}`} hint={MEASURE_LABEL[measure]}>
+          <ChartCard tour="pivot-bars" title={`Magnitude by ${DIM_LABEL[rowDim].toLowerCase()}`} hint={MEASURE_LABEL[measure]}>
             <MagnitudeBars data={data.map((r) => ({ name: r.rowLabel, value: Math.abs(r.total) })).sort((a, b) => b.value - a.value)} />
           </ChartCard>
         </div>
