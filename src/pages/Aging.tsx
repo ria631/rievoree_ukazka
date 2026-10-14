@@ -4,7 +4,9 @@ import { cn } from "@/lib/utils"
 import { useInvoices } from "@/lib/data/useInvoices"
 import { useEntities } from "@/lib/data/useEntities"
 import { buildAging, BUCKETS, AS_OF } from "@/lib/data/aging"
-import { ChartCard, AgingStacked } from "@/components/charts/FinancialCharts"
+import { ChartCard, AgingStacked, CompositionBar } from "@/components/charts/FinancialCharts"
+
+const BUCKET_COLORS = ["#4fc99a", "#e0b341", "#e0843e", "#e5584d"] // 0–30 … 90+
 import { LoadingNote, ErrorNote, EmptyNote } from "@/components/StateNote"
 
 function cmp(n: number) {
@@ -78,9 +80,19 @@ export function Aging() {
             ))}
           </div>
 
-          <ChartCard title={`${kind === "ar" ? "Receivables" : "Payables"} aging by entity`} hint="stacked by bucket">
-            <AgingStacked data={chartData} buckets={BUCKETS} />
-          </ChartCard>
+          <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
+            <ChartCard title={`${kind === "ar" ? "Receivables" : "Payables"} aging by entity`} hint="stacked by bucket">
+              <AgingStacked data={chartData} buckets={BUCKETS} />
+            </ChartCard>
+            <ChartCard title="Collection risk · share by age" hint={`${overduePct.toFixed(0)}% overdue`}>
+              <div className="flex h-full flex-col justify-center">
+                <CompositionBar parts={BUCKETS.map((b, i) => ({ name: b, value: aging.bucketTotals[i], color: BUCKET_COLORS[i] }))} />
+                <p className="mt-4 font-mono text-[10px] leading-relaxed text-muted-foreground/80">
+                  The further right the weight, the slower the cash. 90+ is the hardest to collect.
+                </p>
+              </div>
+            </ChartCard>
+          </div>
 
           {/* Heatmap table — entity × bucket */}
           <div className="overflow-x-auto rounded-[1.5rem] bg-card shadow-soft ring-1 ring-border">

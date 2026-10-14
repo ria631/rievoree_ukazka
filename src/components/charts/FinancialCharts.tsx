@@ -240,3 +240,66 @@ export function TopAccountsBars({ data }: { data: { name: string; value: number;
     </ResponsiveContainer>
   )
 }
+
+/** Single-series area trend — e.g. cash position over 18 months. */
+export function CashTrend({ data }: { data: { month: string; value: number }[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={260}>
+      <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
+        <defs>
+          <linearGradient id="gCash" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={TEAL} stopOpacity={0.3} />
+            <stop offset="100%" stopColor={TEAL} stopOpacity={0.02} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid stroke={GRID} vertical={false} />
+        <XAxis dataKey="month" tick={{ fill: AXIS, fontSize: 11, fontFamily: "JetBrains Mono" }} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={24} />
+        <YAxis tick={{ fill: AXIS, fontSize: 11, fontFamily: "JetBrains Mono" }} tickLine={false} axisLine={false} tickFormatter={eurK} width={52} />
+        <Tooltip content={<DarkTooltip />} />
+        <Area isAnimationActive={ANIM} type="monotone" dataKey="value" name="Cash" stroke={TEAL} strokeWidth={2} fill="url(#gCash)" />
+      </AreaChart>
+    </ResponsiveContainer>
+  )
+}
+
+/** Horizontal magnitude bars (single accent colour) — e.g. pivot row totals. */
+export function MagnitudeBars({ data }: { data: { name: string; value: number }[] }) {
+  const height = Math.max(180, data.length * 38)
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 8 }}>
+        <CartesianGrid stroke={GRID} horizontal={false} />
+        <XAxis type="number" tick={{ fill: AXIS, fontSize: 11, fontFamily: "JetBrains Mono" }} tickLine={false} axisLine={false} tickFormatter={eurK} />
+        <YAxis type="category" dataKey="name" width={120} tick={{ fill: AXIS, fontSize: 11, fontFamily: "JetBrains Mono" }} tickLine={false} axisLine={false} />
+        <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+        <Bar dataKey="value" name="Magnitude" fill={EMERALD} radius={[0, 3, 3, 0]} isAnimationActive={ANIM} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
+/** A 100%-stacked composition bar (pure CSS) with a legend — crisp for a
+ *  "share of total" read (capital structure, aging buckets). */
+export function CompositionBar({ parts }: { parts: { name: string; value: number; color: string }[] }) {
+  const total = parts.reduce((s, p) => s + Math.max(0, p.value), 0) || 1
+  return (
+    <div>
+      <div className="flex h-5 w-full overflow-hidden rounded-full ring-1 ring-white/10">
+        {parts.map((p) => {
+          const pct = (Math.max(0, p.value) / total) * 100
+          if (pct <= 0) return null
+          return <div key={p.name} style={{ width: `${pct}%`, background: p.color }} title={`${p.name}: ${eur.format(p.value)}`} />
+        })}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
+        {parts.map((p) => (
+          <span key={p.name} className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
+            <span className="size-2.5 rounded-sm" style={{ background: p.color }} />
+            {p.name}
+            <span className="tabular-nums text-foreground/80">{eur.format(p.value)} · {((Math.max(0, p.value) / total) * 100).toFixed(0)}%</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}

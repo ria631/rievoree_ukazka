@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import { useReport } from "@/lib/data/useReport"
 import { useEntities } from "@/lib/data/useEntities"
 import { buildPivot, DIM_LABEL, MEASURE_LABEL, type Dim, type Measure } from "@/lib/data/pivot"
+import { ChartCard, MagnitudeBars } from "@/components/charts/FinancialCharts"
 import { LoadingNote, ErrorNote, EmptyNote } from "@/components/StateNote"
 import { SimpleSelect } from "@/components/ui/select"
 
@@ -153,6 +154,12 @@ export function Pivot() {
           <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
             {pivot.rows.length} × {pivot.cols.length} · {MEASURE_LABEL[measure]} · shaded by magnitude · (x) = credit / negative net
           </p>
+
+          {/* Magnitude by the row dimension — the table's heat as bars, so the
+              biggest buckets of money read at a glance. */}
+          <ChartCard title={`Magnitude by ${DIM_LABEL[rowDim].toLowerCase()}`} hint={MEASURE_LABEL[measure]}>
+            <MagnitudeBars data={data.map((r) => ({ name: r.rowLabel, value: Math.abs(r.total) })).sort((a, b) => b.value - a.value)} />
+          </ChartCard>
         </div>
       )}
     </div>

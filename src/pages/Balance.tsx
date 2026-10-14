@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils"
 import { useReport } from "@/lib/data/useReport"
 import { useEntities } from "@/lib/data/useEntities"
 import { buildBalanceSheet, cashFlowSteps, type BsLine } from "@/lib/data/balance"
-import { ChartCard, Waterfall } from "@/components/charts/FinancialCharts"
+import { executiveSeries } from "@/lib/data/aggregate"
+import { ChartCard, Waterfall, CashTrend, CompositionBar } from "@/components/charts/FinancialCharts"
 import { LoadingNote, ErrorNote, EmptyNote } from "@/components/StateNote"
 import { SimpleSelect } from "@/components/ui/select"
 
@@ -21,6 +22,11 @@ export function Balance() {
   const scoped = useMemo(() => (rows ?? []).filter((r) => entityId === "all" || r.entity_id === entityId), [rows, entityId])
   const bs = useMemo(() => buildBalanceSheet(scoped), [scoped])
   const cf = useMemo(() => cashFlowSteps(scoped), [scoped])
+  const cashTrend = useMemo(() => executiveSeries(scoped).map((p) => ({ month: p.month, value: p.cash })), [scoped])
+  const capital = useMemo(() => [
+    { name: "Liabilities", value: bs.totalLiabilities, color: "#e0843e" },
+    { name: "Equity", value: bs.totalEquity, color: "#4fc99a" },
+  ], [bs])
   const balanced = Math.abs(bs.check) < 1
 
   return (
@@ -67,6 +73,20 @@ export function Balance() {
               <Section title="Liabilities" lines={bs.liabilities} total={bs.totalLiabilities} totalLabel="Total liabilities" />
               <Section title="Equity" lines={bs.equity} total={bs.totalEquity} totalLabel="Total equity" />
             </div>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
+            <ChartCard title="Cash position" hint="18 months">
+              <CashTrend data={cashTrend} />
+            </ChartCard>
+            <ChartCard title="Capital structure" hint="how it's financed">
+              <div className="flex h-full flex-col justify-center">
+                <CompositionBar parts={capital} />
+                <p className="mt-4 font-mono text-[10px] leading-relaxed text-muted-foreground/80">
+                  Debt vs equity financing — a quick leverage read. Lower debt share = more solvent.
+                </p>
+              </div>
+            </ChartCard>
           </div>
 
           <ChartCard title="Cash flow · indirect" hint="trailing 12 months">
