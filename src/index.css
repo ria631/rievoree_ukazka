@@ -601,3 +601,10 @@
 
 /* Tour auto-play countdown under the step card. */
 @keyframes tour-progress { from { width: 0% } to { width: 100% } }
+
+/* Guided tour on a desktop: the card lives in a rail on the left and the page
+   slides right to make room, so the card never covers what it explains. */
+html.tour-rail main {
+  margin-left: max(var(--tour-left, 408px), calc((100vw - 72rem) / 2));
+  max-width: min(72rem, calc(100vw - var(--tour-left, 408px) - 8px));
+}

@@ -51,7 +51,7 @@ export function CodeTab() {
     return (
       <div className="flex h-full items-center justify-center px-6 text-center">
         <p className="font-mono text-xs leading-relaxed text-muted-foreground">
-          Open a product page (Dashboard, Reports, P&amp;L, Pivot…) and this tab maps
+          Open a product page (Dashboard, P&amp;L, Rent roll, Journal…) and this tab maps
           every chart and table on it to the real code behind it.
         </p>
       </div>

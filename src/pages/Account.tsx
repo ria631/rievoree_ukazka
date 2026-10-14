@@ -92,7 +92,7 @@ export function Account() {
 
         {error && <p role="alert" className="mt-4 font-mono text-xs text-destructive">{error}</p>}
         {saved && !error && (
-          <p className="mt-4 font-mono text-xs text-accent">Role updated — try the Ingest and Reports pages.</p>
+          <p className="mt-4 font-mono text-xs text-accent">Role updated — try the Ingest page and the reports.</p>
         )}
       </section>
 

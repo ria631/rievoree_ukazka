@@ -21,14 +21,17 @@ your own account.
    rows — the database decides, by `auth.uid()`, not the frontend. This runs in
    an isolated session, so your own view doesn't change.
 
-4. **Reports / P&L / Balance / Pivot / Variance / Aging.** Real figures from
-   `report_account_monthly`, RLS-filtered to the entities your role can see.
-   The balance sheet ties (A = L + E); the variance bridge sums to the total.
+4. **Dashboard / P&L / Rent roll / AR & AP / Budget flow / Forecast / Journal.**
+   The books of a four-building property group (office, retail, flats,
+   logistics), RLS-filtered to the entities your role can see. Every journal
+   document balances (debits = credits); open invoices tie to the receivables /
+   payables accounts; the cash budget's actuals are the tagged bank lines; the
+   forecast is built lease by lease from the rent roll, in the browser.
 
 5. **Sign in as a role to see the machinery** (login page → *Explore as a role*):
    - **Manager** → **Ingest**: upload a CSV (use the template), watch it get
      validated and z-score-screened; a batch at *Needs review* shows the flagged
-     anomaly. Approve it and the figures flow into Reports. **Connectors** shows
+     anomaly. Approve it and the figures flow into the reports. **Connectors** shows
      the Google Drive (simulate) + HMAC webhook paths.
    - **Admin** → **Users**: invite-by-email, roles, reset password/MFA,
      deactivate — every privileged change goes through an audited RPC.
@@ -59,7 +62,8 @@ CSV uploads are parsed in the browser and need no worker.
 
 ## What proves the flow actually ran
 
-- **Reports** gains the new period's rows after you approve a batch.
+- **P&L** and **Journal** gain the new period's rows after you approve a batch
+  (an upload shows in the journal as one "UP" document per batch).
 - **X-ray → Pipeline** streams `approved → refresh_enqueued → mv_refreshed`
   events over Realtime (the async trigger chain + pg_cron, made visible).
 - **X-ray → Calls** lists every request you triggered, timed at the fetch seam.

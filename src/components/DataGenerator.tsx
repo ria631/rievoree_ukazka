@@ -2,52 +2,49 @@ import { useMemo, useState } from "react"
 import { Dice5, Download } from "lucide-react"
 
 /**
- * Client-side demo-data generator. Produces a realistic month of double-entry
- * accounting rows in the exact CSV shape the ingest pipeline expects
- * (account_code,txn_date,debit,credit,currency,description) — including ONE
- * planted anomaly (a utilities spike) so, once uploaded, the z-score screen has
- * something to catch. Everything happens in the browser: no DB write, nothing
- * saved. It's the "try it with data like yours" hook that leads into sign-up.
+ * Client-side demo-data generator. Produces a realistic month of a building's
+ * books in the exact CSV shape the ingest pipeline expects
+ * (account_code,txn_date,debit,credit,currency,description) — rent billed to
+ * tenants, the month's running costs, and their receivable/payable sides, so
+ * the batch balances — with ONE planted anomaly (a utilities bill ~8× normal)
+ * for the z-score screen to catch. Everything happens in the browser: no DB
+ * write, nothing saved. It's the "try it with data like yours" hook.
  */
-const ACCOUNTS: { code: string; name: string; side: "debit" | "credit"; base: number }[] = [
-  { code: "4000", name: "Product sales", side: "credit", base: 42000 },
-  { code: "4100", name: "Service revenue", side: "credit", base: 16000 },
-  { code: "5000", name: "Cost of goods sold", side: "debit", base: 23000 },
-  { code: "6000", name: "Salaries", side: "debit", base: 18000 },
-  { code: "6100", name: "Rent", side: "debit", base: 4200 },
-  { code: "6200", name: "Utilities", side: "debit", base: 1600 },
-  { code: "6300", name: "Marketing", side: "debit", base: 3800 },
+const LINES: { code: string; name: string; side: "debit" | "credit"; base: number }[] = [
+  { code: "4000", name: "Rental income", side: "credit", base: 124000 },
+  { code: "4100", name: "Service charge income", side: "credit", base: 30000 },
+  { code: "5000", name: "Utilities", side: "debit", base: 15000 },
+  { code: "5100", name: "Repairs & maintenance", side: "debit", base: 6500 },
+  { code: "5200", name: "Property management", side: "debit", base: 4700 },
+  { code: "5600", name: "Cleaning & security", side: "debit", base: 9600 },
 ]
-
-const MONTHS = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"]
+const SPIKE = "5000" // Utilities
 
 function jitter(base: number): number {
-  // ±12% noise, rounded to whole euros.
-  return Math.round(base * (0.88 + Math.random() * 0.24))
+  // ±8% noise, rounded to whole euros.
+  return Math.round(base * (0.92 + Math.random() * 0.16))
 }
 
 function buildCsv(): { csv: string; rows: number; anomaly: string } {
-  const year = 2026
-  const month = MONTHS[Math.floor(Math.random() * 8)] // Jan–Aug, keeps it plausible
+  // The current month: the books are closed to last month, so this is "new".
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, "0")
+  const lastDay = Math.max(2, Math.min(25, now.getDate()))
+  const day = () => String(1 + Math.floor(Math.random() * lastDay)).padStart(2, "0")
   const lines = ["account_code,txn_date,debit,credit,currency,description"]
-  // Pick one expense account to spike ~10× — the planted anomaly.
-  const spikeIdx = 5 // Utilities
-  ACCOUNTS.forEach((a, i) => {
-    const day = String(2 + Math.floor(Math.random() * 25)).padStart(2, "0")
-    const date = `${year}-${month}-${day}`
+  let billed = 0, costs = 0
+  for (const a of LINES) {
     let amount = jitter(a.base)
     let desc = a.name
-    if (i === spikeIdx) { amount = amount * 10; desc = `${a.name} (billing error?)` }
-    const debit = a.side === "debit" ? amount : 0
-    const credit = a.side === "credit" ? amount : 0
-    lines.push(`${a.code},${date},${debit},${credit},EUR,${desc}`)
-  })
-  // A couple of extra cash movements for texture.
-  for (let k = 0; k < 2; k++) {
-    const day = String(5 + k * 10).padStart(2, "0")
-    lines.push(`1000,${year}-${month}-${day},${jitter(9000)},0,EUR,Customer payment`)
+    if (a.code === SPIKE) { amount *= 8; desc = `${a.name} (billing error?)` }
+    if (a.side === "credit") billed += amount; else costs += amount
+    lines.push(`${a.code},${year}-${month}-${day()},${a.side === "debit" ? amount : 0},${a.side === "credit" ? amount : 0},EUR,${desc}`)
   }
-  return { csv: lines.join("\n") + "\n", rows: lines.length - 1, anomaly: `${year}-${month} · Utilities ~10× its usual — the z-score screen flags it` }
+  // The other side of each entry, so the batch balances (debits = credits).
+  lines.push(`1100,${year}-${month}-01,${billed},0,EUR,Rent invoices to tenants`)
+  lines.push(`2000,${year}-${month}-${day()},0,${costs},EUR,Supplier invoices`)
+  return { csv: lines.join("\n") + "\n", rows: lines.length - 1, anomaly: `${year}-${month} · Utilities ~8× the usual bill — the z-score screen flags it` }
 }
 
 /** `compact` (inside the tour card): no CSV preview, one-line intro. */
@@ -74,12 +71,12 @@ export function DataGenerator({ compact = false }: { compact?: boolean } = {}) {
         </span>
       </div>
       {compact ? (
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">A month of books in the exact upload format, with one planted anomaly.</p>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">A month of a building’s books in the exact upload format, balanced, with one planted anomaly.</p>
       ) : (
         <>
           <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-            A month of books in the exact format the pipeline reads — with one planted
-            anomaly. Download it, then upload it as a real account to watch it get
+            A month of a building’s books in the exact format the pipeline reads —
+            balanced, with one planted anomaly. Download it, then upload it as a real account to watch it get
             validated, flagged and loaded.
           </p>
           <pre className="mt-3 overflow-x-auto rounded-lg bg-background p-3 font-mono text-[10px] leading-relaxed text-foreground/75">{preview}

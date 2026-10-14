@@ -3,6 +3,7 @@ import {
   createRoute,
   createRouter,
   lazyRouteComponent,
+  redirect,
 } from "@tanstack/react-router"
 import { AppShell, NotFoundScreen } from "./AppShell"
 // Public / auth pages load eagerly — they're the entry point and lightweight
@@ -14,7 +15,7 @@ import { ResetPassword } from "@/pages/ResetPassword"
 import { About } from "@/pages/About"
 
 /**
- * Code-based route tree (no codegen): 7 pages from PLAN.md §4 under one shell.
+ * Code-based route tree (no codegen): every page under one shell.
  *
  * Performance: the product pages pull the heavy libraries (recharts, nivo,
  * tanstack-table). They're lazy-loaded per route via `lazyRouteComponent`, so a
@@ -42,12 +43,15 @@ const routes = [
   createRoute({ getParentRoute: () => rootRoute, path: "/about", component: About }),
   createRoute({ getParentRoute: () => rootRoute, path: "/dashboard", component: lazy(() => import("@/pages/Dashboard"), "Dashboard") }),
   createRoute({ getParentRoute: () => rootRoute, path: "/ingest", component: lazy(() => import("@/pages/Ingest"), "Ingest") }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/reports", component: lazy(() => import("@/pages/Reports"), "Reports") }),
   createRoute({ getParentRoute: () => rootRoute, path: "/pl", component: lazy(() => import("@/pages/Pl"), "Pl") }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/balance", component: lazy(() => import("@/pages/Balance"), "Balance") }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/pivot", component: lazy(() => import("@/pages/Pivot"), "Pivot") }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/variance", component: lazy(() => import("@/pages/Variance"), "Variance") }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/aging", component: lazy(() => import("@/pages/Aging"), "Aging") }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/rent-roll", component: lazy(() => import("@/pages/RentRoll"), "RentRoll") }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/receivables", component: lazy(() => import("@/pages/Receivables"), "Receivables") }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/budget-flow", component: lazy(() => import("@/pages/BudgetFlow"), "BudgetFlow") }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/forecast", component: lazy(() => import("@/pages/Forecast"), "Forecast") }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/journal", component: lazy(() => import("@/pages/Journal"), "Journal") }),
+  // Old report URLs (pre real-estate model) land on their successors.
+  ...([["/reports", "/receivables"], ["/balance", "/budget-flow"], ["/pivot", "/forecast"], ["/variance", "/journal"], ["/aging", "/rent-roll"]] as const)
+    .map(([from, to]) => createRoute({ getParentRoute: () => rootRoute, path: from, beforeLoad: () => { throw redirect({ to }) } })),
   createRoute({ getParentRoute: () => rootRoute, path: "/connectors", component: lazy(() => import("@/pages/Connectors"), "Connectors") }),
   createRoute({ getParentRoute: () => rootRoute, path: "/users", component: lazy(() => import("@/pages/Users"), "Users") }),
   createRoute({ getParentRoute: () => rootRoute, path: "/account", component: lazy(() => import("@/pages/Account"), "Account") }),

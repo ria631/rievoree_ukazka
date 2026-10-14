@@ -348,16 +348,17 @@ export function Ingest() {
 
 const TEMPLATE_CSV =
   "account_code,txn_date,debit,credit,currency,description\n" +
-  "4000,2026-06-20,0,13000,EUR,Product sales\n" +
-  "6000,2026-06-25,14400,0,EUR,Salaries\n" +
-  "6200,2026-06-12,1350,0,EUR,Utilities\n"
+  "4000,2026-10-01,0,13000,EUR,Rent 10/2026 unit 3.01\n" +
+  "1100,2026-10-01,13000,0,EUR,Invoice SI-2026-0123\n" +
+  "5000,2026-10-12,1350,0,EUR,Electricity common areas\n" +
+  "2000,2026-10-12,0,1350,EUR,Invoice PI-2026-0456\n"
 
 const GUIDE_COLS: { col: string; desc: string }[] = [
-  { col: "account_code", desc: "Account number from your chart (e.g. 4000 sales, 6000 salaries)." },
-  { col: "txn_date", desc: "Date of the entry — YYYY-MM-DD (e.g. 2026-06-20)." },
+  { col: "account_code", desc: "Account number from your chart (e.g. 4000 rental income, 5000 utilities)." },
+  { col: "txn_date", desc: "Date of the entry — YYYY-MM-DD (e.g. 2026-10-12)." },
   { col: "debit / credit", desc: "The amount on ONE side; the other column is 0." },
   { col: "currency", desc: "3-letter code, e.g. EUR." },
-  { col: "description", desc: "Optional note (e.g. \"May salaries\")." },
+  { col: "description", desc: "Optional note (e.g. \"Rent 10/2026 unit 3.01\")." },
 ]
 
 /** "What to upload" — a plain explanation of the expected file + a template. */

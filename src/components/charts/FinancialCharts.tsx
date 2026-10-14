@@ -1,37 +1,38 @@
 import { useId, type ReactNode } from "react"
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, LabelList, Legend, Line,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, LabelList, Line,
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts"
 import { ResponsiveTreeMap } from "@nivo/treemap"
-import type { PnlPoint, Slice } from "@/lib/data/aggregate"
-import type { WfStep } from "@/lib/data/balance"
+import type { Slice, WfStep } from "@/lib/data/aggregate"
 
 // ── Palette ────────────────────────────────────────────────────────────────
 // One meaning per colour, everywhere (concrete hex — SVG fills don't resolve CSS
-// vars). Revenue / Expenses / Profit are a validated categorical trio for the
-// dark card surface (OKLCH L 0.64–0.67, colour-blind ΔE ≥ 18). Totals in a
-// waterfall are neutral slate; only a DECREASE uses red.
-const REVENUE = "#23ac74"
-const EXPENSE = "#847ce2"
-const PROFIT = "#c28700"
-const CASH = "#31a4af"
+// vars). Income / Costs / NOI / Cash are a validated categorical set for the
+// dark card surface (OKLCH L 0.48–0.67, chroma ≥ 0.1, adjacent CVD ΔE ≥ 9).
+// Totals in a bridge are neutral slate; only a DECREASE uses red.
+const INCOME = "#23ac74"
+const COST = "#847ce2"
+const NOI = "#c28700"
+const CASH = "#00a6c2"
 const TOTAL = "#78889b"
 const DOWN = "#da534f"
-const UP = REVENUE
+const UP = INCOME
 const RAMP = ["#68d7a1", "#53c48e", "#3db07c", "#239d6a", "#008b59", "#007948"] // magnitude, big → small
 const GRID = "rgba(255,255,255,0.06)"
 const AXIS = "rgba(255,255,255,0.45)"
 const INK = "rgba(255,255,255,0.86)"
 const SURFACE = "#16171b"
 
-export const COLORS = { emerald: REVENUE, teal: CASH, amber: PROFIT, violet: EXPENSE }
-const BUCKET_COLORS = ["#4fc99a", "#e0b341", "#e0843e", "#e5584d"] // 0–30 … 90+ (a risk scale)
+export const COLORS = { income: INCOME, cost: COST, noi: NOI, cash: CASH, total: TOTAL, down: DOWN }
+/** Aging risk scale — not due → 90+ days past due. */
+export const BUCKET_COLORS = ["#4fc99a", "#d6b53f", "#e0843e", "#e5584d", "#b03a62"]
+/** Journal document types. */
+export const DOC_COLORS: Record<string, string> = { SI: INCOME, PI: COST, BS: CASH, GJ: NOI, OB: TOTAL, UP: "#a3adb9" }
 
 // Chart-internal animations are OFF: recharts/nivo animate in JavaScript, every
-// frame, for every chart — on a page with 7 charts a filter change meant ~1 s of
-// stutter. Data updates are instant instead; the cards themselves still fade in
-// (CSS/GPU) as they scroll into view.
+// frame, for every chart — on a page with several charts a filter change meant
+// ~1 s of stutter. Data updates are instant; the cards themselves fade in (GPU).
 const ANIM = false
 
 const eur = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 })
@@ -51,27 +52,30 @@ const LABEL = { fill: INK, fontSize: 11, fontFamily: "JetBrains Mono" } as const
 const Y_W = 62
 
 /** Dark card wrapper for a chart with a mono title + optional hint. */
-export function ChartCard({ title, hint, tour, children }: { title: string; hint?: string; tour?: string; children: ReactNode }) {
+export function ChartCard({ title, hint, tour, children, className }: { title: string; hint?: string; tour?: string; children: ReactNode; className?: string }) {
   return (
     // `tour` = the anchor the guided tour + X-RAY CODE inspector point at.
-    <div data-tour={tour} className="rounded-[1.5rem] bg-card p-5 shadow-soft ring-1 ring-border md:p-6">
+    <div data-tour={tour} className={`rounded-[1.5rem] bg-card p-5 shadow-soft ring-1 ring-border md:p-6 ${className ?? ""}`}>
       <div className="mb-4 flex items-baseline justify-between gap-3">
         <h3 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">{title}</h3>
-        {hint && <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground/70">{hint}</span>}
+        {hint && <span className="text-right font-mono text-[10px] uppercase tracking-widest text-muted-foreground/70">{hint}</span>}
       </div>
       {children}
     </div>
   )
 }
 
+type LegendItem = { label: string; color: string; kind?: "bar" | "line" | "dash" | "dot" | "area" }
+
 /** A legend in fixed series order (recharts' own sorts alphabetically). */
-function SeriesLegend({ items }: { items: { label: string; color: string; kind?: "bar" | "line" | "area" }[] }) {
+export function SeriesLegend({ items }: { items: LegendItem[] }) {
   return (
     <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-1.5 font-mono text-[11px] text-muted-foreground">
       {items.map((it) => (
         <span key={it.label} className="inline-flex items-center gap-2">
-          {it.kind === "line"
-            ? <span className="h-0.5 w-4 rounded-full" style={{ background: it.color }} />
+          {it.kind === "line" ? <span className="h-0.5 w-4 rounded-full" style={{ background: it.color }} />
+            : it.kind === "dash" ? <span className="w-4 border-t-2 border-dashed" style={{ borderColor: it.color }} />
+            : it.kind === "dot" ? <span className="w-4 border-t-2 border-dotted" style={{ borderColor: it.color }} />
             : <span className="size-2.5 rounded-[3px]" style={{ background: it.color, opacity: it.kind === "area" ? 0.75 : 1 }} />}
           {it.label}
         </span>
@@ -80,16 +84,20 @@ function SeriesLegend({ items }: { items: { label: string; color: string; kind?:
   )
 }
 
-function DarkTooltip({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) {
-  if (!active || !payload?.length) return null
+type Fmt = (v: number) => string
+function DarkTooltip({ active, payload, label, fmt = (v) => eur.format(v) }: {
+  active?: boolean; payload?: { name: string; value: number; color: string; stroke?: string }[]; label?: string; fmt?: Fmt
+}) {
+  const rows = (payload ?? []).filter((p) => p.value != null)
+  if (!active || !rows.length) return null
   return (
     <div className="rounded-xl bg-[#14151a] px-3 py-2 font-mono text-xs shadow-soft ring-1 ring-white/15">
       {label && <div className="mb-1 text-white/55">{label}</div>}
-      {payload.map((p) => (
+      {rows.map((p) => (
         <div key={p.name} className="flex items-center gap-2 tabular-nums">
-          <span className="size-2 rounded-full" style={{ background: p.color }} />
+          <span className="size-2 rounded-full" style={{ background: p.color ?? p.stroke }} />
           <span className="text-white/60">{p.name}</span>
-          <span className="ml-auto pl-3 text-white/90">{/%/.test(p.name) ? `${Number(p.value).toFixed(1)}%` : eur.format(Number(p.value))}</span>
+          <span className="ml-auto pl-3 text-white/90">{fmt(Number(p.value))}</span>
         </div>
       ))}
     </div>
@@ -106,7 +114,7 @@ function lastDot(len: number, color: string) {
 
 /** Tiny inline sparkline for KPI cards and statement lines (no axes/grid). A
  *  flat series draws as a quiet dashed line, not a solid block. */
-export function Sparkline({ data, color = REVENUE }: { data: number[]; color?: string }) {
+export function Sparkline({ data, color = INCOME }: { data: number[]; color?: string }) {
   const id = useId().replace(/[^a-zA-Z0-9]/g, "")
   const d = data.map((v, i) => ({ i, v }))
   const min = Math.min(...data), max = Math.max(...data)
@@ -148,7 +156,7 @@ function WrapTick({ x, y, payload }: { x?: number; y?: number; payload?: { value
   const lines: string[] = []
   let cur = ""
   for (const w of words) {
-    if (cur && `${cur} ${w}`.length > 12) { lines.push(cur); cur = w } else cur = cur ? `${cur} ${w}` : w
+    if (cur && `${cur} ${w}`.length > 10) { lines.push(cur); cur = w } else cur = cur ? `${cur} ${w}` : w
   }
   if (cur) lines.push(cur)
   return (
@@ -163,11 +171,11 @@ function WrapTick({ x, y, payload }: { x?: number; y?: number; payload?: { value
 /** WATERFALL (bridges) — a stacked bar on a transparent base. Increases green,
  *  decreases red, levels/totals neutral; every step is labelled with its signed
  *  amount, and a zero step still shows as a hairline so it reads as "nothing". */
-export function Waterfall({ steps }: { steps: WfStep[] }) {
+export function Waterfall({ steps, height = 300 }: { steps: WfStep[]; height?: number }) {
   let run = 0
-  const data = steps.map((s) => {
+  const data = steps.map((s, i) => {
     if (s.isTotal) {
-      run = s.value // a total rebases the running line (supports leading-total bridges)
+      run = s.value // a total rebases the running line
       return { name: s.name, base: 0, bar: Math.abs(s.value), color: TOTAL, val: s.value, total: true, lab: eurShort(s.value) }
     }
     const start = run
@@ -175,12 +183,12 @@ export function Waterfall({ steps }: { steps: WfStep[] }) {
     return {
       name: s.name, base: Math.min(start, run), bar: Math.abs(s.value),
       color: s.value > 0 ? UP : s.value < 0 ? DOWN : TOTAL, val: s.value, total: false,
-      lab: start === 0 && s === steps[0] ? eurShort(s.value) : signed(s.value),
+      lab: start === 0 && i === 0 ? eurShort(s.value) : signed(s.value),
     }
   })
   return (
     <div>
-      <ResponsiveContainer width="100%" height={300}>
+      <ResponsiveContainer width="100%" height={height}>
         <BarChart data={data} margin={{ top: 20, right: 8, bottom: 0, left: 0 }}>
           <CartesianGrid stroke={GRID} vertical={false} />
           <XAxis dataKey="name" interval={0} tick={<WrapTick />} height={38} tickLine={false} axisLine={{ stroke: GRID }} />
@@ -198,112 +206,47 @@ export function Waterfall({ steps }: { steps: WfStep[] }) {
   )
 }
 
-/** Stacked aging bars — one bar per entity, stacked by aging bucket. */
-export function AgingStacked({ data, buckets }: { data: Record<string, string | number>[]; buckets: readonly string[] }) {
-  return (
-    <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-        <CartesianGrid stroke={GRID} vertical={false} />
-        <XAxis dataKey="name" interval={0} tick={<WrapTick />} height={38} tickLine={false} axisLine={{ stroke: GRID }} />
-        <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={eurShort} width={Y_W} />
-        <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-        <Legend wrapperStyle={{ fontFamily: "JetBrains Mono", fontSize: 11, color: AXIS }} />
-        {buckets.map((b, i) => (
-          <Bar key={b} dataKey={b} name={b} stackId="age" fill={BUCKET_COLORS[i % BUCKET_COLORS.length]}
-            stroke={SURFACE} strokeWidth={1}
-            radius={i === buckets.length - 1 ? [4, 4, 0, 0] : undefined} isAnimationActive={ANIM} />
-        ))}
-      </BarChart>
-    </ResponsiveContainer>
-  )
-}
-
-/** Revenue (bars) and operating margin (%) as two ALIGNED panels sharing one
- *  time axis and one hover — never two y-scales on one chart. The latest month
- *  is emphasised and labelled; history recedes. */
-export function RevenueMarginCombo({ data }: { data: { month: string; revenue: number; marginPct: number }[] }) {
-  const id = useId().replace(/[^a-zA-Z0-9]/g, "")
-  const last = data.length - 1
-  const rows = data.map((d, i) => ({ ...d, lab: i === last ? eurShort(d.revenue) : "" }))
-  return (
-    <div>
-      <p className="mb-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground/80">Revenue · per month</p>
-      <ResponsiveContainer width="100%" height={200}>
-        <BarChart data={rows} syncId={`rm${id}`} margin={{ top: 18, right: 8, bottom: 0, left: 0 }}>
-          <CartesianGrid stroke={GRID} vertical={false} />
-          <XAxis dataKey="month" hide />
-          <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={eurShort} width={Y_W} tickCount={4} />
-          <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-          <Bar dataKey="revenue" name="Revenue" radius={[4, 4, 0, 0]} isAnimationActive={ANIM}>
-            {rows.map((_, i) => <Cell key={i} fill={REVENUE} fillOpacity={i === last ? 1 : 0.5} />)}
-            <LabelList dataKey="lab" position="top" style={LABEL} />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-      <p className="mb-1 mt-3 font-mono text-[10px] uppercase tracking-widest text-muted-foreground/80">Operating margin · %</p>
-      <ResponsiveContainer width="100%" height={110}>
-        <AreaChart data={rows} syncId={`rm${id}`} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-          <defs>
-            <linearGradient id={`mg${id}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={PROFIT} stopOpacity={0.3} />
-              <stop offset="100%" stopColor={PROFIT} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid stroke={GRID} vertical={false} />
-          <XAxis dataKey="month" tick={TICK} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={24} />
-          <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={(v) => `${Math.round(Number(v))}%`} width={Y_W} tickCount={3} domain={["auto", "auto"]} />
-          <Tooltip content={<DarkTooltip />} />
-          <Area dataKey="marginPct" name="Margin %" type="monotone" stroke={PROFIT} strokeWidth={2} fill={`url(#mg${id})`}
-            dot={lastDot(rows.length, PROFIT)} isAnimationActive={ANIM} />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  )
-}
-
-/** Revenue and expenses as lines, profit (the gap) as a soft area. Clicking a
- *  month calls onSelectMonth (interactive drill into the table / period filter). */
-export function PnlTrend({ data, onSelectMonth }: { data: PnlPoint[]; onSelectMonth?: (month: string) => void }) {
+/** Revenue and operating costs as lines, NOI (the gap the building earns) as a
+ *  soft area. Months come pre-labelled ("Sep 26"). */
+export function NoiTrend({ data }: { data: { month: string; revenue: number; opex: number; noi: number }[] }) {
   const id = useId().replace(/[^a-zA-Z0-9]/g, "")
   return (
     <div>
       <ResponsiveContainer width="100%" height={290}>
-        <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
-          onClick={(s) => { const m = s?.activeLabel; if (onSelectMonth && m != null) onSelectMonth(String(m)) }}
-          style={{ cursor: onSelectMonth ? "pointer" : "default" }}>
+        <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <defs>
-            <linearGradient id={`pf${id}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={PROFIT} stopOpacity={0.32} />
-              <stop offset="100%" stopColor={PROFIT} stopOpacity={0.02} />
+            <linearGradient id={`nf${id}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={NOI} stopOpacity={0.32} />
+              <stop offset="100%" stopColor={NOI} stopOpacity={0.02} />
             </linearGradient>
           </defs>
           <CartesianGrid stroke={GRID} vertical={false} />
           <XAxis dataKey="month" tick={TICK} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={24} />
           <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={eurShort} width={Y_W} />
           <Tooltip content={<DarkTooltip />} />
-          <Area isAnimationActive={ANIM} type="monotone" dataKey="profit" name="Profit" stroke={PROFIT} strokeWidth={1.8} fill={`url(#pf${id})`} />
-          <Line isAnimationActive={ANIM} type="monotone" dataKey="revenue" name="Revenue" stroke={REVENUE} strokeWidth={2.2} dot={false} activeDot={{ r: 4 }} />
-          <Line isAnimationActive={ANIM} type="monotone" dataKey="expenses" name="Expenses" stroke={EXPENSE} strokeWidth={2.2} dot={false} activeDot={{ r: 4 }} />
+          <Area isAnimationActive={ANIM} type="monotone" dataKey="noi" name="NOI" stroke={NOI} strokeWidth={1.8} fill={`url(#nf${id})`} />
+          <Line isAnimationActive={ANIM} type="monotone" dataKey="revenue" name="Revenue" stroke={INCOME} strokeWidth={2.2} dot={false} activeDot={{ r: 4 }} />
+          <Line isAnimationActive={ANIM} type="monotone" dataKey="opex" name="Operating costs" stroke={COST} strokeWidth={2.2} dot={false} activeDot={{ r: 4 }} />
         </ComposedChart>
       </ResponsiveContainer>
       <SeriesLegend items={[
-        { label: "Revenue", color: REVENUE, kind: "line" },
-        { label: "Expenses", color: EXPENSE, kind: "line" },
-        { label: "Profit (the gap)", color: PROFIT, kind: "area" },
+        { label: "Revenue", color: INCOME, kind: "line" },
+        { label: "Operating costs", color: COST, kind: "line" },
+        { label: "NOI (the gap)", color: NOI, kind: "area" },
       ]} />
     </div>
   )
 }
 
-/** Expense mix as a TREEMAP (not a pie). One hue, lighter = bigger, each tile
+/** Cost mix as a TREEMAP (not a pie). One hue, lighter = bigger, each tile
  *  labelled with its share — magnitude, not a rainbow of alarm colours. */
-export function ExpenseTreemap({ data }: { data: Slice[] }) {
+export function ExpenseTreemap({ data, height = 300 }: { data: Slice[]; height?: number }) {
   const sorted = [...data].sort((a, b) => b.value - a.value)
   const total = sorted.reduce((s, d) => s + d.value, 0) || 1
   const shade = new Map(sorted.map((d, i) => [d.name, RAMP[Math.min(i, RAMP.length - 1)]]))
-  const root = { name: "Expenses", children: sorted.map((d) => ({ name: d.name, value: d.value })) }
+  const root = { name: "Costs", children: sorted.map((d) => ({ name: d.name, value: d.value })) }
   return (
-    <div style={{ height: 300 }}>
+    <div style={{ height }}>
       <ResponsiveTreeMap
         data={root}
         identity="name"
@@ -335,124 +278,213 @@ export function ExpenseTreemap({ data }: { data: Slice[] }) {
   )
 }
 
-/** Month-over-month growth (%) — revenue vs expenses, grouped, around a clear
- *  zero line. Expenses outgrowing revenue = margin squeeze. */
-export function GrowthBars({ data }: { data: { month: string; revGrowth: number; expGrowth: number }[] }) {
-  return (
-    <div>
-      <ResponsiveContainer width="100%" height={260}>
-        <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={2}>
-          <CartesianGrid stroke={GRID} vertical={false} />
-          <XAxis dataKey="month" tick={TICK} tickLine={false} axisLine={false} minTickGap={24} />
-          <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={(v) => `${Math.round(Number(v))}%`} width={Y_W} />
-          <ReferenceLine y={0} stroke="rgba(255,255,255,0.28)" />
-          <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-          <Bar dataKey="revGrowth" name="Revenue %" fill={REVENUE} radius={[3, 3, 3, 3]} isAnimationActive={ANIM} />
-          <Bar dataKey="expGrowth" name="Expenses %" fill={EXPENSE} radius={[3, 3, 3, 3]} isAnimationActive={ANIM} />
-        </BarChart>
-      </ResponsiveContainer>
-      <SeriesLegend items={[{ label: "Revenue growth", color: REVENUE }, { label: "Expense growth", color: EXPENSE }]} />
-    </div>
-  )
-}
-
-/** Horizontal "leaderboard" — top accounts by size, revenue vs expense, each
+/** Ranked horizontal bars in one hue (NOI per building, tenant share…), each
  *  labelled at the bar end so it reads without a hover. */
-export function TopAccountsBars({ data }: { data: { name: string; value: number; kind: "revenue" | "expense" }[] }) {
-  const height = Math.max(200, data.length * 42)
-  return (
-    <div>
-      <ResponsiveContainer width="100%" height={height}>
-        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 60, bottom: 0, left: 4 }}>
-          <CartesianGrid stroke={GRID} horizontal={false} />
-          <XAxis type="number" tick={TICK} tickLine={false} axisLine={false} tickFormatter={eurShort} />
-          <YAxis type="category" dataKey="name" width={132} tick={TICK} tickLine={false} axisLine={false} />
-          <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-          <Bar dataKey="value" name="Amount" radius={[0, 4, 4, 0]} barSize={22} isAnimationActive={ANIM}>
-            {data.map((d, i) => <Cell key={i} fill={d.kind === "revenue" ? REVENUE : EXPENSE} />)}
-            <LabelList dataKey="value" position="right" formatter={(v) => eurShort(Number(v))} style={LABEL} />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-      <SeriesLegend items={[{ label: "Revenue", color: REVENUE }, { label: "Expense", color: EXPENSE }]} />
-    </div>
-  )
-}
-
-/** Single-series area trend — e.g. cash position over 18 months; the latest
- *  value is marked and labelled. */
-export function CashTrend({ data }: { data: { month: string; value: number }[] }) {
-  const id = useId().replace(/[^a-zA-Z0-9]/g, "")
-  const last = data.length - 1
-  const rows = data.map((d, i) => ({ ...d, lab: i === last ? eurShort(d.value) : "" }))
-  return (
-    <ResponsiveContainer width="100%" height={260}>
-      <AreaChart data={rows} margin={{ top: 22, right: 40, bottom: 0, left: 0 }}>
-        <defs>
-          <linearGradient id={`ca${id}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={CASH} stopOpacity={0.32} />
-            <stop offset="100%" stopColor={CASH} stopOpacity={0.02} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid stroke={GRID} vertical={false} />
-        <XAxis dataKey="month" tick={TICK} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={24} />
-        <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={eurShort} width={Y_W} />
-        <Tooltip content={<DarkTooltip />} />
-        <Area isAnimationActive={ANIM} type="monotone" dataKey="value" name="Cash" stroke={CASH} strokeWidth={2.2}
-          fill={`url(#ca${id})`} dot={lastDot(rows.length, CASH)}>
-          <LabelList dataKey="lab" position="top" style={LABEL} />
-        </Area>
-      </AreaChart>
-    </ResponsiveContainer>
-  )
-}
-
-/** Horizontal magnitude bars (one hue) — e.g. pivot row totals, ranked. */
-export function MagnitudeBars({ data }: { data: { name: string; value: number }[] }) {
-  const height = Math.max(180, data.length * 40)
+export function RankBars({ data, fmt = eurShort, color = RAMP[2], labelWidth = 150, height }: {
+  data: { name: string; value: number }[]; fmt?: Fmt; color?: string; labelWidth?: number; height?: number
+}) {
+  height ??= Math.max(160, data.length * 38)
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 60, bottom: 0, left: 4 }}>
+      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 64, bottom: 0, left: 4 }}>
         <CartesianGrid stroke={GRID} horizontal={false} />
-        <XAxis type="number" tick={TICK} tickLine={false} axisLine={false} tickFormatter={eurShort} />
-        <YAxis type="category" dataKey="name" width={150} tick={TICK} tickLine={false} axisLine={false} />
-        <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-        <Bar dataKey="value" name="Magnitude" radius={[0, 4, 4, 0]} barSize={20} isAnimationActive={ANIM}>
-          {data.map((_, i) => <Cell key={i} fill={RAMP[2]} fillOpacity={i < 3 ? 1 : 0.6} />)}
-          <LabelList dataKey="value" position="right" formatter={(v) => eurShort(Number(v))} style={LABEL} />
+        <XAxis type="number" tick={TICK} tickLine={false} axisLine={false} tickFormatter={fmt} />
+        <YAxis type="category" dataKey="name" width={labelWidth} tick={TICK} tickLine={false} axisLine={false} interval={0} />
+        <Tooltip content={<DarkTooltip fmt={fmt} />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+        <Bar dataKey="value" name="Value" radius={[0, 4, 4, 0]} barSize={18} fill={color} isAnimationActive={ANIM}>
+          <LabelList dataKey="value" position="right" formatter={(v) => fmt(Number(v))} style={LABEL} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
   )
 }
 
-/** A 100%-stacked composition bar (pure CSS) with a legend — crisp for a
- *  "share of total" read (capital structure, aging buckets). */
-export function CompositionBar({ parts }: { parts: { name: string; value: number; color: string }[] }) {
-  const total = parts.reduce((s, p) => s + Math.max(0, p.value), 0) || 1
+/** 1, 2, 2.5 or 5 × 10ⁿ — the smallest round step ≥ x. */
+function niceStep(x: number): number {
+  if (x <= 0) return 1
+  const p = Math.pow(10, Math.floor(Math.log10(x)))
+  return ([1, 2, 2.5, 5, 10].find((m) => m * p >= x) ?? 10) * p
+}
+
+/** A bar-end label that sits OUTSIDE the bar on whichever side it grows. */
+function EndLabel(p: { x?: unknown; y?: unknown; width?: unknown; height?: unknown; value?: unknown }) {
+  const x = Number(p.x ?? 0), w = Number(p.width ?? 0), y = Number(p.y ?? 0), h = Number(p.height ?? 0)
+  const v = Number(p.value ?? 0)
+  const left = Math.min(x, x + w), right = Math.max(x, x + w)
+  return (
+    <text x={v >= 0 ? right + 6 : left - 6} y={y + h / 2} dy={3.5} textAnchor={v >= 0 ? "start" : "end"}
+      fill={INK} fontSize={10.5} fontFamily="JetBrains Mono">{signed(v)}</text>
+  )
+}
+
+/** Budget variance per line, diverging around zero: right/green = better than
+ *  plan, left/red = worse. Sorted by impact. */
+export function VarianceBars({ data }: { data: { name: string; value: number }[] }) {
+  const height = Math.max(180, data.length * 36)
+  // A symmetric, round scale around zero (±2 nice steps) with room for labels.
+  const lo = Math.min(0, ...data.map((d) => d.value)), hi = Math.max(0, ...data.map((d) => d.value))
+  const step = niceStep(Math.max(-lo, hi) * 1.3 / 2)
+  const ticks = [...(lo < 0 ? [-2 * step, -step] : []), 0, ...(hi > 0 ? [step, 2 * step] : [])]
   return (
     <div>
-      <div className="flex h-7 w-full gap-[2px] overflow-hidden rounded-lg">
-        {parts.map((p) => {
-          const pct = (Math.max(0, p.value) / total) * 100
-          if (pct <= 0) return null
-          return (
-            <div key={p.name} className="flex items-center justify-center font-mono text-[10px] font-semibold text-black/75"
-              style={{ width: `${pct}%`, background: p.color }} title={`${p.name}: ${eur.format(p.value)}`}>
-              {pct >= 9 ? `${pct.toFixed(0)}%` : ""}
-            </div>
-          )
-        })}
-      </div>
-      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
-        {parts.map((p) => (
-          <span key={p.name} className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
-            <span className="size-2.5 rounded-sm" style={{ background: p.color }} />
-            {p.name}
-            <span className="tabular-nums text-foreground/80">{eur.format(p.value)} · {((Math.max(0, p.value) / total) * 100).toFixed(0)}%</span>
-          </span>
-        ))}
-      </div>
+      <ResponsiveContainer width="100%" height={height}>
+        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 52, bottom: 0, left: 4 }}>
+          <CartesianGrid stroke={GRID} horizontal={false} />
+          <XAxis type="number" tick={TICK} tickLine={false} axisLine={false} tickFormatter={eurShort}
+            domain={[ticks[0], ticks[ticks.length - 1]]} ticks={ticks} />
+          <YAxis type="category" dataKey="name" width={150} tick={TICK} tickLine={false} axisLine={false} interval={0} />
+          <ReferenceLine x={0} stroke="rgba(255,255,255,0.3)" />
+          <Tooltip content={<DarkTooltip fmt={signed} />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+          <Bar dataKey="value" name="vs budget" radius={4} barSize={16} isAnimationActive={ANIM}>
+            {data.map((d, i) => <Cell key={i} fill={d.value >= 0 ? UP : DOWN} />)}
+            <LabelList dataKey="value" content={EndLabel} />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+      <SeriesLegend items={[{ label: "Better than budget", color: UP }, { label: "Worse than budget", color: DOWN }]} />
+    </div>
+  )
+}
+
+/** Lease expiry profile — annual rent falling due by time to expiry, labelled
+ *  with its share of today's income. One hue: it's a magnitude; the nearest
+ *  bucket (the real risk) is amber. */
+export function ExpiryBars({ data }: { data: { name: string; value: number; share: number }[] }) {
+  const rows = data.map((d) => ({ ...d, lab: d.value > 0 ? `${eurShort(d.value)} · ${Math.round(d.share)}%` : "" }))
+  return (
+    <ResponsiveContainer width="100%" height={260}>
+      <BarChart data={rows} margin={{ top: 22, right: 8, bottom: 0, left: 0 }}>
+        <CartesianGrid stroke={GRID} vertical={false} />
+        <XAxis dataKey="name" tick={TICK} tickLine={false} axisLine={{ stroke: GRID }} />
+        <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={eurShort} width={Y_W} />
+        <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+        <Bar dataKey="value" name="Rent p.a. expiring" radius={[4, 4, 0, 0]} isAnimationActive={ANIM}>
+          {rows.map((_, i) => <Cell key={i} fill={i === 0 ? NOI : RAMP[3]} />)}
+          <LabelList dataKey="lab" position="top" style={{ ...LABEL, fontSize: 10.5 }} />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
+/** Stacked aging bars — one bar per property, stacked by days-past-due bucket. */
+export function AgingStacked({ data, buckets }: { data: Record<string, string | number>[]; buckets: readonly string[] }) {
+  return (
+    <div>
+      <ResponsiveContainer width="100%" height={280}>
+        <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+          <CartesianGrid stroke={GRID} vertical={false} />
+          <XAxis dataKey="name" interval={0} tick={<WrapTick />} height={38} tickLine={false} axisLine={{ stroke: GRID }} />
+          <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={eurShort} width={Y_W} />
+          <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+          {buckets.map((b, i) => (
+            <Bar key={b} dataKey={b} name={b} stackId="age" fill={BUCKET_COLORS[i]} stroke={SURFACE} strokeWidth={1}
+              radius={i === buckets.length - 1 ? [4, 4, 0, 0] : undefined} isAnimationActive={ANIM} />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+      <SeriesLegend items={buckets.map((b, i) => ({ label: i === 0 ? b : `${b} days`, color: BUCKET_COLORS[i] }))} />
+    </div>
+  )
+}
+
+/** What happened to each month's invoices: paid on time / paid late / still open. */
+export function SettlementBars({ data, paidLabel }: { data: { month: string; onTime: number; late: number; open: number }[]; paidLabel: string }) {
+  return (
+    <div>
+      <ResponsiveContainer width="100%" height={260}>
+        <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+          <CartesianGrid stroke={GRID} vertical={false} />
+          <XAxis dataKey="month" tick={TICK} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={16} />
+          <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={eurShort} width={Y_W} />
+          <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+          <Bar dataKey="onTime" name={`${paidLabel} on time`} stackId="s" fill={INCOME} stroke={SURFACE} strokeWidth={1} isAnimationActive={ANIM} />
+          <Bar dataKey="late" name={`${paidLabel} late`} stackId="s" fill={NOI} stroke={SURFACE} strokeWidth={1} isAnimationActive={ANIM} />
+          <Bar dataKey="open" name="Still open" stackId="s" fill={DOWN} stroke={SURFACE} strokeWidth={1} radius={[4, 4, 0, 0]} isAnimationActive={ANIM} />
+        </BarChart>
+      </ResponsiveContainer>
+      <SeriesLegend items={[
+        { label: `${paidLabel} on time`, color: INCOME }, { label: `${paidLabel} late`, color: NOI }, { label: "Still open", color: DOWN },
+      ]} />
+    </div>
+  )
+}
+
+/** NOI: 12 months actual → 12 months forecast, against budget. One axis (€);
+ *  actual solid, forecast dashed, budget a quiet slate dash; "today" marked. */
+export function ForecastChart({ data, today }: { data: { month: string; actual: number | null; forecast: number | null; budget: number | null }[]; today: string }) {
+  return (
+    <div>
+      <ResponsiveContainer width="100%" height={300}>
+        <ComposedChart data={data} margin={{ top: 18, right: 12, bottom: 0, left: 0 }}>
+          <CartesianGrid stroke={GRID} vertical={false} />
+          <XAxis dataKey="month" tick={TICK} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={18} />
+          <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={eurShort} width={Y_W} />
+          <Tooltip content={<DarkTooltip />} />
+          <ReferenceLine x={today} stroke="rgba(255,255,255,0.35)" strokeDasharray="2 3"
+            label={{ value: "last close", position: "insideTopLeft", fill: AXIS, fontSize: 10, fontFamily: "JetBrains Mono" }} />
+          <Line isAnimationActive={ANIM} type="monotone" dataKey="budget" name="Budget" stroke={TOTAL} strokeWidth={1.6} strokeDasharray="5 4" dot={false} connectNulls />
+          <Line isAnimationActive={ANIM} type="monotone" dataKey="actual" name="Actual" stroke={NOI} strokeWidth={2.4} dot={false} activeDot={{ r: 4 }} />
+          <Line isAnimationActive={ANIM} type="monotone" dataKey="forecast" name="Forecast" stroke={NOI} strokeWidth={2.4} strokeDasharray="6 4" dot={false} activeDot={{ r: 4 }} />
+        </ComposedChart>
+      </ResponsiveContainer>
+      <SeriesLegend items={[
+        { label: "Actual NOI", color: NOI, kind: "line" },
+        { label: "Forecast NOI", color: NOI, kind: "dash" },
+        { label: "Budget NOI", color: TOTAL, kind: "dash" },
+      ]} />
+    </div>
+  )
+}
+
+/** Cash balance through the year: actual (closed months), the plan, and the
+ *  outlook (actual so far + plan for the rest), above a minimum-cash buffer. */
+export function CashPlanChart({ data, buffer }: { data: { month: string; actual: number | null; plan: number; outlook: number | null }[]; buffer: number }) {
+  return (
+    <div>
+      <ResponsiveContainer width="100%" height={290}>
+        <ComposedChart data={data} margin={{ top: 12, right: 12, bottom: 0, left: 0 }}>
+          <CartesianGrid stroke={GRID} vertical={false} />
+          <XAxis dataKey="month" tick={TICK} tickLine={false} axisLine={{ stroke: GRID }} />
+          <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={eurShort} width={Y_W} domain={[0, "auto"]} />
+          <Tooltip content={<DarkTooltip />} />
+          {buffer > 0 && (
+            <ReferenceLine y={buffer} stroke={DOWN} strokeOpacity={0.6} strokeDasharray="3 4"
+              label={{ value: "min. buffer", position: "insideBottomRight", fill: DOWN, fontSize: 10, fontFamily: "JetBrains Mono" }} />
+          )}
+          <Line isAnimationActive={ANIM} type="monotone" dataKey="plan" name="Plan" stroke={TOTAL} strokeWidth={1.6} strokeDasharray="5 4" dot={false} />
+          <Line isAnimationActive={ANIM} type="monotone" dataKey="outlook" name="Outlook" stroke={CASH} strokeWidth={2} strokeDasharray="1 4" strokeLinecap="round" dot={false} connectNulls />
+          <Line isAnimationActive={ANIM} type="monotone" dataKey="actual" name="Actual" stroke={CASH} strokeWidth={2.6} dot={{ r: 2.5, fill: CASH, strokeWidth: 0 }} activeDot={{ r: 4 }} />
+        </ComposedChart>
+      </ResponsiveContainer>
+      <SeriesLegend items={[
+        { label: "Actual", color: CASH, kind: "line" },
+        { label: "Outlook", color: CASH, kind: "dot" },
+        { label: "Plan", color: TOTAL, kind: "dash" },
+        { label: "Minimum buffer", color: DOWN, kind: "dash" },
+      ]} />
+    </div>
+  )
+}
+
+/** Documents posted per month, stacked by document type. */
+export function VolumeStacked({ data, types }: { data: Record<string, number | string>[]; types: readonly { key: string; label: string }[] }) {
+  const present = types.filter((t) => data.some((d) => Number(d[t.key] ?? 0) > 0))
+  return (
+    <div>
+      <ResponsiveContainer width="100%" height={240}>
+        <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+          <CartesianGrid stroke={GRID} vertical={false} />
+          <XAxis dataKey="month" tick={TICK} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={16} />
+          <YAxis tick={TICK} tickLine={false} axisLine={false} width={44} allowDecimals={false} />
+          <Tooltip content={<DarkTooltip fmt={(v) => `${Math.round(v)} docs`} />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+          {present.map((t, i) => (
+            <Bar key={t.key} dataKey={t.key} name={t.label} stackId="v" fill={DOC_COLORS[t.key] ?? TOTAL} stroke={SURFACE} strokeWidth={1}
+              radius={i === present.length - 1 ? [3, 3, 0, 0] : undefined} isAnimationActive={ANIM} />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+      <SeriesLegend items={present.map((t) => ({ label: t.label, color: DOC_COLORS[t.key] ?? TOTAL }))} />
     </div>
   )
 }

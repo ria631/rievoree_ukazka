@@ -16,6 +16,8 @@ src = src
   .replace(/\bCHARTS\b(?!\s*=)/g, '"src/components/charts/FinancialCharts.tsx"')
   .replace(/\bAGG\b(?!\s*=)/g, '"src/lib/data/aggregate.ts"')
   .replace(/MIG\("([\w-]+)"\)/g, '"supabase/migrations/$1.sql"')
+  .replace(/\bD\("(\w+)"\)/g, '"src/lib/data/$1.ts"')
+  .replace(/\bRE\b(?!\s*=)/g, '"supabase/migrations/20261015000001_real_estate_reporting.sql"')
 
 const sources = read("src/components/xray/sources.ts")
 const refRe = /file:\s*"([^"]+)",\s*focus:\s*(?:'([^']+)'|"([^"]+)")/g
@@ -57,8 +59,8 @@ for (const m of src.matchAll(idRe)) {
 // real anchor, and every "Show the code" key must exist in the map.
 const steps = read("src/components/tour/steps.tsx")
 const mapKeys = new Set([...src.matchAll(idRe)].map((m) => m[1]))
-const TEMPLATED = [/^xray-(calls|rls|sql|pipeline|code|arch)$/, /^xray-tab-/, /^rls-run-/, /^nav-/, /^role-(viewer|manager)$/, /^aging-(ar|ap)$/]
-const TEMPLATE_SRC = ["data-tour={`xray-${tab}`}", "data-tour={`xray-tab-${t.id}`}", "data-tour={`rls-run-${label.toLowerCase()}`}", "data-tour={`nav-${item.to.slice(1)}`}", "data-tour={`role-${r.label.toLowerCase()}`}", "data-tour={`aging-${k}`}"]
+const TEMPLATED = [/^xray-(calls|rls|sql|pipeline|code|arch)$/, /^xray-tab-/, /^rls-run-/, /^nav-/, /^role-(viewer|manager)$/, /^(roll-status|rp-kind|fc-scenario|cf-view)-[\w-]+$/, /^jr-type-/]
+const TEMPLATE_SRC = ["data-tour={`xray-${tab}`}", "data-tour={`xray-tab-${t.id}`}", "data-tour={`rls-run-${label.toLowerCase()}`}", "data-tour={`nav-${item.to.slice(1)}`}", "data-tour={`role-${r.label.toLowerCase()}`}", "data-tour={tour ? `${tour}-${o.value}` : undefined}", "data-tour={`jr-type-${d.key}`}"]
 for (const t of TEMPLATE_SRC) if (!corpus.includes(t)) { console.error(`✗ templated anchor missing: ${t}`); failures++ }
 const allUi = corpus
 for (const m of steps.matchAll(/\b(target|to|spot|live):\s*"([\w-]+)"/g)) {

@@ -14,10 +14,10 @@ import { useAuth } from "@/lib/auth/useAuth"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 
-const navLinkBase = "rounded-full px-3 py-2 font-mono text-xs uppercase tracking-widest transition-colors"
+const navLinkBase = "whitespace-nowrap rounded-full px-3 py-2 font-mono text-xs uppercase tracking-widest transition-colors"
 // Compact variant for the 11-item signed-in product nav, so the whole row fits
 // the bar without forcing a horizontal page scroll.
-const navLinkCompact = "rounded-full px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wide transition-colors"
+const navLinkCompact = "whitespace-nowrap rounded-full px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wide transition-colors"
 const navLinkActive = "bg-accent/12 text-accent"
 const navLinkIdle = "text-muted-foreground hover:bg-secondary hover:text-foreground"
 
@@ -30,11 +30,11 @@ const ADMIN_ROLES = ["admin", "super_admin"]
 const NAV = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/pl", label: "P&L" },
-  { to: "/balance", label: "Balance" },
-  { to: "/pivot", label: "Pivot" },
-  { to: "/variance", label: "Variance" },
-  { to: "/aging", label: "Aging" },
-  { to: "/reports", label: "Reports" },
+  { to: "/rent-roll", label: "Rent roll" },
+  { to: "/receivables", label: "AR / AP" },
+  { to: "/budget-flow", label: "Budget flow" },
+  { to: "/forecast", label: "Forecast" },
+  { to: "/journal", label: "Journal" },
   { to: "/ingest", label: "Ingest" },
   { to: "/connectors", label: "Connectors", roles: MANAGER_ROLES },
   { to: "/users", label: "Users", roles: ADMIN_ROLES },
@@ -52,11 +52,11 @@ function navFor(role: string | null, demo = false) {
 const SHOWCASE = [
   { to: "/dashboard", label: "Overview" },
   { to: "/pl", label: "P&L" },
-  { to: "/balance", label: "Balance" },
-  { to: "/pivot", label: "Pivot" },
-  { to: "/variance", label: "Variance" },
-  { to: "/aging", label: "Aging" },
-  { to: "/reports", label: "Reports" },
+  { to: "/rent-roll", label: "Rent roll" },
+  { to: "/receivables", label: "AR / AP" },
+  { to: "/budget-flow", label: "Budget flow" },
+  { to: "/forecast", label: "Forecast" },
+  { to: "/journal", label: "Journal" },
 ] as const
 
 // Routes the demo tour must not reach (write / account features → sign in first).
@@ -122,7 +122,7 @@ export function AppShell() {
 
   // The product nav has up to 11 items, so its bar needs more room and a higher
   // "collapse to menu" breakpoint than the lean tour/anon navs.
-  const headerMax = showProductNav ? "max-w-7xl" : "max-w-6xl"
+  const headerMax = showProductNav || isExploreTour ? "max-w-7xl" : "max-w-6xl"
 
   return (
     // XrayPanelProvider: the X-ray panel's open/tab state is shared so the
@@ -154,9 +154,9 @@ export function AppShell() {
               ))}
             </nav>
           ) : isExploreTour ? (
-            <nav className="hidden items-center gap-1 lg:flex">
+            <nav data-tour="main-nav" className="hidden items-center gap-0.5 lg:flex">
               {SHOWCASE.map((item) => (
-                <Link key={item.to} to={item.to} className={navLinkBase}
+                <Link key={item.to} to={item.to} data-tour={`nav-${item.to.slice(1)}`} className={navLinkCompact}
                   activeProps={{ className: navLinkActive }} inactiveProps={{ className: navLinkIdle }}>
                   {item.label}
                 </Link>
@@ -179,13 +179,8 @@ export function AppShell() {
             {isDemo && (
               <div className={cn("hidden shrink-0 items-center gap-2 whitespace-nowrap", showProductNav ? "xl:flex" : "lg:flex")}>
                 <DemoRoleSwitch role={role} email={session.user.email ?? ""} />
-                {/* With the full product nav the bar is tight; the demo banner right
-                    below carries the same CTA, so the header skips it. */}
-                {!showProductNav && (
-                  <Link to="/register" className="whitespace-nowrap rounded-full bg-accent px-4 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
-                    Create account
-                  </Link>
-                )}
+                {/* The bar is tight with the report nav; the demo banner right
+                    below carries the "Create account" CTA, so the header skips it. */}
                 <button onClick={exitDemo} className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground">Exit</button>
               </div>
             )}

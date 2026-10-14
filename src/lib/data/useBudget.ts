@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth/useAuth"
+import { fetchAll } from "./fetchAll"
 
-/** A seeded demo budget row (public.budgets), RLS-filtered to the caller's
- *  entities. Until migration 21 is applied the table doesn't exist — we treat
- *  that as "no budget yet" so the P&L still renders Actual. */
+/** One P&L budget line (public.budgets): entity × month × account code. The
+ *  plan is prepared before each year and runs 12 months past the last close. */
 export interface BudgetRow {
   entity_id: string
   period: string
@@ -17,16 +17,13 @@ export function useBudget() {
   return useQuery({
     queryKey: ["budgets", user?.id ?? "anon"],
     enabled: Boolean(user),
-    queryFn: async (): Promise<BudgetRow[]> => {
-      const { data, error } = await supabase
-        .from("budgets")
-        .select("entity_id, period, account_code, amount")
-      if (error) {
-        // 42P01 = undefined_table (migration not applied yet) → no budgets.
-        if (error.code === "42P01" || /budgets/i.test(error.message)) return []
-        throw error
-      }
-      return (data ?? []) as BudgetRow[]
-    },
+    queryFn: () =>
+      fetchAll<BudgetRow>((from, to) =>
+        supabase
+          .from("budgets")
+          .select("entity_id, period, account_code, amount")
+          .order("period").order("entity_id").order("account_code")
+          .range(from, to),
+      ).then((rows) => rows.map((r) => ({ ...r, amount: Number(r.amount) }))),
   })
 }

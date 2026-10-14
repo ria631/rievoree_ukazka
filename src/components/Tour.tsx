@@ -12,46 +12,46 @@ import { prewarmHighlighter } from "@/lib/code-xray"
 import { useXrayPanel } from "@/components/xray/XrayPanelContext"
 import { CODE_MAP } from "@/components/xray/codeMap"
 import { CodeXrayButton } from "@/components/xray/CodeInspect"
-import { STEPS, CHAPTERS, type Side, type Chapter } from "@/components/tour/steps"
+import { STEPS, CHAPTERS, type Chapter } from "@/components/tour/steps"
 import { AskFeedback } from "@/components/tour/slots"
 
 /**
  * Guided tour — the part that SELLS the project. It drives the real app: for
- * every chart, table and control it spotlights that one element, anchors its
- * card right next to it (never on top of it), and an animated cursor clicks the
- * real controls so the visitor watches the app respond. Each step says what the
- * element shows, how to read it, what it means for the money, and how its data
- * is pulled and protected — with a button that opens the element's real code.
- * The script lives in tour/steps.tsx; this file is the engine.
+ * every chart, table and control it spotlights that one element and an
+ * animated cursor clicks the real controls, so the visitor watches the app
+ * respond. Each step says what the element shows, how to read it, what it means
+ * for the money, and how its data is pulled and protected — with a button that
+ * opens the element's real code. The script lives in tour/steps.tsx; this file
+ * is the engine.
  *
- * Motion model (why it's smooth): React renders the card's CONTENT once per
- * step. Everything that moves — the dimmed spotlight, the ring, the card's
- * position, its pointer — is driven by one requestAnimationFrame loop that
- * writes styles directly and EASES toward the target, so the spotlight glides
- * from element to element instead of vanishing and reappearing, and the card
- * picks its side only once the page has finished scrolling (no hopping).
+ * Layout: on a desktop the card lives in a RAIL on the left and the page slides
+ * right to make room, so the card never covers what it explains and never
+ * jumps around; a thin connector runs from the card to the spotlighted element.
+ * On a narrow screen it's a bottom sheet. Motion (spotlight, connector) is one
+ * requestAnimationFrame loop writing styles directly — React renders the card's
+ * content once per step.
  */
 const SEEN_KEY = "xray-tour-choice"
 const DEMO_PASSWORD = "demo123456"
 const MANAGER = "manager@demo.local"
 const HEADER = 64
-const GAP = 18
-const MARGIN = 14
 const PAD = 10 // spotlight padding around the target
-const DOCK_H = 232 // height of the bottom-docked card
+const RAIL_X = 14
+const RAIL_W = 368
+const RAIL_MIN_VW = 1100 // below this the card is a bottom sheet
+const SHEET_VH = 0.44
 
 // Pacing — unhurried, so a visitor can follow every move.
-const READ_BEFORE_ACT = 1400 // let the card be read before the cursor moves
+const READ_BEFORE_ACT = 1500 // let the card be read before the cursor moves
 const CURSOR_MS = 1050 // cursor glide to the next control
 const CLICK_BEAT = 300 // hover a moment before clicking
 const ACTION_HOLD = 1.6 // × each action's own wait: time to see the result
+const STEP_WATCHDOG = 30000 // no step may hold the tour longer than this
 
 const sel = (id: string) => `[data-tour="${id}"]`
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-interface Rect { top: number; left: number; width: number; height: number }
 interface Box { x: number; y: number; w: number; h: number }
-type Mode = Side | "dock" | "center"
 
 function shown(el: Element | null): el is HTMLElement {
   if (!el) return false
@@ -80,43 +80,19 @@ async function scrollSettled(alive: () => boolean, max = 1800) {
 }
 
 const inFixed = (el: HTMLElement) => !!el.closest('[data-slot="sheet-content"], header')
+const railMode = () => window.innerWidth >= RAIL_MIN_VW
 
-/** Scroll so the target AND its card fit on screen together. */
-function scrollForCard(el: HTMLElement, cw: number) {
+/** Bring the target into the free part of the screen (beside the rail, or above the sheet). */
+function scrollIntoFree(el: HTMLElement) {
   if (inFixed(el)) { el.scrollIntoView({ block: "nearest", behavior: "smooth" }); return }
   const r = el.getBoundingClientRect()
-  const vw = window.innerWidth, vh = window.innerHeight
-  const top0 = HEADER + 20
-  const sideFits = r.right + PAD + GAP + cw <= vw - MARGIN || r.left - PAD - GAP - cw >= MARGIN
-  // Side room → centre it; otherwise pin it under the header so the card (or the
-  // bottom dock) fits beneath. The tour adds space below the page so even the
-  // last element on a page can be lifted this high.
-  const want = sideFits && r.height < vh - top0 - 24 ? top0 + (vh - top0 - r.height) / 2 - 20 : top0
+  const vh = window.innerHeight
+  const top0 = HEADER + 18
+  const bottom = railMode() ? vh - 18 : vh * (1 - SHEET_VH) - 14
+  const room = bottom - top0
+  const want = r.height < room - 16 ? top0 + (room - r.height) / 2 : top0
   const delta = r.top - want
   if (Math.abs(delta) > 6) window.scrollTo({ top: window.scrollY + delta, behavior: "smooth" })
-}
-
-/** Where the card sits for a given side, or null if it doesn't fit there. */
-function coordsFor(mode: Mode, r: Rect | null, cw: number, ch: number): { x: number; y: number } | null {
-  const vw = window.innerWidth, vh = window.innerHeight
-  if (mode === "center" || !r) return { x: Math.max(MARGIN, (vw - cw) / 2), y: Math.max(HEADER + 24, (vh - ch) / 2) }
-  if (mode === "dock") return null
-  const R = { top: r.top - PAD, left: r.left - PAD, right: r.left + r.width + PAD, bottom: r.top + r.height + PAD }
-  const clampY = (t: number) => Math.min(Math.max(t, HEADER + 8), vh - ch - MARGIN)
-  const clampX = (l: number) => Math.min(Math.max(l, MARGIN), vw - cw - MARGIN)
-  switch (mode) {
-    case "right": return R.right + GAP + cw <= vw - MARGIN ? { x: R.right + GAP, y: clampY(R.top) } : null
-    case "left": return R.left - GAP - cw >= MARGIN ? { x: R.left - GAP - cw, y: clampY(R.top) } : null
-    case "bottom": return R.bottom + GAP + ch <= vh - MARGIN ? { x: clampX(R.left), y: R.bottom + GAP } : null
-    case "top": return R.top - GAP - ch >= HEADER + 4 ? { x: clampX(R.left), y: R.top - GAP - ch } : null
-  }
-}
-
-/** The first side with room; if none (a wide AND tall target on a smaller
- *  screen) the card docks as a low strip at the bottom — never on the target. */
-function chooseMode(r: Rect, cw: number, ch: number, prefer: Side[] = []): Mode {
-  for (const s of [...prefer, "right", "left", "bottom", "top"] as Side[]) if (coordsFor(s, r, cw, ch)) return s
-  return "dock"
 }
 
 const lerp = (a: number, b: number, k: number) => (Math.abs(b - a) < 0.3 ? b : a + (b - a) * k)
@@ -131,23 +107,9 @@ interface Stage {
   wantDim: boolean
   hole: Box | null
   dim: number
-  card: { x: number; y: number } | null
-  mode: Mode | null
-  prefer: Side[]
-  size: { w: number; h: number }
-  lastR: Rect | null
-  stable: number
-  invalid: number
-  scrollDone: boolean
-  stepIdx: number
-  showAt: number // the card may re-appear only after it has faded out
-  docked: boolean // mirrors the React layout state (the loop must not translate a docked strip)
+  link: number // connector opacity
 }
-const freshStage = (): Stage => ({
-  sel: null, el: null, elSel: null, wantDim: false, hole: null, dim: 0, card: null, mode: null,
-  prefer: [], size: { w: 384, h: 380 }, lastR: null, stable: 0, invalid: 0, scrollDone: true,
-  stepIdx: -1, showAt: 0, docked: false,
-})
+const freshStage = (): Stage => ({ sel: null, el: null, elSel: null, wantDim: false, hole: null, dim: 0, link: 0 })
 
 export function Tour({ autoOffer }: { autoOffer?: boolean }) {
   const navigate = useNavigate()
@@ -160,10 +122,10 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
   const [replay, setReplay] = useState(0)
   const [choice, setChoice] = useState<"pending" | "made">("made")
   const [phase, setPhase] = useState<"entering" | "acting" | "idle">("idle")
-  // The step index whose card has arrived. Derived per step, so the moment the
-  // step changes the card is already "not ready" — no flash of new text at the old spot.
+  // The step whose text the card shows. It switches only after the old text
+  // has faded out — no flash of the new step's text in the old state.
   const [readyStep, setReadyStep] = useState(-1)
-  const [docked, setDocked] = useState(false)
+  const [rail, setRail] = useState(true)
   const [caption, setCaption] = useState<string | null>(null)
   const [cursor, setCursor] = useState<Cursor>({ x: 0, y: 0, on: false, instant: true, click: 0 })
   const [live, setLive] = useState<string[]>([])
@@ -178,14 +140,17 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
 
   // Refs the async step runner and the frame loop read (they outlive renders).
   const runId = useRef(0)
+  const dir = useRef(1) // travel direction, for skipping an optional step
   const live$ = useRef({ path, email, role, isDemo, running })
   live$.current = { path, email, role, isDemo, running }
   const stage = useRef<Stage>(freshStage())
   const cardRef = useRef<HTMLDivElement>(null)
-  const arrowRef = useRef<HTMLSpanElement>(null)
   const dimRef = useRef<HTMLDivElement>(null)
   const panelRefs = useRef<(HTMLDivElement | null)[]>([])
   const ringRef = useRef<HTMLDivElement>(null)
+  const linkRef = useRef<SVGPathElement>(null)
+  const dotRef = useRef<SVGCircleElement>(null)
+  const linkSvgRef = useRef<SVGSVGElement>(null)
   const cursorRef = useRef(cursor)
   cursorRef.current = cursor
 
@@ -196,30 +161,33 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
   }, [autoOffer])
   function remember() { try { localStorage.setItem(SEEN_KEY, "1") } catch { /* ignore */ } }
 
-  // While touring: room below the page (so any element can be scrolled up to sit
-  // above the card) and no browser scroll-anchoring (a table that grows after a
-  // re-pivot must not drag the page away from the element being explained).
+  // While touring: the page slides right to make room for the rail (CSS on
+  // html.tour-rail), gets room below it (so the last element of a page can
+  // still be centred), and scroll-anchoring is off (a table that grows must not
+  // drag the page away from the element being explained).
   useEffect(() => {
     if (!running) return
     const html = document.documentElement, body = document.body
     const prev = [html.style.overflowAnchor, body.style.paddingBottom]
+    const apply = () => {
+      const on = railMode()
+      setRail(on)
+      html.classList.toggle("tour-rail", on)
+      html.style.setProperty("--tour-left", `${RAIL_X + RAIL_W + 26}px`)
+    }
+    apply()
     html.style.overflowAnchor = "none"
-    body.style.paddingBottom = "75vh"
+    body.style.paddingBottom = "55vh"
+    window.addEventListener("resize", apply)
     prewarmHighlighter() // "Show the code" opens instantly
-    return () => { html.style.overflowAnchor = prev[0]; body.style.paddingBottom = prev[1] }
+    return () => {
+      window.removeEventListener("resize", apply)
+      html.classList.remove("tour-rail")
+      html.style.overflowAnchor = prev[0]; body.style.paddingBottom = prev[1]
+    }
   }, [running])
 
-  // The floating card's measured size (never the docked strip's — or the two
-  // layouts would decide each other back and forth).
-  useEffect(() => {
-    const el = cardRef.current
-    if (!el) return
-    const ro = new ResizeObserver(() => { if (stage.current.mode !== "dock") stage.current.size = { w: el.offsetWidth, h: el.offsetHeight } })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [running])
-
-  // ── The frame loop: spotlight + card + pointer, eased, written straight to the DOM.
+  // ── The frame loop: spotlight, rail position, connector — eased, straight to the DOM.
   useEffect(() => {
     if (!running) return
     const st = stage.current
@@ -228,15 +196,13 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
     const frame = (t: number) => {
       const dt = Math.min(64, t - prev); prev = t
       const k = (base: number) => 1 - Math.pow(1 - base, dt / 16.7) // frame-rate independent easing
+      const vw = window.innerWidth, vh = window.innerHeight
 
       // 1 · the target (cached; re-queried only if it changed or re-mounted)
       if (!st.sel) st.el = null
       else if (!st.el || !st.el.isConnected || st.elSel !== st.sel) { st.el = document.querySelector<HTMLElement>(st.sel); st.elSel = st.sel }
-      let r: Rect | null = null
-      if (st.el) { const b = st.el.getBoundingClientRect(); if (b.width > 0 && b.height > 0) r = { top: b.top, left: b.left, width: b.width, height: b.height } }
-      const L = st.lastR
-      st.stable = r && L && Math.abs(r.top - L.top) < 0.8 && Math.abs(r.left - L.left) < 0.8 && Math.abs(r.width - L.width) < 0.8 && Math.abs(r.height - L.height) < 0.8 ? st.stable + 1 : 0
-      st.lastR = r
+      let r: DOMRect | null = null
+      if (st.el) { const b = st.el.getBoundingClientRect(); if (b.width > 0 && b.height > 0) r = b }
 
       // 2 · the spotlight glides to the target; it fades rather than blinking
       if (r) {
@@ -247,15 +213,13 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
           st.hole = { x: lerp(st.hole.x, want.x, e), y: lerp(st.hole.y, want.y, e), w: lerp(st.hole.w, want.w, e), h: lerp(st.hole.h, want.h, e) }
         }
       }
-      const dimTarget = st.wantDim && st.hole ? 1 : 0
-      st.dim = lerp(st.dim, dimTarget, k(0.14))
+      st.dim = lerp(st.dim, st.wantDim && st.hole ? 1 : 0, k(0.14))
       if (st.dim < 0.01 && !st.wantDim) st.hole = null
       const dim = dimRef.current
       if (dim) {
         dim.style.opacity = st.dim.toFixed(3)
         const h = st.hole
         if (h) {
-          const vw = window.innerWidth, vh = window.innerHeight
           const [top, left, right, bottom] = panelRefs.current
           if (top) Object.assign(top.style, { top: "0px", left: "0px", width: `${vw}px`, height: `${Math.max(0, h.y)}px` })
           if (left) Object.assign(left.style, { top: `${h.y}px`, left: "0px", width: `${Math.max(0, h.x)}px`, height: `${h.h}px` })
@@ -266,61 +230,32 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
         }
       }
 
-      // 3 · the card: pick a side ONCE the page has settled, then follow it
-      const { w: cw, h: ch } = st.size
-      if (!st.mode && t >= st.showAt) {
-        if (!st.wantDim) st.mode = "center"
-        else if (r && st.stable >= 4 && st.scrollDone) st.mode = chooseMode(r, cw, ch, st.prefer)
-        if (st.mode) {
-          // The card is invisible right now: put it straight in its new place, then fade it in.
-          const c = st.mode === "dock" ? null : coordsFor(st.mode, r, cw, ch)
-          st.card = c ? { ...c } : null
-          if (c && cardRef.current) cardRef.current.style.transform = `translate3d(${c.x}px, ${c.y}px, 0)`
-          st.docked = st.mode === "dock"
-          setDocked(st.docked)
-          setReadyStep(st.stepIdx)
-        }
-      } else if (st.mode && st.mode !== "center" && st.mode !== "dock" && r && !coordsFor(st.mode, r, cw, ch)) {
-        if (++st.invalid > 15) {
-          st.mode = chooseMode(r, cw, ch, st.prefer); st.invalid = 0
-          st.docked = st.mode === "dock"; setDocked(st.docked)
-          if (st.docked) st.card = null
-        }
-      } else st.invalid = 0
-
-      // The loop alone owns the card's transform (React never sets it).
+      // 3 · the rail sits below the header AND the demo banner while it's on screen
       const card = cardRef.current
-      if (card) {
-        if (st.docked) {
-          if (card.style.transform !== "none") card.style.transform = "none" // the strip is laid out by CSS
-        } else {
-          const desired = st.mode ? coordsFor(st.mode, r, cw, ch) : null
-          if (desired) {
-            if (!st.card) st.card = { ...desired }
-            else { const e = k(0.16); st.card = { x: lerp(st.card.x, desired.x, e), y: lerp(st.card.y, desired.y, e) } }
-            card.style.transform = `translate3d(${st.card.x}px, ${st.card.y}px, 0)`
-          } else if (!st.card) {
-            st.card = coordsFor("center", null, cw, ch)!
-            card.style.transform = `translate3d(${st.card.x}px, ${st.card.y}px, 0)`
-          }
-        }
+      const isRail = vw >= RAIL_MIN_VW
+      if (card && isRail) {
+        const banner = document.querySelector(sel("demo-banner"))?.getBoundingClientRect()
+        const top = Math.max(HEADER, banner && banner.bottom > 0 ? banner.bottom : 0) + 12
+        card.style.top = `${top}px`
+        card.style.maxHeight = `${vh - top - 14}px`
       }
 
-      // 4 · the little pointer on the card edge, aimed at the target's middle
-      const arrow = arrowRef.current
-      if (arrow) {
-        const side = st.mode
-        if (r && st.card && side && side !== "center" && side !== "dock") {
-          const midY = Math.min(Math.max(r.top + r.height / 2 - st.card.y, 22), ch - 22)
-          const midX = Math.min(Math.max(r.left + r.width / 2 - st.card.x, 22), cw - 22)
-          const s = arrow.style
-          s.display = "block"
-          s.left = side === "right" ? "-7.5px" : side === "left" ? "" : `${midX - 7}px`
-          s.right = side === "left" ? "-7.5px" : ""
-          s.top = side === "bottom" ? "-7.5px" : side === "top" ? "" : `${midY - 7}px`
-          s.bottom = side === "top" ? "-7.5px" : ""
-          s.borderWidth = side === "right" ? "0 0 1px 1px" : side === "left" ? "1px 1px 0 0" : side === "bottom" ? "1px 0 0 1px" : "0 1px 1px 0"
-        } else arrow.style.display = "none"
+      // 4 · the connector: from the card's edge to the spotlighted element
+      const path = linkRef.current, dot = dotRef.current, svg = linkSvgRef.current
+      if (path && dot && svg) {
+        const c = card?.getBoundingClientRect()
+        const h = st.hole
+        const show = isRail && !!c && !!h && st.wantDim && h.x > (c?.right ?? 0) + 24
+        st.link = lerp(st.link, show && st.dim > 0.5 ? 1 : 0, k(0.12))
+        svg.style.opacity = st.link.toFixed(3)
+        if (show && c && h) {
+          const ty = Math.min(Math.max(h.y + Math.min(h.h / 2, 60), HEADER + 16), vh - 16)
+          const sy = Math.min(Math.max(ty, c.top + 28), c.bottom - 28)
+          const x0 = c.right + 2, x1 = h.x - 3
+          const bend = Math.min(90, (x1 - x0) / 2)
+          path.setAttribute("d", `M ${x0} ${sy} C ${x0 + bend} ${sy}, ${x1 - bend} ${ty}, ${x1} ${ty}`)
+          dot.setAttribute("cx", String(x1)); dot.setAttribute("cy", String(ty))
+        }
       }
 
       raf = requestAnimationFrame(frame)
@@ -337,11 +272,21 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
     if (!cursorRef.current.on) {
       // Reach out from the card.
       const c = cardRef.current?.getBoundingClientRect()
-      setCursor((p) => ({ ...p, x: c ? c.left + c.width - 40 : vw / 2, y: c ? c.top + 30 : vh / 2, on: true, instant: true }))
+      setCursor((p) => ({ ...p, x: c ? c.right - 40 : vw / 2, y: c ? c.top + 40 : vh / 2, on: true, instant: true }))
       await sleep(80)
     }
     setCursor((p) => ({ ...p, x, y, instant: false }))
     await sleep(CURSOR_MS)
+  }
+
+  /** Wait until the session is the given demo identity (bounded). */
+  async function awaitManager(alive: () => boolean, ms = 8000) {
+    const t0 = performance.now()
+    while (alive() && performance.now() - t0 < ms) {
+      if (live$.current.email === MANAGER && live$.current.role === "manager") return true
+      await sleep(120)
+    }
+    return false
   }
 
   // ── The step runner: identity → route → X-ray → find target → scroll → read → act.
@@ -351,42 +296,53 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
     const id = ++runId.current
     const alive = () => runId.current === id && live$.current.running
     const st = stage.current
-    // New step: hold the spotlight where it is (it will glide on), forget the side.
-    st.sel = null; st.wantDim = !!s.target; st.mode = null; st.prefer = s.prefer ?? []; st.stable = 0; st.scrollDone = false
-    st.stepIdx = i; st.showAt = performance.now() + 240 // the card fades out first
+    // New step: the spotlight holds where it is (it will glide on); the card fades out.
+    st.sel = null; st.wantDim = !!s.target
     setPhase("entering"); setCaption(null); setLive([]); setMenu(false)
     setCursor((p) => ({ ...p, on: false }))
+    // Watchdog: whatever happens (a missing element, a slow network), the step
+    // releases the tour — Next and Auto keep working.
+    const guard = window.setTimeout(() => {
+      if (runId.current !== id) return
+      runId.current++
+      setReadyStep(i); setPhase("idle"); setCaption(null); setCursor((p) => ({ ...p, on: false }))
+    }, STEP_WATCHDOG)
     ;(async () => {
       closeCode()
+      await sleep(200) // the old text fades out first
+      if (!alive()) return
+      setReadyStep(i)
       if (s.as === "manager" && live$.current.isDemo && live$.current.email !== MANAGER) {
-        setCaption("Signing you in as the Manager demo…")
+        setCaption("Switching you to the Manager demo…")
         await supabase.auth.signInWithPassword({ email: MANAGER, password: DEMO_PASSWORD })
-        const t0 = performance.now()
-        while (alive() && live$.current.role !== "manager" && performance.now() - t0 < 5000) await sleep(100)
+        await awaitManager(alive)
         setCaption(null)
       }
       if (!alive()) return
-      if (s.route && live$.current.path !== s.route) { navigate({ to: s.route }); await sleep(250) }
+      if (s.route && live$.current.path !== s.route) { navigate({ to: s.route }); await sleep(300) }
       if (!alive()) return
       if (s.xray === "keep") { /* leave the panel as is */ }
       else if (s.xray) openTo(s.xray)
       else setOpen(false)
 
       if (s.target) {
-        const el = await waitFor(sel(s.target), 8000, alive)
+        const el = await waitFor(sel(s.target), s.optional ? 3500 : 6000, alive)
         if (!alive()) return
-        if (!el) { st.wantDim = false; st.scrollDone = true } // not on this screen → plain centred card
-        else {
+        if (!el) {
+          st.wantDim = false
+          // Its subject isn't here (e.g. no batch is waiting for review): skip on.
+          if (s.optional) {
+            const n = i + dir.current
+            if (n >= 0 && n < STEPS.length) { window.clearTimeout(guard); setI(n); return }
+          }
+        } else {
           if (s.xray) await sleep(420) // let the drawer finish sliding in
           st.sel = sel(s.target)
-          scrollForCard(el, st.size.w)
+          await sleep(60)
+          scrollIntoFree(el)
           await scrollSettled(alive)
-          st.scrollDone = true
         }
-      } else st.scrollDone = true
-      // Wait for the card to arrive, then give the visitor time to read it.
-      const t0 = performance.now()
-      while (alive() && !stage.current.mode && performance.now() - t0 < 2500) await sleep(50)
+      }
       if (!alive()) return
 
       if (s.actions?.length) {
@@ -399,7 +355,7 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
           const t = await waitFor(sel(a.to), 4500, alive)
           if (!alive()) return
           if (!t || a.skipIf?.(t)) continue
-          if (a.spot) { st.sel = sel(a.spot); st.stable = 0 }
+          if (a.spot) st.sel = sel(a.spot)
           setCaption(a.say)
           const tr = t.getBoundingClientRect()
           if (!inFixed(t) && (tr.top < HEADER + 10 || tr.bottom > window.innerHeight - 20)) {
@@ -413,6 +369,7 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
           await sleep(160)
           if (a.control) tourControl(a.control[0], a.control[1])
           else t.click()
+          if (a.awaitIdentity === "manager") await awaitManager(alive)
           await sleep((a.wait ?? 1100) * ACTION_HOLD + 300)
         }
         if (!alive()) return
@@ -421,14 +378,17 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
           const el = document.querySelector<HTMLElement>(sel(s.target))
           if (el) {
             const r = el.getBoundingClientRect()
-            if (r.bottom < HEADER + 40 || r.top > window.innerHeight - 80) { scrollForCard(el, st.size.w); await scrollSettled(alive) }
+            if (r.bottom < HEADER + 40 || r.top > window.innerHeight - 80) { scrollIntoFree(el); await scrollSettled(alive) }
           }
         }
         await sleep(450)
         setCaption(null)
+        setCursor((p) => ({ ...p, on: false }))
       }
+      window.clearTimeout(guard)
       setPhase("idle")
     })()
+    return () => window.clearTimeout(guard)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running, i, replay])
 
@@ -451,56 +411,63 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
     return () => clearInterval(t)
   }, [running, i, step.live, step.target])
 
-  // Auto-play: after a step has finished acting, give it real reading time.
+  // Auto-play: real reading time per step, counted down visibly, paused while
+  // the mouse is on the card (or the code view is open).
   const autoMs = (() => {
     const words = `${step.body} ${step.money ?? ""} ${step.tech ?? ""}`.split(/\s+/).length
-    return Math.min(26000, Math.max(9000, words * 330))
+    const extra = step.render || step.ask ? 9000 : 0
+    return Math.min(30000, Math.max(9000, words * 330) + extra)
   })()
-  const autoWaiting = running && auto && phase === "idle" && ready && !hovering && !code && !step.ask && !step.render
+  const last = i >= STEPS.length - 1
+  const autoArmed = running && auto && !last
+  const autoCounting = autoArmed && phase === "idle" && ready && !code
+  const autoPaused = autoCounting && hovering
+  const [remaining, setRemaining] = useState(0)
+  useEffect(() => { setRemaining(autoMs) }, [i, autoMs, auto])
   useEffect(() => {
-    if (!autoWaiting) return
-    const t = setTimeout(() => next(), autoMs)
-    return () => clearTimeout(t)
+    if (!autoCounting || autoPaused) return
+    const t = setInterval(() => setRemaining((r) => r - 250), 250)
+    return () => clearInterval(t)
+  }, [autoCounting, autoPaused])
+  useEffect(() => {
+    if (autoCounting && !autoPaused && remaining <= 0) next()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoWaiting, i, autoMs])
+  }, [remaining, autoCounting, autoPaused])
 
-  function go(n: number) { setI(Math.max(0, Math.min(STEPS.length - 1, n))) }
-  function next() { if (i >= STEPS.length - 1) end(); else go(i + 1) }
+  function go(n: number) { const to = Math.max(0, Math.min(STEPS.length - 1, n)); dir.current = to >= i ? 1 : -1; setI(to) }
+  function next() { if (last) end(); else go(i + 1) }
   function back() { if (i > 0) go(i - 1) }
   function start() {
     remember(); setChoice("made"); setInspecting(false)
     stage.current = freshStage()
-    setI(0); setReplay((r) => r + 1); setRunning(true)
+    dir.current = 1
+    setI(0); setReadyStep(-1); setReplay((r) => r + 1); setRunning(true)
   }
   function chooseSelf() { remember(); setChoice("made") }
   function end() {
     runId.current++
-    setRunning(false); setOpen(false); setReadyStep(-1); setDocked(false)
+    setRunning(false); setOpen(false); setReadyStep(-1)
     setCursor((p) => ({ ...p, on: false })); setAuto(false)
     stage.current = freshStage()
   }
 
-  // The card shows the step it is standing next to: while it fades out it keeps
-  // the previous step's text, and switches only once it re-appears at the new place.
+  // The card shows the step it has switched to (see readyStep).
   const cs = STEPS[readyStep >= 0 ? readyStep : i]
   const chapterSteps = STEPS.filter((s) => s.chapter === cs.chapter)
   const inChapter = chapterSteps.findIndex((s) => s.id === cs.id) + 1
   const target = cs.code ? CODE_MAP[cs.code] : null
-  const dockW = typeof window === "undefined" ? 0 : Math.min(window.innerWidth - MARGIN * 2, 1120)
-  const cardStyle: React.CSSProperties = docked
-    ? { left: (window.innerWidth - dockW) / 2, top: window.innerHeight - DOCK_H - MARGIN, width: dockW, height: DOCK_H }
-    : { left: 0, top: 0 } // positioned by the frame loop's transform (invisible until placed)
 
   return (
     <>
-      {/* Launch dock: the tour + the X-RAY CODE inspector, side by side. */}
+      {/* Launch dock: the tour + the X-RAY CODE inspector, stacked in the corner
+          (narrow, so it stays clear of the page content). */}
       {!running && (
-        <div className="fixed bottom-5 left-5 z-50 flex flex-wrap items-center gap-2.5">
+        <div className="fixed bottom-5 left-4 z-50 flex flex-col items-start gap-2">
+          <CodeXrayButton />
           <button onClick={start}
             className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-accent-foreground shadow-soft transition hover:brightness-110">
             <ScanLine className="size-3.5" strokeWidth={2.25} /> Take the tour
           </button>
-          <CodeXrayButton />
         </div>
       )}
 
@@ -537,9 +504,9 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
         )}
       </AnimatePresence>
 
-      {/* Spotlight: four dim panels around a hole + a ring. Positions are written
-          by the frame loop (eased), so it glides between elements and fades
-          instead of blinking. */}
+      {/* Spotlight: four dim panels around a hole + a ring, and the connector
+          from the card. Written by the frame loop (eased) — it glides between
+          elements and fades instead of blinking. */}
       {running && (
         <div ref={dimRef} aria-hidden className="pointer-events-none fixed inset-0 z-[55]" style={{ opacity: 0 }}>
           {[0, 1, 2, 3].map((n) => (
@@ -548,6 +515,12 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
           <div ref={ringRef} className="fixed left-0 top-0 rounded-xl ring-2 ring-accent will-change-transform"
             style={{ boxShadow: "0 0 0 2px rgba(163,230,53,0.35), 0 0 40px -4px rgba(163,230,53,0.55)" }} />
         </div>
+      )}
+      {running && (
+        <svg ref={linkSvgRef} aria-hidden className="pointer-events-none fixed inset-0 z-[59] h-full w-full" style={{ opacity: 0 }}>
+          <path ref={linkRef} fill="none" stroke="rgb(163 230 53 / 0.75)" strokeWidth={1.5} strokeDasharray="4 4" />
+          <circle ref={dotRef} r={4} fill="rgb(163 230 53)" />
+        </svg>
       )}
 
       {/* The agent's cursor — slow, deliberate moves */}
@@ -572,22 +545,21 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
         )}
       </AnimatePresence>
 
-      {/* The step card — anchored next to the element it explains; its position
-          is eased by the frame loop (transform), never set by React. */}
+      {/* The step card — a rail on the left (desktop) or a bottom sheet. It never
+          moves between steps; only its content cross-fades. */}
       {running && (
         <div ref={cardRef} role="dialog" aria-label={`Tour: ${cs.title}`} data-step={step.id} data-phase={phase} data-ready={ready ? "1" : "0"}
           onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}
-          className={cn("fixed z-[60] flex flex-col rounded-2xl border border-border bg-card shadow-[0_24px_70px_-20px_rgba(0,0,0,0.9)] ring-1 ring-accent/25 will-change-transform",
-            docked ? "" : "max-h-[calc(100vh-96px)] w-[min(92vw,384px)]", !ready && "pointer-events-none")}
-          style={{ ...cardStyle, opacity: ready ? 1 : 0, transition: `opacity ${ready ? 340 : 180}ms ease` }}>
-          <span ref={arrowRef} aria-hidden className="absolute hidden size-3.5 rotate-45 border-solid border-border bg-card" />
+          className={cn("fixed z-[60] flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_24px_70px_-20px_rgba(0,0,0,0.9)] ring-1 ring-accent/25",
+            rail ? "" : "inset-x-2 bottom-2")}
+          style={rail ? { left: RAIL_X, width: RAIL_W, top: HEADER + 12 } : { maxHeight: `${SHEET_VH * 100}vh` }}>
 
           {/* Header: chapter, chapter list, auto, close */}
           <div className="relative flex items-center gap-2 px-4 pt-3.5">
             <span className="font-mono text-[10px] uppercase tracking-widest text-accent">{cs.chapter}</span>
             <span className="font-mono text-[10px] tabular-nums text-muted-foreground">{inChapter}/{chapterSteps.length}</span>
             <div className="ml-auto flex items-center gap-1">
-              <button onClick={() => setAuto((a) => !a)} title={auto ? "Pause auto-play" : "Auto-play the tour"}
+              <button onClick={() => setAuto((a) => !a)} title={auto ? "Stop auto-play" : "Auto-play the tour"} data-tour="tour-auto"
                 className={cn("inline-flex items-center gap-1 rounded-full px-2 py-1 font-mono text-[9px] uppercase tracking-widest transition",
                   auto ? "bg-accent text-accent-foreground" : "text-muted-foreground ring-1 ring-border hover:text-foreground")}>
                 {auto ? <Pause className="size-3" /> : <Play className="size-3" />} auto
@@ -604,8 +576,9 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
             <div className="h-full rounded-full bg-accent transition-[width] duration-500" style={{ width: `${((i + 1) / STEPS.length) * 100}%` }} />
           </div>
 
-          <div className={cn("min-h-0 flex-1 overflow-y-auto px-4 pb-3 pt-3", docked && "grid gap-x-8 md:grid-cols-2 md:content-start")}>
-            <div>
+          {/* Body — scrolls on its own if long; never scrolls the page behind it. */}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-3 pt-3"
+            style={{ opacity: ready ? 1 : 0, transition: `opacity ${ready ? 320 : 160}ms ease` }}>
             <h3 className="text-[17px] font-semibold leading-snug tracking-tight">{cs.title}</h3>
             <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{cs.body}</p>
 
@@ -637,10 +610,8 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
               </div>
             )}
 
-            </div>
-            <div>
             {cs.money && (
-              <div className={cn("border-l-2 border-accent/60 pl-3", docked ? "mt-1" : "mt-3")}>
+              <div className="mt-3 border-l-2 border-accent/60 pl-3">
                 <p className="font-mono text-[9px] uppercase tracking-widest text-accent">What it tells you</p>
                 <p className="mt-0.5 text-[13px] leading-relaxed text-foreground/90">{cs.money}</p>
               </div>
@@ -656,8 +627,12 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
 
             {cs.render && <div className="mt-3">{cs.render()}</div>}
             {cs.ask && <div className="mt-3"><AskFeedback step={cs.id} question={cs.ask} /></div>}
-            </div>
           </div>
+
+          {/* Auto-play countdown — visible, and paused while you read */}
+          {autoArmed && (
+            <AutoBar remaining={remaining} total={autoMs} paused={autoPaused} waiting={!autoCounting} />
+          )}
 
           {/* Footer */}
           <div className="flex items-center gap-2 border-t border-border px-4 py-2.5">
@@ -676,20 +651,35 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
                   <Code2 className="size-3.5" /> Show the code
                 </button>
               )}
-              <button onClick={next}
+              <button onClick={next} data-tour="tour-next"
                 className="rounded-full bg-foreground px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-background transition hover:scale-[1.03]">
-                {i >= STEPS.length - 1 ? "Done" : "Next →"}
+                {last ? "Done" : "Next →"}
               </button>
             </div>
           </div>
-          {autoWaiting && (
-            <div className="h-0.5 overflow-hidden rounded-b-2xl bg-transparent">
-              <div key={i} className="h-full bg-accent" style={{ animation: `tour-progress ${autoMs}ms linear forwards` }} />
-            </div>
-          )}
         </div>
       )}
     </>
+  )
+}
+
+/** The auto-play countdown: seconds left + a draining bar; says why it's paused. */
+function AutoBar({ remaining, total, paused, waiting }: { remaining: number; total: number; paused: boolean; waiting: boolean }) {
+  const frac = Math.max(0, Math.min(1, remaining / total))
+  return (
+    <div data-tour="tour-countdown" className="border-t border-border px-4 pb-2 pt-2">
+      <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-widest">
+        <span className={cn("inline-flex items-center gap-1.5", paused ? "text-[#e3c35a]" : "text-accent")}>
+          {paused ? <Pause className="size-3" /> : <Play className="size-3" />}
+          {waiting ? "auto · watching the demo…" : paused ? "auto · paused while you read" : "auto · next step in"}
+        </span>
+        {!waiting && <span className="tabular-nums text-foreground">{Math.max(0, Math.ceil(remaining / 1000))}s</span>}
+      </div>
+      <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-border">
+        <div className={cn("h-full rounded-full transition-[width] duration-300 ease-linear", paused ? "bg-[#d6b53f]" : "bg-accent")}
+          style={{ width: `${(waiting ? 1 : frac) * 100}%` }} />
+      </div>
+    </div>
   )
 }
 
