@@ -95,9 +95,11 @@ export function Variance() {
             <EmptyNote title="Budget basis needs the budgets table" hint="Apply migration 21 (budgets), then switch to “vs Budget”. Prior-period basis works now." />
           ) : (
             <>
-              <ChartCard title={`Operating income bridge · ${periodKey} vs ${bridge.baseLabel}`} hint="drivers sum to Δ">
-                <Waterfall steps={bridge.steps} />
-              </ChartCard>
+              <div data-tour="variance-bridge">
+                <ChartCard title={`Operating income bridge · ${periodKey} vs ${bridge.baseLabel}`} hint="drivers sum to Δ">
+                  <Waterfall steps={bridge.steps} />
+                </ChartCard>
+              </div>
 
               <div className="overflow-hidden rounded-[1.5rem] bg-card shadow-soft ring-1 ring-border">
                 <div className="grid grid-cols-[1.4fr_repeat(4,1fr)] gap-x-3 border-b border-border px-5 py-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">

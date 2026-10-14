@@ -92,7 +92,7 @@ export function Pl() {
 
           {/* Margin bridge + biggest lines of money — the "where did profit come
               from, and which accounts dominate" read, above the detail table. */}
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div data-tour="pl-charts" className="grid gap-5 lg:grid-cols-2">
             <ChartCard title="Operating-income bridge" hint="revenue → EBITDA">
               <Waterfall steps={bridge} />
             </ChartCard>

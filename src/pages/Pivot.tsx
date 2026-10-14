@@ -114,7 +114,7 @@ export function Pivot() {
             </label>
           </div>
 
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+          <motion.div data-tour="pivot-grid" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
             className="overflow-x-auto rounded-[1.5rem] bg-card shadow-soft ring-1 ring-border">
             <table className="w-full border-collapse text-sm">
               <thead>

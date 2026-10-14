@@ -133,12 +133,12 @@ export function AppShell() {
         ? "sticky top-0 z-40"
         : "sticky top-0 z-40 border-b border-border bg-background/75 shadow-soft backdrop-blur-lg"}>
         <div className={cn("mx-auto flex h-16 items-center justify-between gap-4 px-6", headerMax)}>
-          <Link to="/" className="text-xl font-semibold tracking-tight">
+          <Link to="/" className="shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight">
             X-RAY<span className={onPaper ? "text-accent" : "bg-gradient-to-r from-accent to-signal bg-clip-text text-transparent"}>/</span>
           </Link>
 
           {showProductNav ? (
-            <nav className="hidden items-center gap-0.5 xl:flex">
+            <nav data-tour="main-nav" className="hidden items-center gap-0.5 xl:flex">
               {navFor(role).map((item) => (
                 <Link key={item.to} to={item.to} className={navLinkCompact}
                   activeProps={{ className: navLinkActive }} inactiveProps={{ className: navLinkIdle }}>

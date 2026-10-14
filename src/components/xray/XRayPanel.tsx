@@ -105,7 +105,7 @@ export function XRayPanel() {
           })}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden">
+        <div data-tour={`xray-${tab}`} className="min-h-0 flex-1 overflow-hidden">
           {tab === "calls" && <CallsTab />}
           {tab === "pipeline" && <PipelineTab />}
           {tab === "rls" && <RlsTab />}

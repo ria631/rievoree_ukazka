@@ -200,7 +200,7 @@ function CreateConnector({ entities }: { entities: { id: string; name: string }[
   }
 
   return (
-    <section className="rounded-[1.5rem] bg-card p-6 shadow-soft ring-1 ring-border md:p-7">
+    <section data-tour="connectors-add" className="rounded-[1.5rem] bg-card p-6 shadow-soft ring-1 ring-border md:p-7">
       <div className="flex items-center gap-2">
         <Cable className="size-4 text-accent" />
         <h2 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Add a connector</h2>

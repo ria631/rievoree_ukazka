@@ -74,7 +74,7 @@ export function Dashboard() {
           )}
 
           {/* KPI cards with sparkline + MoM delta */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
+          <div data-tour="dash-kpis" className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
             {cards.map((c, i) => (
               <motion.div key={c.label}
                 initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: i * 0.06, ease: "easeOut" }}

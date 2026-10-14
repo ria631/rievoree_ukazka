@@ -80,7 +80,7 @@ export function Aging() {
             ))}
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
+          <div data-tour="aging-chart" className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
             <ChartCard title={`${kind === "ar" ? "Receivables" : "Payables"} aging by entity`} hint="stacked by bucket">
               <AgingStacked data={chartData} buckets={BUCKETS} />
             </ChartCard>

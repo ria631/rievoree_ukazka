@@ -177,7 +177,7 @@ export function Ingest() {
           and admins. The server enforces this regardless of the UI.
         </div>
       ) : (
-      <form onSubmit={submit} className="grid gap-4 rounded-[1.5rem] bg-card p-6 shadow-soft ring-1 ring-border md:grid-cols-4 md:items-end">
+      <form onSubmit={submit} data-tour="ingest-upload" className="grid gap-4 rounded-[1.5rem] bg-card p-6 shadow-soft ring-1 ring-border md:grid-cols-4 md:items-end">
         <div className="space-y-1.5">
           <Label className="font-mono text-[10px] uppercase tracking-widest">Entity</Label>
           <SimpleSelect
@@ -256,7 +256,7 @@ export function Ingest() {
       )}
 
       {/* Batches */}
-      <section className="mt-12">
+      <section data-tour="ingest-batches" className="mt-12">
         <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-muted-foreground">
           Batches <span className="text-accent">· live</span>
         </h2>

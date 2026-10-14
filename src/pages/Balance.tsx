@@ -61,7 +61,7 @@ export function Balance() {
                 ]}
               />
             </label>
-            <span className={cn("ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-widest",
+            <span data-tour="balance-check" className={cn("ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-widest",
               balanced ? "bg-accent/12 text-accent ring-1 ring-accent/30" : "bg-destructive/15 text-destructive ring-1 ring-destructive/40")}>
               {balanced ? <><Check className="size-3" strokeWidth={3} /> In balance · A = L + E</> : <>Out of balance by {money(bs.check)}</>}
             </span>
