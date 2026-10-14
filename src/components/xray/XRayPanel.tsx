@@ -64,7 +64,10 @@ export function XRayPanel() {
         overlay={false}
         onInteractOutside={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
-        className="dark flex w-full flex-col gap-0 overflow-hidden rounded-l-[1.5rem] bg-background p-0 text-foreground shadow-soft ring-1 ring-white/10 sm:max-w-xl">
+        // Start BELOW the 4rem sticky header so the panel never covers the
+        // logo/nav (reported overlap). top-16 + h-auto overrides the sheet's
+        // default inset-y-0/h-full via tailwind-merge.
+        className="dark top-16 flex h-auto w-full flex-col gap-0 overflow-hidden rounded-l-[1.5rem] bg-background p-0 text-foreground shadow-soft ring-1 ring-white/10 sm:max-w-xl">
         <SheetHeader className="gap-1 border-b border-border px-5 py-5">
           <SheetTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
             <ScanLine className="size-4 text-accent" strokeWidth={2.25} />

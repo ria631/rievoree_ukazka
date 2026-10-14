@@ -63,9 +63,11 @@ export function RlsTab() {
   const [lastRun, setLastRun] = useState<Role | null>(null)
 
   // The guided tour asks us to play all three roles in sequence (animated).
-  const seenToken = useRef(rlsRunToken)
+  // Init to 0 (not the current token): the tab mounts AFTER runRls() bumps the
+  // token, so seeding with the live value would make the first open skip the run.
+  const seenToken = useRef(0)
   useEffect(() => {
-    if (rlsRunToken === seenToken.current) return
+    if (rlsRunToken === 0 || rlsRunToken === seenToken.current) return
     seenToken.current = rlsRunToken
     let alive = true
     ;(async () => {

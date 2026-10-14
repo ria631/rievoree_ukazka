@@ -67,10 +67,13 @@ export function AppShell() {
   const navigate = useNavigate()
   const path = useRouterState({ select: (s) => s.location.pathname })
   const onPaper = PAPER_ROUTES.has(path)
-  // The demo is a READ-ONLY TOUR, not a real login. We still ride the seeded
-  // viewer session under the hood (so the data + X-ray are real + RLS-filtered),
-  // but the UI never frames it as "logged in" and hides every write feature.
-  const isDemo = !!session && session.user.email === DEMO_EMAIL
+  // ANY *@demo.local account is a demo identity (the "Explore the demo" viewer,
+  // and the viewer@/manager@/admin@ role accounts the tour signs in as). The UI
+  // frames all of them as "exploring the demo as <role> · read-only" — never as a
+  // real login — because every write is blocked server-side. isExploreTour is the
+  // lean read-only viewer tour (demo@) specifically.
+  const isDemo = !!session && (session.user.email ?? "").toLowerCase().endsWith("@demo.local")
+  const isExploreTour = !!session && session.user.email === DEMO_EMAIL
 
   async function exploreDemo() {
     const { error } = await supabase.auth.signInWithPassword({ email: DEMO_EMAIL, password: "demo123456" })
@@ -97,23 +100,25 @@ export function AppShell() {
   }
   // Guard: a deactivated account sees nothing but a notice (RLS also cuts all
   // data server-side; this is the human-facing half).
-  if (session && session.user.email !== DEMO_EMAIL && active === false) {
+  if (session && !isDemo && active === false) {
     return <DeactivatedScreen email={session.user.email ?? ""} />
   }
-  // Guard: the demo tour cannot reach write/account routes. Don't bounce
-  // silently — explain why and point at the next step (reported: a silent
-  // redirect left visitors unsure what happened).
-  if (isDemo && DEMO_BLOCKED.has(path)) {
+  // Guard: the lean "explore demo" viewer tour cannot reach write/account routes
+  // — explain, don't bounce silently. Role-demos (manager@/admin@) MAY reach them
+  // (read-only; the DB blocks their writes), so the tour can show Ingest.
+  if (isExploreTour && DEMO_BLOCKED.has(path)) {
     return <DemoBlockedScreen path={path} />
   }
 
-  // The signed-in flag for chrome purposes EXCLUDES the demo tour.
+  // A truly registered account (full chrome: Sign out, acting-as).
   const realUser = !!session && !isDemo
+  // Who sees the full product nav: real users, and role-demos (so manager@ sees
+  // Ingest/Connectors). The lean SHOWCASE nav is only the read-only viewer tour.
+  const showProductNav = realUser || (isDemo && !isExploreTour)
 
-  // The signed-in product nav has 11 items, so its bar needs more room and a
-  // higher "collapse to menu" breakpoint than the lean demo/anon navs — otherwise
-  // the row overflows and the whole page scrolls sideways.
-  const headerMax = realUser ? "max-w-7xl" : "max-w-6xl"
+  // The product nav has up to 11 items, so its bar needs more room and a higher
+  // "collapse to menu" breakpoint than the lean tour/anon navs.
+  const headerMax = showProductNav ? "max-w-7xl" : "max-w-6xl"
 
   return (
     // XrayPanelProvider: the X-ray panel's open/tab state is shared so the
@@ -132,7 +137,7 @@ export function AppShell() {
             X-RAY<span className={onPaper ? "text-accent" : "bg-gradient-to-r from-accent to-signal bg-clip-text text-transparent"}>/</span>
           </Link>
 
-          {realUser ? (
+          {showProductNav ? (
             <nav className="hidden items-center gap-0.5 xl:flex">
               {navFor(role).map((item) => (
                 <Link key={item.to} to={item.to} className={navLinkCompact}
@@ -141,7 +146,7 @@ export function AppShell() {
                 </Link>
               ))}
             </nav>
-          ) : isDemo ? (
+          ) : isExploreTour ? (
             <nav className="hidden items-center gap-1 lg:flex">
               {SHOWCASE.map((item) => (
                 <Link key={item.to} to={item.to} className={navLinkBase}
@@ -163,9 +168,9 @@ export function AppShell() {
             <XRayPanel />
             {realUser && <div className="hidden xl:block"><ActingAs label={role ?? session.user.email ?? "signed in"} /></div>}
             {isDemo && (
-              <div className="hidden items-center gap-2 lg:flex">
+              <div className={cn("hidden items-center gap-2", showProductNav ? "xl:flex" : "lg:flex")}>
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground ring-1 ring-border">
-                  <ScanLine className="size-3" strokeWidth={2.25} /> Demo · read-only
+                  <ScanLine className="size-3" strokeWidth={2.25} /> {role ?? "demo"} · demo
                 </span>
                 <Link to="/register" className="rounded-full bg-accent px-4 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
                   Create account
@@ -173,20 +178,24 @@ export function AppShell() {
                 <button onClick={exitDemo} className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground">Exit</button>
               </div>
             )}
-            <div className={realUser ? "xl:hidden" : isDemo ? "lg:hidden" : "md:hidden"}>
-              <MobileNav mode={realUser ? "user" : isDemo ? "demo" : "anon"} navItems={navFor(role)}
-                identity={role ?? session?.user.email ?? "signed in"} onDemo={exploreDemo} onExitDemo={exitDemo} />
+            <div className={realUser ? "xl:hidden" : isDemo && showProductNav ? "xl:hidden" : isDemo ? "lg:hidden" : "md:hidden"}>
+              <MobileNav mode={realUser ? "user" : isDemo ? "demo" : "anon"}
+                navItems={isExploreTour ? SHOWCASE : navFor(role)}
+                identity={isDemo ? `${role ?? "demo"} · demo` : (role ?? session?.user.email ?? "signed in")}
+                onDemo={exploreDemo} onExitDemo={exitDemo} />
             </div>
           </div>
         </div>
       </header>
 
-      {/* Demo banner — makes the read-only-tour state unmistakable + nudges sign-up. */}
+      {/* Demo banner — makes the read-only state unmistakable + nudges sign-up. */}
       {isDemo && !onPaper && (
         <div className="border-b border-accent/20 bg-accent/[0.07]">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-6 py-2.5 text-sm">
-            <span className="font-medium text-foreground">You're exploring the demo — read-only.</span>
-            <span className="text-muted-foreground">Sign in to upload your own data and use the interactive tools.</span>
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-2 px-6 py-2.5 text-sm">
+            <span className="font-medium text-foreground">
+              You're exploring the demo{role ? <> as <span className="uppercase">{role}</span></> : null} — read-only.
+            </span>
+            <span className="text-muted-foreground">Create an account to upload your own data and use the write tools.</span>
             <span className="ml-auto flex items-center gap-2">
               <Link to="/register" className="rounded-full bg-accent px-4 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">Create account</Link>
               <Link to="/login" className="rounded-full border border-border px-4 py-1.5 font-mono text-[10px] uppercase tracking-widest text-foreground transition hover:border-accent">Sign in</Link>
@@ -209,7 +218,7 @@ export function AppShell() {
       {/* Guided tour — only inside the app (not the public paper pages). It
           auto-offers once to the read-only demo visitor, who is the one most
           likely to miss the machinery. */}
-      {session && !onPaper && <Tour autoOffer={isDemo} />}
+      {session && !onPaper && <Tour autoOffer={isExploreTour} />}
 
       {/* Full-screen code reveal (the current page's real source, IDE-style). */}
       <CodeOverlay />
@@ -243,7 +252,7 @@ function MobileNav({ mode, navItems, identity, onDemo, onExitDemo }: { mode: "us
           ))}
           {mode === "demo" && (
             <>
-              {SHOWCASE.map((item) => (
+              {navItems.map((item) => (
                 <Link key={item.to} to={item.to} onClick={() => setOpen(false)}
                   className="rounded-xl px-4 py-3 font-mono text-sm uppercase tracking-widest transition-colors"
                   activeProps={{ className: navLinkActive }} inactiveProps={{ className: navLinkIdle }}>
