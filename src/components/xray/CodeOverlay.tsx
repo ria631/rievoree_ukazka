@@ -144,8 +144,8 @@ export function CodeOverlay() {
     <AnimatePresence>
       {code && tab && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.985 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.985 }}
-          transition={{ duration: 0.18 }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          transition={{ duration: 0.16 }}
           className="fixed inset-0 z-[70] flex flex-col bg-[#1e1e1e] font-mono text-[#d4d4d4]">
           {/* Title bar */}
           <div className="flex h-9 shrink-0 items-center bg-[#323233] px-3 text-[12px] text-white/55">

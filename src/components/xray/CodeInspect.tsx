@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { createPortal } from "react-dom"
 import { Code2, X, FileCode2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { prewarmHighlighter } from "@/lib/code-xray"
 import { useXrayPanel } from "./XrayPanelContext"
 import { CODE_MAP } from "./codeMap"
 
@@ -28,8 +29,6 @@ export function CodeXrayButton({ className }: { className?: string }) {
   )
 }
 
-interface Box { id: string; title: string; top: number; left: number; width: number; height: number }
-
 /** Walk up from a node to the nearest anchor that has mapped code. */
 function mappedAnchor(node: Element | null): HTMLElement | null {
   let el = node?.closest<HTMLElement>("[data-tour]") ?? null
@@ -40,38 +39,49 @@ function mappedAnchor(node: Element | null): HTMLElement | null {
   return null
 }
 
+/** Mark every mapped element on the page; CSS draws its outline + label. */
+function markAll() {
+  document.querySelectorAll<HTMLElement>("[data-tour]").forEach((el) => {
+    const t = CODE_MAP[el.dataset.tour ?? ""]
+    if (!t || el.dataset.xrayTitle === t.title) return
+    el.dataset.xrayTitle = t.title
+    const cs = getComputedStyle(el)
+    if (cs.overflowX !== "visible" || cs.overflowY !== "visible") el.dataset.xrayInset = ""
+  })
+}
+function unmarkAll() {
+  document.querySelectorAll<HTMLElement>("[data-xray-title]").forEach((el) => {
+    delete el.dataset.xrayTitle
+    delete el.dataset.xrayInset
+    el.classList.remove("xray-hot")
+  })
+}
+
+/**
+ * Inspect mode. Deliberately cheap: the outlines and labels are CSS on the real
+ * elements (the browser keeps them in place while you scroll), and the only
+ * JavaScript is a class swap when the hovered element changes. Nothing runs per
+ * animation frame, so the page stays as smooth as without it.
+ */
 export function InspectLayer() {
   const { inspecting, setInspecting, openCode } = useXrayPanel()
-  const [boxes, setBoxes] = useState<Box[]>([])
-  const [hover, setHover] = useState<string | null>(null)
 
-  // Track every visible mapped element, every frame (scroll, panels, charts).
-  useEffect(() => {
-    if (!inspecting) { setBoxes([]); setHover(null); return }
-    document.documentElement.classList.add("xray-inspecting")
-    let raf = 0
-    const loop = () => {
-      const vh = window.innerHeight
-      const out: Box[] = []
-      document.querySelectorAll<HTMLElement>("[data-tour]").forEach((el) => {
-        const id = el.dataset.tour ?? ""
-        const t = CODE_MAP[id]
-        if (!t) return
-        const r = el.getBoundingClientRect()
-        if (r.width < 4 || r.height < 4 || r.bottom < 0 || r.top > vh) return
-        out.push({ id, title: t.title, top: r.top, left: r.left, width: r.width, height: r.height })
-      })
-      setBoxes(out)
-      raf = requestAnimationFrame(loop)
-    }
-    raf = requestAnimationFrame(loop)
-    return () => { cancelAnimationFrame(raf); document.documentElement.classList.remove("xray-inspecting") }
-  }, [inspecting])
-
-  // Hover → which element; click → open its code (and swallow the page click).
   useEffect(() => {
     if (!inspecting) return
-    const onMove = (e: MouseEvent) => setHover(mappedAnchor(e.target as Element)?.dataset.tour ?? null)
+    const html = document.documentElement
+    html.classList.add("xray-inspecting")
+    markAll()
+    prewarmHighlighter() // so the code view opens instantly on the first click
+    const rescan = window.setInterval(markAll, 1200) // late-mounting charts/panels
+
+    let hot: HTMLElement | null = null
+    const onMove = (e: MouseEvent) => {
+      const el = mappedAnchor(e.target as Element)
+      if (el === hot) return
+      hot?.classList.remove("xray-hot")
+      el?.classList.add("xray-hot")
+      hot = el
+    }
     const onClick = (e: MouseEvent) => {
       const t = e.target as Element
       if (t.closest("[data-inspect-ui]")) return
@@ -81,54 +91,37 @@ export function InspectLayer() {
       if (target) openCode({ kind: "target", target })
     }
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setInspecting(false) }
-    window.addEventListener("mousemove", onMove)
+    window.addEventListener("mousemove", onMove, { passive: true })
     window.addEventListener("click", onClick, true)
     window.addEventListener("keydown", onKey)
     return () => {
+      window.clearInterval(rescan)
       window.removeEventListener("mousemove", onMove)
       window.removeEventListener("click", onClick, true)
       window.removeEventListener("keydown", onKey)
+      html.classList.remove("xray-inspecting")
+      unmarkAll()
     }
   }, [inspecting, openCode, setInspecting])
 
   if (!inspecting) return null
   return createPortal(
-    <>
-      {/* Hint bar */}
-      <div data-inspect-ui className="pointer-events-none fixed inset-x-0 bottom-[76px] z-[66] flex justify-center px-4">
-        <div className="pointer-events-auto flex max-w-[min(92vw,780px)] flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl bg-[#0b0f0a]/95 px-5 py-3 font-mono text-xs text-white/80 shadow-soft ring-1 ring-accent/60 backdrop-blur">
-          <span className="inline-flex items-center gap-2 font-bold uppercase tracking-widest text-accent">
-            <Code2 className="size-4" /> X-ray code
-          </span>
-          <span>Click any <span className="text-accent">outlined</span> chart, table or control to open its real code.</span>
-          <button onClick={() => openCode({ kind: "page" })}
-            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] uppercase tracking-wider text-white/75 ring-1 ring-white/20 transition hover:text-white hover:ring-accent">
-            <FileCode2 className="size-3.5" /> whole page file
-          </button>
-          <button onClick={() => setInspecting(false)}
-            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] uppercase tracking-wider text-white/60 transition hover:text-white">
-            Esc <X className="size-3.5" />
-          </button>
-        </div>
+    <div data-inspect-ui className="pointer-events-none fixed inset-x-0 bottom-[76px] z-[66] flex justify-center px-4">
+      <div className="pointer-events-auto flex max-w-[min(92vw,780px)] flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl bg-[#0b0f0a] px-5 py-3 font-mono text-xs text-white/80 shadow-soft ring-1 ring-accent/60">
+        <span className="inline-flex items-center gap-2 font-bold uppercase tracking-widest text-accent">
+          <Code2 className="size-4" /> X-ray code
+        </span>
+        <span>Click any <span className="text-accent">outlined</span> chart, table or control to open its real code.</span>
+        <button onClick={() => openCode({ kind: "page" })}
+          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] uppercase tracking-wider text-white/75 ring-1 ring-white/20 transition hover:text-white hover:ring-accent">
+          <FileCode2 className="size-3.5" /> whole page file
+        </button>
+        <button onClick={() => setInspecting(false)}
+          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] uppercase tracking-wider text-white/60 transition hover:text-white">
+          Esc <X className="size-3.5" />
+        </button>
       </div>
-
-      {/* Outlines */}
-      {boxes.map((b) => {
-        const on = hover === b.id
-        return (
-          <div key={b.id + b.top} className="pointer-events-none fixed z-[64]"
-            style={{ top: b.top - 4, left: b.left - 4, width: b.width + 8, height: b.height + 8 }}>
-            <div className={cn("absolute inset-0 rounded-xl transition-all",
-              on ? "bg-accent/[0.06] ring-2 ring-accent shadow-[0_0_30px_-4px_rgba(163,230,53,0.6)]"
-                 : "border border-dashed border-accent/75 bg-accent/[0.025]")} />
-            <span className={cn("absolute left-3 inline-flex", b.top < 18 ? "top-1.5" : "-top-3", " items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider transition",
-              on ? "bg-accent text-accent-foreground" : "bg-[#0b0f0a] text-accent ring-1 ring-accent/50")}>
-              <Code2 className="size-3" /> {on ? `open code · ${b.title}` : b.title}
-            </span>
-          </div>
-        )
-      })}
-    </>,
+    </div>,
     document.body,
   )
 }

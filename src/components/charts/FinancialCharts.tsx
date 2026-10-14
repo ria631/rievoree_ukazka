@@ -28,8 +28,11 @@ const SURFACE = "#16171b"
 export const COLORS = { emerald: REVENUE, teal: CASH, amber: PROFIT, violet: EXPENSE }
 const BUCKET_COLORS = ["#4fc99a", "#e0b341", "#e0843e", "#e5584d"] // 0–30 … 90+ (a risk scale)
 
-const REDUCE = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
-const ANIM = !REDUCE
+// Chart-internal animations are OFF: recharts/nivo animate in JavaScript, every
+// frame, for every chart — on a page with 7 charts a filter change meant ~1 s of
+// stutter. Data updates are instant instead; the cards themselves still fade in
+// (CSS/GPU) as they scroll into view.
+const ANIM = false
 
 const eur = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 })
 

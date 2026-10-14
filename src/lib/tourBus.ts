@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { startTransition, useEffect, useRef } from "react"
 
 /**
  * A tiny control bus between the guided tour and a page's own filters. The tour
@@ -20,7 +20,9 @@ export function useTourControl(key: string, handler: (value: string) => void) {
   useEffect(() => {
     const on = (e: Event) => {
       const d = (e as CustomEvent<{ key: string; value: string }>).detail
-      if (d?.key === key) ref.current(d.value)
+      // A transition: the page re-renders in interruptible slices, so the tour's
+      // cursor and spotlight keep gliding while seven charts recompute.
+      if (d?.key === key) startTransition(() => ref.current(d.value))
     }
     window.addEventListener(EVENT, on)
     return () => window.removeEventListener(EVENT, on)
