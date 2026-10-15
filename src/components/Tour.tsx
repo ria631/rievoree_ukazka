@@ -386,7 +386,9 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
           const el = document.querySelector<HTMLElement>(sel(s.target))
           if (el) {
             const r = el.getBoundingClientRect()
-            if (r.bottom < HEADER + 40 || r.top > window.innerHeight - 80) { scrollIntoFree(el); await scrollSettled(alive) }
+            // Off screen — or grown past the fold by what the action opened.
+            const grown = r.bottom > window.innerHeight - 10 && r.top > HEADER + 40
+            if (r.bottom < HEADER + 40 || r.top > window.innerHeight - 80 || grown) { scrollIntoFree(el); await scrollSettled(alive) }
           }
         }
         await sleep(450)

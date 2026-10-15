@@ -75,6 +75,11 @@ begin;
   update public.profiles set role = 'admin'       where id = 'd0000000-0000-4000-8000-000000000002';
   update public.profiles set role = 'manager'     where id = 'd0000000-0000-4000-8000-000000000003';
   -- viewer keeps the default 'viewer' role.
+  -- The same flags migration 34 sets on remote (it runs before these rows exist
+  -- locally): every @demo.local account is the shared, read-only demo.
+  update public.profiles set is_demo = true where lower(email) like '%@demo.local';
+  update public.profiles set is_platform_staff = true
+    where lower(email) like '%@demo.local' and role in ('super_admin', 'admin');
 commit;
 
 -- ----------------------------------------------------------------------------
@@ -134,6 +139,9 @@ values (
 update public.entities set is_sample = true;
 
 select private.load_reporting_demo();
+
+-- The shared spreadsheet-link connector on the office SPV (migration 41).
+select private.ensure_showcase_connector();
 
 -- ----------------------------------------------------------------------------
 -- 8. notify-review endpoint config (LOCAL ONLY) — the local half of the

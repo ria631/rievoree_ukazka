@@ -15,6 +15,7 @@ const AGG = "src/lib/data/aggregate.ts"
 const D = (name: string) => `src/lib/data/${name}.ts`
 const RE = "supabase/migrations/20261015000001_real_estate_reporting.sql"
 const MIG = (f: string) => `supabase/migrations/${f}.sql`
+const SHEET = MIG("20261016000003_sheet_link_connector")
 
 export const CODE_MAP: Record<string, CodeTarget> = {
   // ---- Dashboard ----------------------------------------------------------
@@ -254,11 +255,20 @@ export const CODE_MAP: Record<string, CodeTarget> = {
   ] },
   "connectors-add": { title: "Add a connector", refs: [
     { file: P("Connectors"), focus: "function CreateConnector", label: "the form" },
-    { file: "src/lib/data/useConnectors.ts", focus: "export function webhookUrl", label: "webhook URL" },
+    { file: SHEET, focus: "create or replace function public.create_connector", label: "create (validated link)" },
+    { file: SHEET, focus: "create or replace function private.normalize_sheet_url", label: "Sheets link → CSV" },
+    { file: SHEET, focus: "create or replace function private.connector_url_ok", label: "public https only" },
+  ] },
+  "connectors-showcase": { title: "Sync a spreadsheet link", refs: [
+    { file: D("useConnectors"), focus: "export function useSheetSync", label: "sync + poll" },
+    { file: SHEET, focus: "create or replace function public.sync_url_connector", label: "fetch (pg_net)" },
+    { file: SHEET, focus: "create or replace function private.parse_csv_rows", label: "CSV parsed in SQL" },
+    { file: SHEET, focus: "create or replace function private.process_url_fetch", label: "preview / ingest" },
+    { file: P("Connectors"), focus: "function SyncResult", label: "the result panel" },
   ] },
   "connectors-how": { title: "How connectors work", refs: [
+    { file: SHEET, focus: "create or replace function private.run_connector_syncs", label: "hourly (pg_cron)" },
     { file: "supabase/functions/connector-webhook/index.ts", focus: "timingSafeEqual(signature", label: "HMAC verify" },
-    { file: MIG("20260701000001_simulate_connector_sync"), focus: "create or replace function public.simulate_connector_sync", label: "simulate sync" },
     { file: P("Connectors"), focus: "function HowItWorks", label: "this section" },
   ] },
 }

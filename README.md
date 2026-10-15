@@ -26,9 +26,10 @@ reports out — and you can watch every layer run:
   an edge function on the way.
 - **Auth & user management.** Four roles, TOTP 2FA, email invites, password
   reset, deactivation, OAuth — with frozen privileged columns (defense in depth).
-- **Connectors.** Google Drive (OAuth + Changes API + resumable page token) and
-  an HMAC-signed webhook, both feeding the same pipeline. Drive ships in
-  "simulate" mode on the public demo (see the Connectors page for why).
+- **Connectors.** A spreadsheet link (a Google Sheet shared "anyone with the
+  link", or any public CSV) that the database itself fetches with `pg_net`,
+  parses in SQL and re-reads hourly via `pg_cron` — plus an HMAC-signed
+  webhook. Both feed the same pipeline; already-seen content is skipped.
 
 ### What's real vs. illustrative (honesty invariant)
 Every figure in the product app is a real query result. The small panels in the

@@ -446,14 +446,23 @@ export const STEPS: Step[] = [
   // ───────────────────────── Connectors
   {
     id: "connectors-add", chapter: "Connectors", as: "manager", route: "/connectors", target: "connectors-add", code: "connectors-add",
-    title: "Skip the manual upload — pin a connector",
-    body: "Choose the company and a type: Google Drive (pick a folder, approve access once, new files are pulled automatically) or Webhook (you get a URL + secret; your accounting system posts files to it).",
+    title: "Skip the manual upload — link a spreadsheet",
+    body: "Pick the company and a type: Spreadsheet link (paste the link of a Google Sheet shared with 'anyone with the link', or any public CSV — Dropbox, OneDrive) or Webhook (your accounting system posts files to a signed URL).",
     money: "Month-end data arrives on its own, and goes through the same checks and review.",
+    tech: "The database validates the link (public https host only) and turns an ordinary Sheets link into its CSV export.",
+  },
+  {
+    id: "connectors-sync", chapter: "Connectors", as: "manager", route: "/connectors", target: "connectors-showcase", optional: true, code: "connectors-showcase",
+    title: "Watch it read a real spreadsheet",
+    body: "This one points at a shared cost sheet. Sync now asks the DATABASE to download the link, reads the CSV in SQL and reports what it found: rows, period, debits against credits, accounts it doesn't know. Here it's a preview — the demo is read-only; on your account it becomes a batch waiting for review.",
+    money: "Whoever keeps the cost sheet keeps working in Sheets; the books pick it up every hour.",
+    tech: "pg_net makes the HTTP request from Postgres; the answer is parsed in SQL and fed to the same ingest function as an upload. Content already imported (same SHA-256) is skipped.",
+    actions: [{ to: "connectors-sync", say: "Sync now — the database fetches the sheet…", wait: 3200 }],
   },
   {
     id: "connectors-how", chapter: "Connectors", as: "manager", route: "/connectors", target: "connectors-how", code: "connectors-how",
-    title: "How it works — and how to test it without Google",
-    body: "Drive uses real OAuth and resumes where it stopped; each file is imported at most once. 'Simulate sync' pushes a sample file through the exact same pipeline with one click. Webhooks are verified with an HMAC signature compared in constant time.",
+    title: "Connect your own Google Sheet",
+    body: "Share the sheet as 'anyone with the link', paste the link, done — pg_cron re-reads it every hour. The first row is the header (Account, Date, Debit, Credit — Slovak names work too). Systems that push instead use the webhook, verified with an HMAC signature compared in constant time.",
   },
 
   // ───────────────────────── Your turn

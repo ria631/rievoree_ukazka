@@ -50,7 +50,8 @@ const DYNAMIC = [[/^xray-(calls|rls|sql|pipeline|code|arch)$/, "data-tour={`xray
 for (const m of src.matchAll(idRe)) {
   const id = m[1]
   const dyn = DYNAMIC.find(([re]) => re.test(id))
-  if (dyn ? !corpus.includes(dyn[1]) : (!corpus.includes(`data-tour="${id}"`) && !corpus.includes(`tour="${id}"`))) {
+  const conditional = corpus.includes(`? "${id}" : undefined`) // data-tour={cond ? "id" : undefined}
+  if (dyn ? !corpus.includes(dyn[1]) : (!conditional && !corpus.includes(`data-tour="${id}"`) && !corpus.includes(`tour="${id}"`))) {
     console.error(`✗ data-tour anchor not found in UI: ${id}`); failures++
   }
 }

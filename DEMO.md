@@ -31,8 +31,9 @@ your own account.
 5. **Sign in as a role to see the machinery** (login page → *Explore as a role*):
    - **Manager** → **Ingest**: upload a CSV (use the template), watch it get
      validated and z-score-screened; a batch at *Needs review* shows the flagged
-     anomaly. Approve it and the figures flow into the reports. **Connectors** shows
-     the Google Drive (simulate) + HMAC webhook paths.
+     anomaly. Approve it and the figures flow into the reports. **Connectors**: press
+     *Sync now* on the shared spreadsheet — the database fetches and reads it
+     live (preview only on the demo) — plus the HMAC webhook path.
    - **Admin** → **Users**: invite-by-email, roles, reset password/MFA,
      deactivate — every privileged change goes through an audited RPC.
 
