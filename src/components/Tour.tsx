@@ -108,8 +108,9 @@ interface Stage {
   hole: Box | null
   dim: number
   link: number // connector opacity
+  seenAt: number // last frame the target was on screen
 }
-const freshStage = (): Stage => ({ sel: null, el: null, elSel: null, wantDim: false, hole: null, dim: 0, link: 0 })
+const freshStage = (): Stage => ({ sel: null, el: null, elSel: null, wantDim: false, hole: null, dim: 0, link: 0, seenAt: 0 })
 
 export function Tour({ autoOffer }: { autoOffer?: boolean }) {
   const navigate = useNavigate()
@@ -213,7 +214,12 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
           st.hole = { x: lerp(st.hole.x, want.x, e), y: lerp(st.hole.y, want.y, e), w: lerp(st.hole.w, want.w, e), h: lerp(st.hole.h, want.h, e) }
         }
       }
-      st.dim = lerp(st.dim, st.wantDim && st.hole ? 1 : 0, k(0.14))
+      // Dim only around a target that is actually there: while the next one is
+      // still loading (or never shows up) the old hole fades out instead of
+      // lingering over an empty spot.
+      if (r) st.seenAt = t
+      const present = !!r || t - st.seenAt < 250
+      st.dim = lerp(st.dim, st.wantDim && st.hole && present ? 1 : 0, k(0.14))
       if (st.dim < 0.01 && !st.wantDim) st.hole = null
       const dim = dimRef.current
       if (dim) {
@@ -245,7 +251,7 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
       if (path && dot && svg) {
         const c = card?.getBoundingClientRect()
         const h = st.hole
-        const show = isRail && !!c && !!h && st.wantDim && h.x > (c?.right ?? 0) + 24
+        const show = isRail && !!c && !!h && !!r && st.wantDim && h.x > (c?.right ?? 0) + 24
         st.link = lerp(st.link, show && st.dim > 0.5 ? 1 : 0, k(0.12))
         svg.style.opacity = st.link.toFixed(3)
         if (show && c && h) {
@@ -296,8 +302,10 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
     const id = ++runId.current
     const alive = () => runId.current === id && live$.current.running
     const st = stage.current
-    // New step: the spotlight holds where it is (it will glide on); the card fades out.
-    st.sel = null; st.wantDim = !!s.target
+    // New step: the spotlight stays on the previous element while the next one
+    // is found (then glides over); if that element is gone (another page) the
+    // dim fades out rather than framing an empty spot. The card fades out.
+    st.wantDim = !!s.target
     setPhase("entering"); setCaption(null); setLive([]); setMenu(false)
     setCursor((p) => ({ ...p, on: false }))
     // Watchdog: whatever happens (a missing element, a slow network), the step
@@ -329,12 +337,12 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
         const el = await waitFor(sel(s.target), s.optional ? 3500 : 6000, alive)
         if (!alive()) return
         if (!el) {
-          st.wantDim = false
           // Its subject isn't here (e.g. no batch is waiting for review): skip on.
           if (s.optional) {
             const n = i + dir.current
             if (n >= 0 && n < STEPS.length) { window.clearTimeout(guard); setI(n); return }
-          }
+            st.wantDim = false
+          } else st.sel = sel(s.target) // still loading: it lights up the moment it appears
         } else {
           if (s.xray) await sleep(420) // let the drawer finish sliding in
           st.sel = sel(s.target)

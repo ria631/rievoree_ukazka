@@ -56,6 +56,7 @@ export const SOURCES: Record<string, Loader> = {
   "supabase/migrations/20260605000001_identity_and_tenancy.sql": () => import("../../../supabase/migrations/20260605000001_identity_and_tenancy.sql?raw"),
   "supabase/migrations/20260605000003_journal.sql": () => import("../../../supabase/migrations/20260605000003_journal.sql?raw"),
   "supabase/migrations/20261015000001_real_estate_reporting.sql": () => import("../../../supabase/migrations/20261015000001_real_estate_reporting.sql?raw"),
+  "supabase/migrations/20261016000001_journal_documents_mv.sql": () => import("../../../supabase/migrations/20261016000001_journal_documents_mv.sql?raw"),
   "supabase/migrations/20260610000002_report_account_monthly.sql": () => import("../../../supabase/migrations/20260610000002_report_account_monthly.sql?raw"),
   "supabase/migrations/20260610000004_pipeline_events_and_refresh_queue.sql": () => import("../../../supabase/migrations/20260610000004_pipeline_events_and_refresh_queue.sql?raw"),
   "supabase/migrations/20260607000002_etl_transform.sql": () => import("../../../supabase/migrations/20260607000002_etl_transform.sql?raw"),

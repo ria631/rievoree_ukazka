@@ -207,7 +207,7 @@ export const CODE_MAP: Record<string, CodeTarget> = {
   "jr-docs": { title: "Documents", refs: [
     { file: P("Journal"), focus: 'tour="jr-docs"', label: "the table" },
     { file: D("useJournal"), focus: "export function useJournalDocuments", label: "server-side paging" },
-    { file: RE, focus: "create or replace view public.journal_documents", label: "one row per document" },
+    { file: MIG("20261016000001_journal_documents_mv"), focus: "create materialized view if not exists private.mv_journal_documents", label: "one row per document (materialized)" },
   ] },
 
   // ---- X-ray --------------------------------------------------------------

@@ -7,7 +7,12 @@ import "./index.css"
 import { router } from "./app/router"
 import { AuthProvider } from "./lib/auth/AuthProvider"
 
-const queryClient = new QueryClient()
+// One retry, not three: a failing query should say so in seconds, not leave a
+// page "loading" for half a minute. Data is fresh for a minute, so the guided
+// tour (and anyone clicking between pages) doesn't refetch every report.
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1, staleTime: 60_000, refetchOnWindowFocus: false } },
+})
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

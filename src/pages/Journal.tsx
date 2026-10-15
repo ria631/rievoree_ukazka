@@ -37,11 +37,13 @@ export function Journal() {
   useEffect(() => { setPage(0); setOpenDoc(null) }, [entityId, period, type, q])
 
   const last = useMemo(() => lastClosed(rows ?? []), [rows])
+  // Months from the summary, or — while it is still loading — from the P&L roll-up.
   const months = useMemo(() => {
-    if (!summary?.length) return []
-    const ks = summary.map((s) => mk(s.period)).sort()
+    const src = summary?.length ? summary : rows ?? []
+    if (!src.length) return []
+    const ks = src.map((s) => mk(s.period)).sort()
     return monthRange(ks[0], ks[ks.length - 1])
-  }, [summary])
+  }, [summary, rows])
 
   const scoped = useMemo(() => (summary ?? []).filter((s) => include(s.entity_id)), [summary, include])
   const inScope = scoped.filter((s) => (period === "all" || s.period === period) && (type === "all" || s.doc_type === type))
@@ -66,9 +68,9 @@ export function Journal() {
         journal vouchers — and the proof the books hold: total debits equal total credits.
       </PageIntro>
 
-      {isLoading ? <LoadingNote label="loading journal…" />
-        : error ? <ErrorNote message={error.message} />
-        : !summary?.length ? <EmptyNote title="The journal is empty" hint="Approve and load a batch on the Ingest page." />
+      {/* The page never waits for the summary: filters and the paged documents
+          render at once; the counts and the chart fill in when they arrive. */}
+      {summary && !summary.length && !(rows?.length) ? <EmptyNote title="The journal is empty" hint="Approve and load a batch on the Ingest page." />
         : (
         <div className="space-y-6">
           <div data-tour="jr-filters" className="flex flex-wrap items-center gap-3">
@@ -85,7 +87,7 @@ export function Journal() {
           </div>
 
           <div data-tour="jr-types" className="flex flex-wrap gap-2">
-            {[{ key: "all", label: "All documents" }, ...DOC_TYPES.filter((d) => scoped.some((s) => s.doc_type === d.key))].map((d) => (
+            {[{ key: "all", label: "All documents" }, ...DOC_TYPES.filter((d) => (summary ? scoped.some((s) => s.doc_type === d.key) : d.key !== "UP"))].map((d) => (
               <button key={d.key} data-tour={`jr-type-${d.key}`} onClick={() => setType(d.key)}
                 className={cn("inline-flex items-center gap-2 rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-widest ring-1 transition",
                   type === d.key ? "bg-accent text-accent-foreground ring-accent" : "text-muted-foreground ring-border hover:text-foreground")}>
@@ -95,6 +97,9 @@ export function Journal() {
             ))}
           </div>
 
+          {isLoading ? <LoadingNote label="counting documents…" />
+            : error ? <ErrorNote message={error.message} />
+            : (<>
           <div data-tour="jr-kpis" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <KpiTile i={0} label="Documents" value={docs} format={(n) => num.format(n)} hint={period === "all" ? "all months" : mLong(mk(period))} />
             <KpiTile i={1} label="Journal lines" value={lines} format={(n) => num.format(n)} hint={`${(lines / (docs || 1)).toFixed(1)} lines per document`} />
@@ -104,10 +109,11 @@ export function Journal() {
           </div>
 
           <TieOut tour="jr-proof" label="Debits = credits" left={debit} right={credit} leftLabel="total debits" rightLabel="total credits" />
+          </>)}
 
           <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
             <ChartCard tour="jr-volume" title="Documents posted per month" hint="by type">
-              <VolumeStacked data={volume} types={DOC_TYPES} />
+              {summary ? <VolumeStacked data={volume} types={DOC_TYPES} /> : <LoadingNote label="loading…" />}
             </ChartCard>
             <TableCard tour="jr-tb" title="Trial balance" hint={period === "all" ? `${months.length} months` : mLong(mk(period))}>
               <div className="max-h-[300px] overflow-auto">
