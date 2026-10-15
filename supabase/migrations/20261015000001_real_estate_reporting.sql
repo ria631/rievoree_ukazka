@@ -513,7 +513,7 @@ begin
              when s.stop_off is not null and m.t::date >= (v_last + make_interval(months => s.stop_off))::date then null
              else nullif(least(greatest(v_start,
                                         m.t::date + 4 + case when s.delay < 10 then s.delay - 8 else s.delay - 3 end
-                                        + (7 * private.h01(s.id::text || m.t::text))::int),
+                                        + (7 * private.h01(s.code || s.tenant || s.start_off || m.t::text))::int),
                                v_asof + 1), v_asof + 1)
            end as paid
     from pg_temp.rv2_ls s
