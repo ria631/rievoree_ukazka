@@ -52,7 +52,7 @@ export function BatchDetail({
   }, [rows])
 
   return (
-    <div className="mt-4 rounded-[1.5rem] border border-border bg-card p-6 shadow-soft">
+    <div data-tour="batch-detail" className="mt-4 rounded-[1.5rem] border border-border bg-card p-6 shadow-soft">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="font-mono text-sm font-semibold">{fileName}</h3>
@@ -76,6 +76,7 @@ export function BatchDetail({
       ) : (
         <>
           {/* Summary + the checks that make approval mean something */}
+          <div data-tour="batch-summary">
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Stat label="Will load" value={summary.ok} tone="ok" />
             <Stat label="Flagged (held)" value={summary.flagged} tone={summary.flagged ? "flagged" : "muted"} />
@@ -83,7 +84,7 @@ export function BatchDetail({
             <Stat label="Rows total" value={summary.total} tone="muted" />
           </div>
 
-          <div className={cn(
+          <div data-live={summary.balanced ? "Debits = credits ✓" : "Debits ≠ credits ✗"} className={cn(
             "mt-3 flex items-center gap-2 rounded-xl border p-3 font-mono text-xs",
             summary.balanced ? "border-accent/40 bg-accent/10 text-accent" : "border-destructive/40 bg-destructive/10 text-destructive",
           )}>
@@ -95,8 +96,10 @@ export function BatchDetail({
             )}
           </div>
 
+          </div>
+
           {/* Per-row detail */}
-          <div className="mt-4 max-h-[42vh] overflow-auto rounded-xl border border-border">
+          <div data-tour="batch-rows" className="mt-4 max-h-[42vh] overflow-auto rounded-xl border border-border">
             <table className="w-full border-collapse text-xs">
               <thead className="sticky top-0 bg-secondary/60">
                 <tr className="text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -350,7 +353,7 @@ function Stat({ label, value, tone }: { label: string; value: number; tone: "ok"
     muted: "text-foreground",
   }[tone]
   return (
-    <div className="rounded-xl border border-border p-3">
+    <div data-live={`${label}: ${value}`} className="rounded-xl border border-border p-3">
       <div className={cn("font-mono text-2xl font-semibold tabular-nums", toneClass)}>{value}</div>
       <div className="mt-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{label}</div>
     </div>

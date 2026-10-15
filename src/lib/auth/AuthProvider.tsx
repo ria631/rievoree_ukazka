@@ -22,6 +22,9 @@ interface AuthState {
   /** profiles.is_active for the signed-in user. null until loaded. A deactivated
    *  account (false) is blocked at the shell; RLS already cuts data access too. */
   active: boolean | null
+  /** profiles.is_demo — a shared, read-only showcase account. The UI hides write
+   *  controls for these; the DB also refuses their writes (migration 34). */
+  isDemo: boolean
   loading: boolean
   /** Re-read the caller's role + active flag from profiles — call after a switch. */
   refreshRole: () => Promise<void>
@@ -32,6 +35,7 @@ export const AuthContext = createContext<AuthState>({
   user: null,
   role: null,
   active: null,
+  isDemo: false,
   loading: true,
   refreshRole: async () => {},
 })
@@ -40,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [role, setRole] = useState<string | null>(null)
   const [active, setActive] = useState<boolean | null>(null)
+  const [isDemo, setIsDemo] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -72,13 +77,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!uid) {
       setRole(null)
       setActive(null)
+      setIsDemo(false)
       return
     }
     // Own row is readable regardless of is_active (policy: id = auth.uid()), so a
     // deactivated user still learns they're deactivated.
-    const { data } = await supabase.from("profiles").select("role,is_active").eq("id", uid).maybeSingle()
+    const { data } = await supabase.from("profiles").select("role,is_active,is_demo").eq("id", uid).maybeSingle()
     setRole((data?.role as string | undefined) ?? null)
     setActive((data?.is_active as boolean | undefined) ?? null)
+    setIsDemo((data?.is_demo as boolean | undefined) ?? false)
   }, [uid])
 
   // Drives the "acting as <role>" label; re-runs whenever the identity changes.
@@ -88,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, role, active, loading, refreshRole: loadRole }}
+      value={{ session, user: session?.user ?? null, role, active, isDemo, loading, refreshRole: loadRole }}
     >
       {children}
     </AuthContext.Provider>

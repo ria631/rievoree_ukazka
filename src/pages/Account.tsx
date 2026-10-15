@@ -15,10 +15,15 @@ const ROLES: { value: SwitchableRole; label: string; blurb: string }[] = [
 ]
 
 export function Account() {
-  const { role, refreshRole } = useAuth()
+  const { role, refreshRole, isDemo } = useAuth()
   const [busy, setBusy] = useState<SwitchableRole | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+
+  // The shared demo roles (viewer@/manager@/admin@demo.local) are read-only: the
+  // DB refuses their writes (migration 34). Rather than show buttons that error,
+  // explain it and hide the write tools so one visitor can't lock out the rest.
+  if (isDemo) return <DemoAccountNotice role={role} />
 
   async function pick(next: SwitchableRole) {
     if (next === role || busy) return
@@ -87,7 +92,7 @@ export function Account() {
 
         {error && <p role="alert" className="mt-4 font-mono text-xs text-destructive">{error}</p>}
         {saved && !error && (
-          <p className="mt-4 font-mono text-xs text-accent">Role updated — try the Ingest and Reports pages.</p>
+          <p className="mt-4 font-mono text-xs text-accent">Role updated — try the Ingest page and the reports.</p>
         )}
       </section>
 
@@ -96,6 +101,42 @@ export function Account() {
       <TwoFactor />
 
       <EntityManager />
+    </div>
+  )
+}
+
+/** What a shared demo role sees on /account: no write tools, and a clear reason.
+ *  Registering a real account unlocks role-switching, password + 2FA + sandboxes. */
+function DemoAccountNotice({ role }: { role: string | null }) {
+  return (
+    <div className="relative">
+      <motion.header
+        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: "easeOut" }}
+        className="pb-10">
+        <span className="font-mono text-xs font-semibold uppercase tracking-widest text-accent">Account</span>
+        <h1 className="mt-3 text-5xl font-semibold tracking-tight md:text-6xl lg:text-7xl">Settings</h1>
+        <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
+          You're signed in to a <span className="text-foreground">shared demo account</span>
+          {role ? <> (<span className="font-mono uppercase">{role}</span>)</> : null}. It's
+          read-only so everyone exploring sees the same clean state — role switching, password,
+          2FA and sandboxes are turned off here, and the database enforces that too.
+        </p>
+      </motion.header>
+
+      <section className="max-w-2xl rounded-[1.5rem] bg-card p-6 shadow-soft ring-1 ring-border md:p-7">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="size-4 text-accent" />
+          <h2 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Want the full account?</h2>
+        </div>
+        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+          Create your own account to get a private sandbox you can't break: switch roles to watch
+          approval behaviour change, enable TOTP 2FA, change your password and manage your own entities.
+        </p>
+        <a href="/register"
+          className="mt-5 inline-flex items-center gap-1.5 rounded-md bg-accent px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
+          Create an account
+        </a>
+      </section>
     </div>
   )
 }

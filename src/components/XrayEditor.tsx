@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 
 import { extractRegions, highlightCode, type XrayLang } from "@/lib/code-xray"
+import { useCodeSize, CodeSizeControl } from "@/lib/codeSize"
 
 /**
  * X-RAY EDITOR — the landing's own source, shown as a real VS Code (Dark+) editor.
@@ -33,6 +34,7 @@ const LANG_LABEL: Record<XrayLang, string> = {
 }
 
 export default function XrayEditor() {
+  const codeSize = useCodeSize()
   const [active, setActive] = useState(0)
   const [html, setHtml] = useState<Record<number, string>>({})
   const file = FILES[active]
@@ -48,7 +50,8 @@ export default function XrayEditor() {
   }, [active, html])
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-[#1e1e1e] font-mono text-[#d4d4d4]">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-[#1e1e1e] font-mono text-[#d4d4d4]"
+      style={{ ["--code-size" as string]: `${codeSize.size}px` }}>
       {/* Title bar */}
       <div className="flex h-9 shrink-0 items-center bg-[#323233] px-3 text-[12px] text-white/55">
         <div className="flex gap-2">
@@ -59,11 +62,12 @@ export default function XrayEditor() {
         <span className="mx-auto truncate">
           {file.dir}/{file.name} — xray-reporting-engine
         </span>
+        <CodeSizeControl {...codeSize} />
       </div>
 
       <div className="flex min-h-0 flex-1">
         {/* Explorer sidebar — desktop only */}
-        <aside className="hidden w-60 shrink-0 flex-col overflow-y-auto bg-[#252526] py-2 text-[12px] text-white/60 md:flex">
+        <aside className="hidden w-52 shrink-0 flex-col overflow-y-auto bg-[#252526] py-2 text-[11.5px] text-white/60 md:flex">
           <div className="px-4 pb-2 pt-1 text-[10px] uppercase tracking-widest text-white/35">Explorer</div>
           <div className="px-2 pb-1 text-[11px] font-semibold text-white/45">xray-reporting-engine · landing</div>
           {FILES.map((f, i) => (

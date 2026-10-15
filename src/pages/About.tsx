@@ -82,7 +82,8 @@ export function About() {
       </div>
 
       <p className="mt-10 text-sm text-muted-foreground">
-        Built by Capila. Source &amp; CV links are placeholders in this demo.
+        Built by <span className="text-foreground">Mariia Chernenko</span> — a portfolio project.
+        The source is on <a href="https://github.com/ria631/rievoree_ukazka" target="_blank" rel="noreferrer" className="text-foreground underline-offset-4 hover:underline">GitHub</a>.
       </p>
     </section>
   )

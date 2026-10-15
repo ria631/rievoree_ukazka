@@ -170,16 +170,16 @@
      Lives on a fixed inset-0 layer, so the inset() % is viewport-relative and
      the whole page reads as transforming in place. GPU-composited clip. */
   .xray-editor-clip {
-    clip-path: inset(0 0 calc((1 - var(--scan, 0)) * 100%) 0);
     will-change: clip-path;
-    contain: paint;
+    contain: strict;
   }
   /* The scan line riding the reveal edge — fixed, so top% == vh. */
   .xray-scanline {
     position: fixed;
     left: 0; right: 0;
-    top: calc(var(--scan, 0) * 100%);
+    top: 0;
     height: 2px;
+    will-change: transform;
     z-index: 55; pointer-events: none;
     opacity: 0;
     transition: opacity 0.2s ease;
@@ -193,8 +193,8 @@
     margin: 0;
     padding: 1rem 1.25rem 1rem 0;
     background: transparent !important;
-    font-size: 12.5px;
-    line-height: 1.65;
+    font-size: var(--code-size, 11.5px); /* A− / A+ in the editors */
+    line-height: 1.6;
     tab-size: 2;
   }
   .code-shiki code {
@@ -205,6 +205,14 @@
     counter-increment: ln;
     padding-right: 1.5rem;
   }
+  /* The element's own block, when the code view opens on one element. */
+  .code-shiki .line.xray-hl {
+    background: oklch(0.86 0.21 126 / 0.09);
+    box-shadow: inset 3px 0 0 #a3e635;
+  }
+  .code-shiki .line.xray-hl::before { color: #c6f36b; }
+  .code-shiki .line.xray-hl-first { box-shadow: inset 3px 0 0 #a3e635, inset 0 1px 0 oklch(0.86 0.21 126 / 0.25); }
+  .code-shiki .line.xray-hl-last { box-shadow: inset 3px 0 0 #a3e635, inset 0 -1px 0 oklch(0.86 0.21 126 / 0.25); }
   .code-shiki .line::before {
     content: counter(ln);
     display: inline-block;
@@ -486,4 +494,117 @@
   body {
     @apply bg-background text-foreground antialiased;
   }
+}
+
+/* ----------------------------------------------------------------------------
+ * Custom scrollbar — themed, thin, and adaptive. The thumb is a translucent
+ * tint of the current --foreground, so it reads correctly on BOTH the dark app
+ * (light thumb on graphite) and the lime "paper" pages (dark thumb on green)
+ * without a second rule. Firefox uses the standard properties; WebKit/Blink
+ * use the pseudo-elements.
+ * -------------------------------------------------------------------------- */
+@layer base {
+  html {
+    /* Slightly "zoomed out" by default — 15px base (vs 16) gives the whole app
+       a touch more breathing room. rem-based type + spacing scale down with it;
+       the px-set X-ray console text is unaffected, so it stays readable. */
+    font-size: 15px;
+    scroll-behavior: smooth;
+    scrollbar-gutter: stable;         /* no layout shift when the bar appears */
+    scrollbar-width: thin;            /* Firefox */
+    scrollbar-color: color-mix(in oklch, var(--foreground) 28%, transparent) transparent;
+  }
+  /* WebKit / Blink */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklch, var(--foreground) 24%, transparent);
+    border-radius: 9999px;
+    border: 2px solid transparent;    /* inset the thumb from the edges */
+    background-clip: padding-box;
+    transition: background-color 0.15s ease;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklch, var(--accent) 60%, transparent);
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-corner { background: transparent; }
+}
+
+/* Respect reduced-motion: no smooth-scroll for people who ask for stillness. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+/* Compact gutter for snippet-sized code windows inside the X-ray panel. */
+.code-shiki-sm pre { font-size: 11px; line-height: 1.55; padding: 0.6rem 0.9rem 0.6rem 0; }
+.code-shiki-sm .line { white-space: pre-wrap; word-break: break-word; } /* no sideways scrolling in the narrow panel */
+.code-shiki-sm .line::before { width: 2.25rem; margin-right: 0.75rem; }
+
+/* X-RAY CODE button glow: a pre-painted halo whose OPACITY pulses. Opacity is
+   composited on the GPU, so the pulse costs nothing per frame (animating
+   box-shadow itself forced a repaint every frame). */
+.xray-glow { position: relative; }
+.xray-glow::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 24px 5px rgba(163, 230, 53, 0.5), 0 0 0 2px rgba(163, 230, 53, 0.3);
+  opacity: 0.25;
+  will-change: opacity;
+  animation: xray-glow 2.4s ease-in-out infinite;
+}
+@keyframes xray-glow { 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .xray-glow::after { animation: none; opacity: 0.7; } }
+
+/* Inspect mode — drawn entirely by CSS on the real elements (outline + a
+   label pseudo-element), so the browser positions them for free while you
+   scroll: no per-frame JavaScript at all. */
+.xray-inspecting, .xray-inspecting * { cursor: crosshair !important; }
+.xray-inspecting [data-inspect-ui], .xray-inspecting [data-inspect-ui] * { cursor: pointer !important; }
+.xray-inspecting [data-xray-title] {
+  position: relative;
+  outline: 1px dashed rgba(163, 230, 53, 0.75);
+  outline-offset: 4px;
+  transition: outline-color 0.15s, box-shadow 0.15s;
+}
+.xray-inspecting [data-xray-title]::before {
+  content: "</> " attr(data-xray-title);
+  position: absolute;
+  z-index: 30;
+  top: -11px;
+  left: 12px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: #0b0f0a;
+  color: #a3e635;
+  box-shadow: inset 0 0 0 1px rgba(163, 230, 53, 0.5);
+  font: 600 10px/1.5 "JetBrains Mono", ui-monospace, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+/* Elements that clip their own overflow get the label inside the edge. */
+.xray-inspecting [data-xray-title][data-xray-inset]::before { top: 8px; left: auto; right: 10px; }
+.xray-inspecting [data-xray-title].xray-hot {
+  outline: 2px solid #a3e635;
+  box-shadow: 0 0 0 6px rgba(163, 230, 53, 0.1), 0 0 28px -4px rgba(163, 230, 53, 0.55);
+}
+.xray-inspecting [data-xray-title].xray-hot::before {
+  content: "</> open code · " attr(data-xray-title);
+  background: #a3e635;
+  color: #0b0f0a;
+}
+
+/* Tour auto-play countdown under the step card. */
+@keyframes tour-progress { from { width: 0% } to { width: 100% } }
+
+/* Guided tour on a desktop: the card lives in a rail on the left and the page
+   slides right to make room, so the card never covers what it explains. */
+html.tour-rail main {
+  margin-left: max(var(--tour-left, 408px), calc((100vw - 72rem) / 2));
+  max-width: min(72rem, calc(100vw - var(--tour-left, 408px) - 8px));
 }

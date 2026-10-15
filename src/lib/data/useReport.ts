@@ -1,12 +1,14 @@
 import { useQuery } from "@tanstack/react-query"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth/useAuth"
+import { fetchAll } from "./fetchAll"
 
 /**
  * A row of public.report_account_monthly — the tenant-filtered view over the
- * private MV (migrations 11/12). RLS returns only the caller's entities, so the
- * SAME query yields different rows per role (viewer 1 entity, manager 2,
- * admin 4) — the panel's RLS demo, now on real pages.
+ * private MV (migrations 11/12): one row per entity × month × account with the
+ * month's debits, credits and net. RLS returns only the caller's entities, so
+ * the SAME query yields different rows per role (viewer 1 SPV, manager 2,
+ * admin 4) — the panel's RLS demo, on real pages.
  */
 export interface ReportRow {
   entity_id: string
@@ -22,23 +24,24 @@ export interface ReportRow {
 }
 
 /**
- * Fetch the report rows the signed-in identity may see. The query key includes
- * the user id so switching identity (login or RLS demo) re-fetches instead of
- * serving another role's cached rows. Goes through the one supabase factory.
+ * Every report row the signed-in identity may see, read in 1000-row pages. The
+ * query key includes the user id so switching identity (login or the RLS demo)
+ * re-fetches instead of serving another role's cached rows.
  */
 export function useReport() {
   const { user } = useAuth()
   return useQuery({
     queryKey: ["report_account_monthly", user?.id ?? "anon"],
     enabled: Boolean(user),
-    queryFn: async (): Promise<ReportRow[]> => {
-      const { data, error } = await supabase
-        .from("report_account_monthly")
-        .select("*")
-        .order("period", { ascending: false })
-        .order("account_code", { ascending: true })
-      if (error) throw error
-      return (data ?? []) as ReportRow[]
-    },
+    queryFn: () =>
+      fetchAll<ReportRow>((from, to) =>
+        supabase
+          .from("report_account_monthly")
+          .select("*")
+          .order("period", { ascending: true })
+          .order("entity_id", { ascending: true })
+          .order("account_code", { ascending: true })
+          .range(from, to),
+      ).then((rows) => rows.map((r) => ({ ...r, debit: Number(r.debit), credit: Number(r.credit), net: Number(r.net) }))),
   })
 }

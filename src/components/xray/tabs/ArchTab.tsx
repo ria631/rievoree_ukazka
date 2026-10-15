@@ -26,7 +26,7 @@ interface Layer {
 const LAYERS: Layer[] = [
   { id: "browser", title: "Browser — React + instrumented fetch", detail: "this app; the seam taps every call" },
   { id: "auth", title: "Auth — GoTrue (JWT)", detail: "sign-in / session; issues the JWT RLS reads" },
-  { id: "edge", title: "Edge Functions — Deno", detail: "ingest-submit · notify-review" },
+  { id: "edge", title: "Edge Functions — Deno", detail: "ingest-submit · connectors · admin-users · notify-review" },
   { id: "api", title: "Data API — PostgREST", detail: "REST + RPC over the SQL schema" },
   { id: "rls", title: "Postgres — RLS policies", detail: "every row filtered by auth.uid()", indent: true },
   { id: "triggers", title: "Postgres — trigger chains", detail: "journal write → enqueue refresh", indent: true },

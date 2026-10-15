@@ -177,7 +177,7 @@ export function Ingest() {
           and admins. The server enforces this regardless of the UI.
         </div>
       ) : (
-      <form onSubmit={submit} className="grid gap-4 rounded-[1.5rem] bg-card p-6 shadow-soft ring-1 ring-border md:grid-cols-4 md:items-end">
+      <form onSubmit={submit} data-tour="ingest-upload" className="grid gap-4 rounded-[1.5rem] bg-card p-6 shadow-soft ring-1 ring-border md:grid-cols-4 md:items-end">
         <div className="space-y-1.5">
           <Label className="font-mono text-[10px] uppercase tracking-widest">Entity</Label>
           <SimpleSelect
@@ -256,8 +256,9 @@ export function Ingest() {
       )}
 
       {/* Batches */}
-      <section className="mt-12">
-        <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-muted-foreground">
+      <section data-tour="ingest-batches" className="mt-12">
+        <h2 data-live={`${batches.data?.length ?? 0} batches · ${(batches.data ?? []).filter((b) => b.status === "awaiting_review").length} waiting for review · ${(batches.data ?? []).filter((b) => b.status === "loaded").length} loaded`}
+          className="mb-4 font-mono text-xs uppercase tracking-widest text-muted-foreground">
           Batches <span className="text-accent">· live</span>
         </h2>
         {batches.isLoading ? (
@@ -274,7 +275,7 @@ export function Ingest() {
             }
           />
         ) : (
-          <div className="overflow-hidden rounded-[1.5rem] bg-card shadow-soft ring-1 ring-border">
+          <div data-tour="batches-table" className="overflow-hidden rounded-[1.5rem] bg-card shadow-soft ring-1 ring-border">
             <Table className="min-w-[640px]">
               <TableHeader className="bg-secondary/50">
                 <TableRow>
@@ -288,7 +289,7 @@ export function Ingest() {
               </TableHeader>
               <TableBody>
                 {batches.data!.map((b) => (
-                  <TableRow key={b.id} className={cn("cursor-pointer transition-colors hover:bg-foreground/[0.03]", selectedId === b.id && "bg-foreground/[0.04]")} onClick={() => setSelectedId((cur) => (cur === b.id ? null : b.id))}>
+                  <TableRow key={b.id} data-tour={b.status === "awaiting_review" ? "batch-review-row" : undefined} className={cn("cursor-pointer transition-colors hover:bg-foreground/[0.03]", selectedId === b.id && "bg-foreground/[0.04]")} onClick={() => setSelectedId((cur) => (cur === b.id ? null : b.id))}>
                     <TableCell className="max-w-40 truncate font-mono text-xs underline-offset-4 hover:underline">{b.file_name}</TableCell>
                     <TableCell className="font-mono text-xs">{names.get(b.entity_id) ?? b.entity_id.slice(0, 8)}</TableCell>
                     <TableCell className="font-mono text-xs tabular-nums">{b.period.slice(0, 7)}</TableCell>
@@ -347,16 +348,17 @@ export function Ingest() {
 
 const TEMPLATE_CSV =
   "account_code,txn_date,debit,credit,currency,description\n" +
-  "4000,2026-06-20,0,13000,EUR,Product sales\n" +
-  "6000,2026-06-25,14400,0,EUR,Salaries\n" +
-  "6200,2026-06-12,1350,0,EUR,Utilities\n"
+  "4000,2026-10-01,0,13000,EUR,Rent 10/2026 unit 3.01\n" +
+  "1100,2026-10-01,13000,0,EUR,Invoice SI-2026-0123\n" +
+  "5000,2026-10-12,1350,0,EUR,Electricity common areas\n" +
+  "2000,2026-10-12,0,1350,EUR,Invoice PI-2026-0456\n"
 
 const GUIDE_COLS: { col: string; desc: string }[] = [
-  { col: "account_code", desc: "Account number from your chart (e.g. 4000 sales, 6000 salaries)." },
-  { col: "txn_date", desc: "Date of the entry — YYYY-MM-DD (e.g. 2026-06-20)." },
+  { col: "account_code", desc: "Account number from your chart (e.g. 4000 rental income, 5000 utilities)." },
+  { col: "txn_date", desc: "Date of the entry — YYYY-MM-DD (e.g. 2026-10-12)." },
   { col: "debit / credit", desc: "The amount on ONE side; the other column is 0." },
   { col: "currency", desc: "3-letter code, e.g. EUR." },
-  { col: "description", desc: "Optional note (e.g. \"May salaries\")." },
+  { col: "description", desc: "Optional note (e.g. \"Rent 10/2026 unit 3.01\")." },
 ]
 
 /** "What to upload" — a plain explanation of the expected file + a template. */
@@ -371,8 +373,8 @@ function UploadGuide() {
     URL.revokeObjectURL(url)
   }
   return (
-    <details className="mb-6 rounded-[1.5rem] border border-border bg-card/40 p-5 open:bg-card/60">
-      <summary className="cursor-pointer select-none font-mono text-xs uppercase tracking-widest text-muted-foreground">
+    <details data-tour="ingest-guide" className="mb-6 rounded-[1.5rem] border border-border bg-card/40 p-5 open:bg-card/60">
+      <summary data-tour="ingest-guide-toggle" className="cursor-pointer select-none font-mono text-xs uppercase tracking-widest text-muted-foreground">
         What file do I upload? <span className="text-accent">(click)</span>
       </summary>
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">

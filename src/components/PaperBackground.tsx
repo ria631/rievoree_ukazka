@@ -25,3 +25,15 @@ export function PaperBackground() {
     </div>
   )
 }
+
+/** The same grain, for a solid lime surface sitting ON the paper (the sticky
+ *  landing header) — so it reads as one sheet, not a flat band. Reuses the
+ *  filters PaperBackground defines. */
+export function PaperGrain() {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0" style={{ filter: "url(#paper-tooth)", mixBlendMode: "multiply", opacity: 0.13 }} />
+      <div className="absolute inset-0" style={{ filter: "url(#paper-fiber)", mixBlendMode: "soft-light", opacity: 0.18 }} />
+    </div>
+  )
+}

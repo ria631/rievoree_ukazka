@@ -11,12 +11,16 @@ New artifacts in this change:
 | Migration 29 | `supabase/migrations/20260628000001_connectors.sql` |
 | Migration 30 | `supabase/migrations/20260628000002_user_management.sql` |
 | Migration 31 | `supabase/migrations/20260628000003_connector_cron.sql` |
+| Migration 40 | `supabase/migrations/20261016000002_connector_kind_url.sql` (enum values — run alone first) |
+| Migration 41 | `supabase/migrations/20261016000003_sheet_link_connector.sql` (spreadsheet-link connector; retires Drive) |
 | Edge fn | `supabase/functions/connector-webhook` (HMAC inbound, public) |
-| Edge fn | `supabase/functions/connector-oauth` (Drive OAuth start) |
-| Edge fn | `supabase/functions/connector-callback` (Drive OAuth redirect) |
-| Edge fn | `supabase/functions/connector-sync` (Drive pull: manual + cron) |
 | Edge fn | `supabase/functions/admin-users` (create / reset password / reset MFA) |
-| Shared | `supabase/functions/_shared/{connectors,google}.ts` |
+| Shared | `supabase/functions/_shared/connectors.ts` |
+
+> The Google Drive connector (edge functions `connector-oauth`,
+> `connector-callback`, `connector-sync`) was retired in migration 41 — it
+> needed a Google-verified OAuth app. If they were deployed, remove them:
+> `supabase functions delete connector-oauth connector-callback connector-sync`.
 
 ---
 
@@ -51,49 +55,24 @@ supabase db push
 
 ```bash
 supabase functions deploy connector-webhook
-supabase functions deploy connector-oauth
-supabase functions deploy connector-callback
-supabase functions deploy connector-sync
 supabase functions deploy admin-users
-```
-
-Local serving (with secrets from a file — see §3):
-
-```bash
-supabase functions serve --env-file supabase/functions/.env
 ```
 
 ---
 
-## 3. Google Drive connector — OAuth app secrets (edge runtime)
+## 3. Spreadsheet-link connector — nothing to configure
 
-Create an OAuth client in Google Cloud Console (type: Web application). Scope
-used: `https://www.googleapis.com/auth/drive.readonly`. Add the **callback**
-function URL as an authorized redirect URI.
+The database fetches the link itself (`pg_net`), so there are no secrets and no
+OAuth app. A Google Sheet must be shared "Anyone with the link" (or published to
+the web as CSV); the link is turned into its CSV export automatically.
 
-Set the secrets (remote):
+The shared demo shows one showcase connector (preview only). It points at
+`https://rievoree-ukazka.vercel.app/samples/facility-costs-sheet.csv`; to point
+it elsewhere (e.g. your own published sheet):
 
-```bash
-supabase secrets set \
-  GOOGLE_OAUTH_CLIENT_ID="<id>.apps.googleusercontent.com" \
-  GOOGLE_OAUTH_CLIENT_SECRET="<secret>" \
-  GOOGLE_OAUTH_REDIRECT_URI="https://<project-ref>.supabase.co/functions/v1/connector-callback" \
-  GOOGLE_OAUTH_APP_REDIRECT="https://<your-frontend>/connectors"
+```sql
+select private.ensure_showcase_connector('<public https link to a CSV>');
 ```
-
-Local — put the same keys in `supabase/functions/.env` (gitignored):
-
-```
-GOOGLE_OAUTH_CLIENT_ID=<id>.apps.googleusercontent.com
-GOOGLE_OAUTH_CLIENT_SECRET=<secret>
-GOOGLE_OAUTH_REDIRECT_URI=http://127.0.0.1:54321/functions/v1/connector-callback
-GOOGLE_OAUTH_APP_REDIRECT=http://127.0.0.1:3000/connectors
-```
-
-> `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` are injected
-> by the platform automatically — you do **not** set them.
-
-Authorized redirect URI in Google Cloud must EXACTLY match `GOOGLE_OAUTH_REDIRECT_URI`.
 
 ---
 
@@ -115,33 +94,19 @@ supabase secrets set \
 Local: export those four vars (or add to your shell env) before `supabase start`.
 The buttons render regardless; an unconfigured provider returns a clear error.
 
-> This OAuth app is for **login identity** and is separate from the Drive
-> connector's data-access OAuth app in §3.
 
 ---
 
-## 5. Connector auto-sync cron (optional)
+## 5. Connector auto-sync cron
 
-Migration 31 schedules `private.run_connector_syncs(5)` every 10 min where
-pg_cron exists. It reads two Vault secrets — set them once on remote:
-
-```sql
-select vault.create_secret(
-  'https://<project-ref>.supabase.co/functions/v1/connector-sync',
-  'edge_connector_sync_url'
-);
--- Reuse the same service_role key secret notify-review uses; create only if absent:
-select vault.create_secret('<service_role JWT>', 'edge_service_role_key');
-```
-
-Verify the job is scheduled:
+`connector-auto-sync` runs `private.run_connector_syncs(5)` every 10 min: it
+finishes answered fetches and re-reads each active link hourly (connectors of the
+shared demo accounts are never synced unattended). No Vault secrets needed since
+migration 41.
 
 ```sql
 select jobname, schedule, active from cron.job where jobname = 'connector-auto-sync';
 ```
-
-Without these, auto-sync is a no-op (fail-soft). "Sync now" in the UI always
-works regardless of cron.
 
 ---
 
@@ -180,9 +145,9 @@ The batch then appears on the Ingest page at `awaiting_review`.
 - A self-registered admin sees only the members of the entities they own and the
   membership tools (invite/remove) — credential ops stay platform-only.
 
-### Drive connector
+### Spreadsheet-link connector
 
-After §3, add a **Google Drive** connector → **Connect Google Drive** → consent →
-you're returned to `/connectors?connected=…`. Drop a CSV into the watched folder
-→ **Sync now** → the file flows through the pipeline (idempotent: a second sync
-won't re-ingest it).
+Register an account → Connectors → **Use the sample sheet** (or paste a Google
+Sheets link shared "Anyone with the link") → **Add** → **Sync now**. Expect
+"Imported N rows … waiting for review on Ingest". **Sync now** again → "No change
+since the last sync" (same SHA-256, nothing imported twice).

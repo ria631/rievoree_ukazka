@@ -1,19 +1,23 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Link, Navigate, Outlet, useNavigate, useRouterState } from "@tanstack/react-router"
-import { Menu, ScanLine } from "lucide-react"
+import { ChevronDown, Menu, ScanLine } from "lucide-react"
 import { XRayPanel } from "@/components/xray/XRayPanel"
+import { XrayPanelProvider } from "@/components/xray/XrayPanelContext"
+import { CodeOverlay } from "@/components/xray/CodeOverlay"
+import { InspectLayer } from "@/components/xray/CodeInspect"
+import { Tour } from "@/components/Tour"
 import { OrbsBackground } from "@/components/OrbsBackground"
-import { PaperBackground } from "@/components/PaperBackground"
+import { PaperBackground, PaperGrain } from "@/components/PaperBackground"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useAuth } from "@/lib/auth/useAuth"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 
-const navLinkBase = "rounded-full px-3 py-2 font-mono text-xs uppercase tracking-widest transition-colors"
+const navLinkBase = "whitespace-nowrap rounded-full px-3 py-2 font-mono text-xs uppercase tracking-widest transition-colors"
 // Compact variant for the 11-item signed-in product nav, so the whole row fits
 // the bar without forcing a horizontal page scroll.
-const navLinkCompact = "rounded-full px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wide transition-colors"
+const navLinkCompact = "whitespace-nowrap rounded-full px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wide transition-colors"
 const navLinkActive = "bg-accent/12 text-accent"
 const navLinkIdle = "text-muted-foreground hover:bg-secondary hover:text-foreground"
 
@@ -26,31 +30,33 @@ const ADMIN_ROLES = ["admin", "super_admin"]
 const NAV = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/pl", label: "P&L" },
-  { to: "/balance", label: "Balance" },
-  { to: "/pivot", label: "Pivot" },
-  { to: "/variance", label: "Variance" },
-  { to: "/aging", label: "Aging" },
-  { to: "/reports", label: "Reports" },
+  { to: "/rent-roll", label: "Rent roll" },
+  { to: "/receivables", label: "AR / AP" },
+  { to: "/budget-flow", label: "Budget flow" },
+  { to: "/forecast", label: "Forecast" },
+  { to: "/journal", label: "Journal" },
   { to: "/ingest", label: "Ingest" },
   { to: "/connectors", label: "Connectors", roles: MANAGER_ROLES },
   { to: "/users", label: "Users", roles: ADMIN_ROLES },
   { to: "/account", label: "Account" },
 ] as const
 
-// The nav a given role may see (Connectors → managers+, Users → admins).
-function navFor(role: string | null) {
-  return NAV.filter((item) => !("roles" in item) || (item.roles as readonly string[]).includes(role ?? ""))
+// The nav a given role may see (Connectors → managers+, Users → admins). A demo
+// identity has no account of its own to manage, so it never gets "Account".
+function navFor(role: string | null, demo = false) {
+  return NAV.filter((item) =>
+    (!("roles" in item) || (item.roles as readonly string[]).includes(role ?? "")) && !(demo && item.to === "/account"))
 }
 
 // Demo "tour" nav — read-only analytics only. NO Ingest / Users / Account.
 const SHOWCASE = [
   { to: "/dashboard", label: "Overview" },
   { to: "/pl", label: "P&L" },
-  { to: "/balance", label: "Balance" },
-  { to: "/pivot", label: "Pivot" },
-  { to: "/variance", label: "Variance" },
-  { to: "/aging", label: "Aging" },
-  { to: "/reports", label: "Reports" },
+  { to: "/rent-roll", label: "Rent roll" },
+  { to: "/receivables", label: "AR / AP" },
+  { to: "/budget-flow", label: "Budget flow" },
+  { to: "/forecast", label: "Forecast" },
+  { to: "/journal", label: "Journal" },
 ] as const
 
 // Routes the demo tour must not reach (write / account features → sign in first).
@@ -64,10 +70,14 @@ export function AppShell() {
   const navigate = useNavigate()
   const path = useRouterState({ select: (s) => s.location.pathname })
   const onPaper = PAPER_ROUTES.has(path)
-  // The demo is a READ-ONLY TOUR, not a real login. We still ride the seeded
-  // viewer session under the hood (so the data + X-ray are real + RLS-filtered),
-  // but the UI never frames it as "logged in" and hides every write feature.
-  const isDemo = !!session && session.user.email === DEMO_EMAIL
+  const scrolled = useScrolled()
+  // ANY *@demo.local account is a demo identity (the "Explore the demo" viewer,
+  // and the viewer@/manager@/admin@ role accounts the tour signs in as). The UI
+  // frames all of them as "exploring the demo as <role> · read-only" — never as a
+  // real login — because every write is blocked server-side. isExploreTour is the
+  // lean read-only viewer tour (demo@) specifically.
+  const isDemo = !!session && (session.user.email ?? "").toLowerCase().endsWith("@demo.local")
+  const isExploreTour = !!session && session.user.email === DEMO_EMAIL
 
   async function exploreDemo() {
     const { error } = await supabase.auth.signInWithPassword({ email: DEMO_EMAIL, password: "demo123456" })
@@ -94,49 +104,59 @@ export function AppShell() {
   }
   // Guard: a deactivated account sees nothing but a notice (RLS also cuts all
   // data server-side; this is the human-facing half).
-  if (session && session.user.email !== DEMO_EMAIL && active === false) {
+  if (session && !isDemo && active === false) {
     return <DeactivatedScreen email={session.user.email ?? ""} />
   }
-  // Guard: the demo tour cannot reach write/account routes — sign in first.
-  if (isDemo && DEMO_BLOCKED.has(path)) {
-    return <Navigate to="/dashboard" />
+  // Guard: the lean "explore demo" viewer tour cannot reach write/account routes
+  // — explain, don't bounce silently. Role-demos (manager@/admin@) MAY reach them
+  // (read-only; the DB blocks their writes), so the tour can show Ingest.
+  if (isExploreTour && DEMO_BLOCKED.has(path)) {
+    return <DemoBlockedScreen path={path} />
   }
 
-  // The signed-in flag for chrome purposes EXCLUDES the demo tour.
+  // A truly registered account (full chrome: Sign out, acting-as).
   const realUser = !!session && !isDemo
+  // Who sees the full product nav: real users, and role-demos (so manager@ sees
+  // Ingest/Connectors). The lean SHOWCASE nav is only the read-only viewer tour.
+  const showProductNav = realUser || (isDemo && !isExploreTour)
 
-  // The signed-in product nav has 11 items, so its bar needs more room and a
-  // higher "collapse to menu" breakpoint than the lean demo/anon navs — otherwise
-  // the row overflows and the whole page scrolls sideways.
-  const headerMax = realUser ? "max-w-7xl" : "max-w-6xl"
+  // The product nav has up to 11 items, so its bar needs more room and a higher
+  // "collapse to menu" breakpoint than the lean tour/anon navs.
+  const headerMax = showProductNav || isExploreTour ? "max-w-7xl" : "max-w-6xl"
 
   return (
-    // overflow-x-clip: a hard guarantee the page never scrolls sideways (clip
-    // doesn't create a scroll container, so the sticky header still works).
+    // XrayPanelProvider: the X-ray panel's open/tab state is shared so the
+    // guided tour can drive it. overflow-x-clip: a hard guarantee the page
+    // never scrolls sideways (clip doesn't create a scroll container, so the
+    // sticky header still works).
+    <XrayPanelProvider>
     <div className={cn("flex min-h-screen flex-col overflow-x-clip", onPaper && "paper")}>
       {onPaper ? <PaperBackground /> : <OrbsBackground subtle />}
 
       <header className={onPaper
-        ? "sticky top-0 z-40"
+        // Solid lime block (same paper + grain as the page) so content scrolling
+        // underneath never shows through the logo/menu. Looks identical at the top.
+        ? cn("sticky top-0 z-40 bg-[#A3E635] transition-shadow", scrolled && "shadow-[0_1px_0_oklch(0.2_0.035_150/0.14)]")
         : "sticky top-0 z-40 border-b border-border bg-background/75 shadow-soft backdrop-blur-lg"}>
-        <div className={cn("mx-auto flex h-16 items-center justify-between gap-4 px-6", headerMax)}>
-          <Link to="/" className="text-xl font-semibold tracking-tight">
+        {onPaper && <PaperGrain />}
+        <div className={cn("relative mx-auto flex h-16 items-center justify-between gap-4 px-6", headerMax)}>
+          <Link to="/" className="shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight">
             X-RAY<span className={onPaper ? "text-accent" : "bg-gradient-to-r from-accent to-signal bg-clip-text text-transparent"}>/</span>
           </Link>
 
-          {realUser ? (
-            <nav className="hidden items-center gap-0.5 xl:flex">
-              {navFor(role).map((item) => (
-                <Link key={item.to} to={item.to} className={navLinkCompact}
+          {showProductNav ? (
+            <nav data-tour="main-nav" className="hidden items-center gap-0.5 xl:flex">
+              {navFor(role, isDemo).map((item) => (
+                <Link key={item.to} to={item.to} data-tour={`nav-${item.to.slice(1)}`} className={navLinkCompact}
                   activeProps={{ className: navLinkActive }} inactiveProps={{ className: navLinkIdle }}>
                   {item.label}
                 </Link>
               ))}
             </nav>
-          ) : isDemo ? (
-            <nav className="hidden items-center gap-1 lg:flex">
+          ) : isExploreTour ? (
+            <nav data-tour="main-nav" className="hidden items-center gap-0.5 lg:flex">
               {SHOWCASE.map((item) => (
-                <Link key={item.to} to={item.to} className={navLinkBase}
+                <Link key={item.to} to={item.to} data-tour={`nav-${item.to.slice(1)}`} className={navLinkCompact}
                   activeProps={{ className: navLinkActive }} inactiveProps={{ className: navLinkIdle }}>
                   {item.label}
                 </Link>
@@ -152,33 +172,36 @@ export function AppShell() {
           )}
 
           <div className="flex items-center gap-2.5">
-            <XRayPanel />
+            {/* The live X-ray panel belongs to the app; the landing has its own
+                "x-ray the page" window, and an empty calls panel there looked broken. */}
+            {!onPaper && <XRayPanel />}
             {realUser && <div className="hidden xl:block"><ActingAs label={role ?? session.user.email ?? "signed in"} /></div>}
             {isDemo && (
-              <div className="hidden items-center gap-2 lg:flex">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground ring-1 ring-border">
-                  <ScanLine className="size-3" strokeWidth={2.25} /> Demo · read-only
-                </span>
-                <Link to="/register" className="rounded-full bg-accent px-4 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
-                  Create account
-                </Link>
+              <div className={cn("hidden shrink-0 items-center gap-2 whitespace-nowrap", showProductNav ? "xl:flex" : "lg:flex")}>
+                <DemoRoleSwitch role={role} email={session.user.email ?? ""} />
+                {/* The bar is tight with the report nav; the demo banner right
+                    below carries the "Create account" CTA, so the header skips it. */}
                 <button onClick={exitDemo} className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground">Exit</button>
               </div>
             )}
-            <div className={realUser ? "xl:hidden" : isDemo ? "lg:hidden" : "md:hidden"}>
-              <MobileNav mode={realUser ? "user" : isDemo ? "demo" : "anon"} navItems={navFor(role)}
-                identity={role ?? session?.user.email ?? "signed in"} onDemo={exploreDemo} onExitDemo={exitDemo} />
+            <div className={realUser ? "xl:hidden" : isDemo && showProductNav ? "xl:hidden" : isDemo ? "lg:hidden" : "md:hidden"}>
+              <MobileNav mode={realUser ? "user" : isDemo ? "demo" : "anon"}
+                navItems={isExploreTour ? SHOWCASE : navFor(role, isDemo)}
+                identity={isDemo ? `${role ?? "demo"} · demo` : (role ?? session?.user.email ?? "signed in")}
+                onDemo={exploreDemo} onExitDemo={exitDemo} />
             </div>
           </div>
         </div>
       </header>
 
-      {/* Demo banner — makes the read-only-tour state unmistakable + nudges sign-up. */}
+      {/* Demo banner — makes the read-only state unmistakable + nudges sign-up. */}
       {isDemo && !onPaper && (
-        <div className="border-b border-accent/20 bg-accent/[0.07]">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-6 py-2.5 text-sm">
-            <span className="font-medium text-foreground">You're exploring the demo — read-only.</span>
-            <span className="text-muted-foreground">Sign in to upload your own data and use the interactive tools.</span>
+        <div data-tour="demo-banner" className="border-b border-accent/20 bg-accent/[0.07]">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-2 px-6 py-2.5 text-sm">
+            <span className="font-medium text-foreground">
+              You're exploring the demo{role ? <> as <span className="uppercase">{role}</span></> : null} — read-only.
+            </span>
+            <span className="text-muted-foreground">Create an account to upload your own data and use the write tools.</span>
             <span className="ml-auto flex items-center gap-2">
               <Link to="/register" className="rounded-full bg-accent px-4 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">Create account</Link>
               <Link to="/login" className="rounded-full border border-border px-4 py-1.5 font-mono text-[10px] uppercase tracking-widest text-foreground transition hover:border-accent">Sign in</Link>
@@ -197,6 +220,84 @@ export function AppShell() {
           <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Portfolio demo — fake data only</p>
         </div>
       </footer>
+
+      {/* Guided tour — only inside the app (not the public paper pages). It
+          auto-offers once to the read-only demo visitor, who is the one most
+          likely to miss the machinery. */}
+      {session && !onPaper && <Tour autoOffer={isExploreTour} />}
+
+      {/* X-RAY CODE inspect mode + the full-screen IDE it (and the tour) opens. */}
+      {session && !onPaper && <InspectLayer />}
+      <CodeOverlay />
+    </div>
+    </XrayPanelProvider>
+  )
+}
+
+function useScrolled() {
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const on = () => setScrolled(window.scrollY > 8)
+    on()
+    window.addEventListener("scroll", on, { passive: true })
+    return () => window.removeEventListener("scroll", on)
+  }, [])
+  return scrolled
+}
+
+// Demo identities a visitor can switch between. Both are DB-locked read-only;
+// the Manager one additionally SEES the write side (Ingest, Connectors).
+const DEMO_ROLES = [
+  { email: DEMO_EMAIL, label: "Viewer", hint: "reads reports only" },
+  { email: "manager@demo.local", label: "Manager", hint: "+ upload, review, connectors" },
+] as const
+
+/** The "<role> · demo" chip — click it to switch demo identity. The guided tour
+ *  clicks it too (data-tour anchors), so a visitor SEES the role change happen. */
+function DemoRoleSwitch({ role, email }: { role: string | null; email: string }) {
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate()
+  const path = useRouterState({ select: (s) => s.location.pathname })
+
+  useEffect(() => {
+    if (!open) return
+    const off = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false) }
+    window.addEventListener("mousedown", off)
+    return () => window.removeEventListener("mousedown", off)
+  }, [open])
+
+  async function pick(target: string) {
+    setOpen(false)
+    if (target === email) return
+    setBusy(true)
+    await supabase.auth.signInWithPassword({ email: target, password: "demo123456" })
+    setBusy(false)
+    // The read-only viewer tour can't open write pages — land on the dashboard.
+    if (target === DEMO_EMAIL && DEMO_BLOCKED.has(path)) navigate({ to: "/dashboard" })
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button data-tour="role-switch" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open}
+        className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-secondary px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground ring-1 ring-border transition hover:text-foreground hover:ring-accent/50">
+        <ScanLine className="size-3" strokeWidth={2.25} /> {busy ? "switching…" : `${role ?? "demo"} · demo`}
+        <ChevronDown className="size-3 opacity-60" />
+      </button>
+      {open && (
+        <div role="menu" data-tour="role-menu" className="absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-xl bg-card p-1 shadow-soft ring-1 ring-border">
+          <p className="px-3 pb-1 pt-2 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">View the demo as</p>
+          {DEMO_ROLES.map((r) => (
+            <button key={r.email} role="menuitem" data-tour={`role-${r.label.toLowerCase()}`} onClick={() => pick(r.email)}
+              className={cn("flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-secondary",
+                r.email === email && "bg-accent/10")}>
+              <span className="font-mono text-xs uppercase tracking-wider">{r.label}</span>
+              <span className="text-[10px] text-muted-foreground">{r.hint}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -226,7 +327,7 @@ function MobileNav({ mode, navItems, identity, onDemo, onExitDemo }: { mode: "us
           ))}
           {mode === "demo" && (
             <>
-              {SHOWCASE.map((item) => (
+              {navItems.map((item) => (
                 <Link key={item.to} to={item.to} onClick={() => setOpen(false)}
                   className="rounded-xl px-4 py-3 font-mono text-sm uppercase tracking-widest transition-colors"
                   activeProps={{ className: navLinkActive }} inactiveProps={{ className: navLinkIdle }}>
@@ -264,6 +365,56 @@ function MobileNav({ mode, navItems, identity, onDemo, onExitDemo }: { mode: "us
     </Sheet>
   )
 }
+
+// The demo tour is read-only; write/account routes need a real account. Shown
+// instead of a silent redirect so the visitor knows why and what to do next.
+function DemoBlockedScreen({ path }: { path: string }) {
+  const feature = path.replace("/", "") || "that page"
+  return (
+    <div className="flex min-h-[70vh] flex-col items-center justify-center gap-5 px-6 text-center">
+      <span className="grid size-12 place-items-center rounded-2xl bg-accent/15 text-accent ring-1 ring-accent/30">
+        <ScanLine className="size-6" />
+      </span>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">That's a hands-on page</h1>
+        <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+          You're in the read-only demo, so <span className="font-mono text-foreground">{feature}</span> (where
+          you'd upload, approve or manage) is off. Create a free account to get a private sandbox and try it for real —
+          or keep exploring the read-only reports.
+        </p>
+      </div>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Link to="/register" className="rounded-full bg-accent px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
+          Create account
+        </Link>
+        <Link to="/dashboard" className="rounded-full border border-border px-6 py-3 font-mono text-xs uppercase tracking-widest text-foreground transition hover:border-accent">
+          Back to the demo
+        </Link>
+      </div>
+    </div>
+  )
+}
+
+// Friendly 404 for a signed-in user who hits an unknown route (reported: a bare
+// "Not Found" with no way back).
+function NotFoundScreen() {
+  return (
+    <div className="flex min-h-[70vh] flex-col items-center justify-center gap-5 px-6 text-center">
+      <span className="font-mono text-6xl font-bold text-accent">404</span>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Page not found</h1>
+        <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+          That route doesn't exist. Head back to the dashboard.
+        </p>
+      </div>
+      <Link to="/dashboard" className="rounded-full bg-accent px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
+        Go to dashboard
+      </Link>
+    </div>
+  )
+}
+
+export { NotFoundScreen }
 
 function DeactivatedScreen({ email }: { email: string }) {
   return (

@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth/useAuth"
 
-export type ConnectorKind = "gdrive" | "webhook"
+/** gdrive is retired (old rows only); new connectors are url or webhook. */
+export type ConnectorKind = "url" | "webhook" | "gdrive"
 export type ConnectorStatus = "pending_auth" | "active" | "paused" | "error"
 
 export interface Connector {
@@ -109,62 +110,63 @@ export function useRotateSecret() {
   })
 }
 
-/** Kick a one-off Drive sync ("Sync now"). */
-export function useSyncConnector() {
-  const invalidate = useInvalidate()
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { data, error } = await supabase.functions.invoke("connector-sync", {
-        body: { connector_id: id },
-      })
-      if (error) throw new Error(await fnError(error))
-      return data as { status: string; ingested: unknown[]; skipped: number }
-    },
-    onSuccess: invalidate,
-  })
+export interface SheetSyncRow {
+  account_code: string | null
+  txn_date: string | null
+  description: string | null
+  debit: string | null
+  credit: string | null
+  currency: string | null
 }
 
-/** Demo sync: push a synthetic file through the real pipeline (no Google OAuth,
- *  no consent warning) — lights up the whole Drive → ETL → review chain. */
-export function useSimulateSync() {
+/** What one link sync came back with. preview = the shared demo (fetched and
+ *  parsed for real, nothing written); created = a new batch is awaiting review;
+ *  unchanged = same content as the last file taken in. */
+export interface SheetSyncResult {
+  status: "preview" | "created" | "duplicate" | "unchanged" | "error"
+  message?: string
+  rows?: number
+  period?: string | null
+  debit?: number
+  credit?: number
+  missing_dates?: number
+  unknown_accounts?: string[]
+  sample?: SheetSyncRow[]
+  batch_id?: string
+}
+
+/** "Sync now" for a spreadsheet link: the database fetches the link (pg_net)
+ *  and the answer is picked up by polling — CSV parsed in SQL, then the same
+ *  ingest path as an upload. */
+export function useSheetSync() {
   const invalidate = useInvalidate()
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { data, error } = await supabase.rpc("simulate_connector_sync", { p_connector_id: id })
+    mutationFn: async (id: string): Promise<SheetSyncResult> => {
+      const { data, error } = await supabase.rpc("sync_url_connector", { p_id: id })
       if (error) throw new Error(error.message)
-      return data as { status: string; batch_id: string; file: string }
+      const requestId = (data as { request_id: number }).request_id
+      const deadline = Date.now() + 75_000
+      for (let wait = 700; Date.now() < deadline; wait = Math.min(wait + 300, 2000)) {
+        await new Promise((r) => setTimeout(r, wait))
+        const res = await supabase.rpc("collect_url_sync", { p_request_id: requestId })
+        if (res.error) throw new Error(res.error.message)
+        const out = res.data as SheetSyncResult | { status: "pending" | "gone" }
+        if (out.status === "pending") continue
+        if (out.status === "gone") return { status: "unchanged", message: "picked up by the scheduled sync" }
+        return out as SheetSyncResult
+      }
+      throw new Error("no answer from the link within 75 s")
     },
     onSuccess: invalidate,
   })
 }
 
-/** Begin the Google Drive OAuth flow → redirect the browser to Google's consent. */
-export async function startDriveOAuth(connectorId: string): Promise<{ error: string | null }> {
-  const { data, error } = await supabase.functions.invoke("connector-oauth", {
-    body: { action: "start", connector_id: connectorId },
-  })
-  if (error) return { error: await fnError(error) }
-  const url = (data as { url?: string })?.url
-  if (!url) return { error: "no consent url returned" }
-  window.location.href = url
-  return { error: null }
-}
+/** The sample sheet this app serves (public/samples) — on the production host,
+ *  because the database fetches it and preview hosts sit behind a login. */
+export const SAMPLE_SHEET_URL = "https://rievoree-ukazka.vercel.app/samples/facility-costs-sheet.csv"
 
 /** The public webhook endpoint for a connector (what the third party POSTs to). */
 export function webhookUrl(connectorId: string): string {
   const base = (import.meta.env.VITE_SUPABASE_URL ?? "").replace(/\/$/, "")
   return `${base}/functions/v1/connector-webhook?id=${connectorId}`
-}
-
-/** Read a Supabase FunctionsHttpError's JSON body for a human message. */
-async function fnError(error: unknown): Promise<string> {
-  const ctx = (error as { context?: Response })?.context
-  if (ctx && typeof ctx.json === "function") {
-    try {
-      const body = await ctx.json()
-      if (body?.message) return String(body.message)
-      if (body?.error) return String(body.error)
-    } catch { /* not JSON */ }
-  }
-  return error instanceof Error ? error.message : "request failed"
 }
