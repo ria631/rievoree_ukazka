@@ -29,4 +29,7 @@ if [ "$status" -eq 1 ] && [ -z "$(echo "$hits" | grep -vE "$ALLOW" || true)" ]; 
   status=0
 fi
 
+# pg_safeupdate: an UPDATE/DELETE without WHERE fails when called from the app.
+node scripts/check-safeupdate.mjs || status=1
+
 exit $status

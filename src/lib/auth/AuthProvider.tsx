@@ -1,4 +1,4 @@
-import { createContext, useCallback, useEffect, useState, type ReactNode } from "react"
+import { createContext, useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import type { Session, User } from "@supabase/supabase-js"
 import { supabase } from "@/lib/supabase"
 
@@ -73,7 +73,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Resolve the caller's role from profiles (RLS: a user can read their own row).
   const uid = session?.user?.id
+  const loadSeq = useRef(0)
   const loadRole = useCallback(async () => {
+    const seq = ++loadSeq.current // only the latest load may write (no stale role)
+    // Read the live session, not the render's: a caller that awaited a sign-up
+    // (Register → provision → refreshRole) holds a closure from before it existed.
+    const { data: live } = await supabase.auth.getSession()
+    const uid = live.session?.user?.id
+    if (seq !== loadSeq.current) return
     if (!uid) {
       setRole(null)
       setActive(null)
@@ -83,15 +90,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Own row is readable regardless of is_active (policy: id = auth.uid()), so a
     // deactivated user still learns they're deactivated.
     const { data } = await supabase.from("profiles").select("role,is_active,is_demo").eq("id", uid).maybeSingle()
+    if (seq !== loadSeq.current) return
     setRole((data?.role as string | undefined) ?? null)
     setActive((data?.is_active as boolean | undefined) ?? null)
     setIsDemo((data?.is_demo as boolean | undefined) ?? false)
-  }, [uid])
+  }, [])
 
   // Drives the "acting as <role>" label; re-runs whenever the identity changes.
   useEffect(() => {
     void loadRole()
-  }, [loadRole])
+  }, [uid, loadRole])
 
   return (
     <AuthContext.Provider
