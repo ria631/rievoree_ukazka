@@ -10,8 +10,8 @@
 --
 --   email                | role        | sees entities
 --   ---------------------+-------------+--------------------------------------
---   super@demo.local     | super_admin | all 4 (and may assign membership)
---   admin@demo.local     | admin       | all 4
+--   super@demo.local     | super_admin | all 4 (via membership — demo, so no staff powers)
+--   admin@demo.local     | admin       | all 4 (via membership — demo, so no staff powers)
 --   manager@demo.local   | manager     | Office + Retail SPV (2, via membership)
 --   viewer@demo.local    | viewer      | Office SPV (1, via membership)
 --
@@ -78,12 +78,12 @@ begin;
   -- The same flags migration 34 sets on remote (it runs before these rows exist
   -- locally): every @demo.local account is the shared, read-only demo.
   update public.profiles set is_demo = true where lower(email) like '%@demo.local';
-  update public.profiles set is_platform_staff = true
-    where lower(email) like '%@demo.local' and role in ('super_admin', 'admin');
+  -- Never is_platform_staff: the password is public (migration 43).
 commit;
 
 -- ----------------------------------------------------------------------------
--- 2. Entities + memberships (admin/super_admin need no rows — they see all).
+-- 2. Entities + memberships. The demo admins are members of all four — they
+--    are not platform staff, so they get no cross-tenant bypass.
 -- ----------------------------------------------------------------------------
 insert into public.entities (id, name, slug, base_currency) values
   ('e0000000-0000-4000-8000-000000000001', 'Danube Office Park s.r.o.',     'northwind', 'EUR'),
@@ -97,6 +97,15 @@ insert into public.entity_members (entity_id, user_id, granted_by) values
   -- manager → office + retail SPV
   ('e0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000001'),
   ('e0000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000001'),
+  -- super + admin demo → all four entities (as members, not staff)
+  ('e0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000001'),
+  ('e0000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000001'),
+  ('e0000000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000001'),
+  ('e0000000-0000-4000-8000-000000000004', 'd0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000001'),
+  ('e0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000001'),
+  ('e0000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000001'),
+  ('e0000000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000001'),
+  ('e0000000-0000-4000-8000-000000000004', 'd0000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000001'),
   -- demo (read-only explorer) → all four entities, so anon sees rich data
   ('e0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000005', 'd0000000-0000-4000-8000-000000000001'),
   ('e0000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000005', 'd0000000-0000-4000-8000-000000000001'),

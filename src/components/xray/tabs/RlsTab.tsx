@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { createInstrumentedFetch } from "@/lib/xray/instrumentedFetch"
 import { useXrayPanel } from "@/components/xray/XrayPanelContext"
+import { useAuth } from "@/lib/auth/useAuth"
+import { supabase } from "@/lib/supabase"
 
 /**
  * RLS — "same query, three identities". The core demo moment: run the IDENTICAL
@@ -11,11 +13,10 @@ import { useXrayPanel } from "@/components/xray/XrayPanelContext"
  * rows. The numbers are REAL — each "Run as…" signs in as a seeded demo user
  * and runs the same query through the same instrumented seam.
  *
- * It runs on an ISOLATED client (its own storage, no session persistence), so
- * it NEVER changes the app's own session — the read-only demo tour stays
- * read-only, and a real signed-in user keeps their seat. (Previously this
- * signed the whole app in as another role, which broke the demo's read-only
- * guarantee and confused the "acting as" banner.)
+ * It runs OUTSIDE the app's session: a plain token request, then one query
+ * with that token, then a sign-out of just that one session. It never changes
+ * who the app is signed in as — a demo visitor who wants the app itself to act
+ * as Manager gets an explicit "Switch the app" button below the cards.
  */
 
 // LOCAL + remote demo accounts. The shared password is the public demo
@@ -30,7 +31,7 @@ const IDENTITIES: { role: Role; email: string; label: string; reason: string }[]
   { role: "manager", email: "manager@demo.local", label: "Manager",
     reason: "my_entity_ids() — assigned entities only" },
   { role: "admin", email: "admin@demo.local", label: "Admin",
-    reason: "is_admin() — platform staff, bypasses the entity filter" },
+    reason: "member of all four — a demo admin is never platform staff" },
 ]
 
 // The one query every identity runs — verbatim. Only the JWT differs.
@@ -42,18 +43,39 @@ interface RunResult {
   error?: string
 }
 
-// A throwaway client that never touches the app's own auth storage. Each run
-// signs in, queries, signs out on THIS client only. Instrumented, so the calls
-// still show up on the X-ray CALLS tab.
-function makeProbeClient() {
-  return createClient(
-    import.meta.env.VITE_SUPABASE_URL,
-    import.meta.env.VITE_SUPABASE_ANON_KEY,
-    {
-      auth: { persistSession: false, autoRefreshToken: false, storageKey: "xray-rls-probe" },
-      global: { fetch: createInstrumentedFetch() },
-    },
-  )
+const URL_ = import.meta.env.VITE_SUPABASE_URL as string
+const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+
+/** Sign in as `email`, run THE query under that JWT, end that one session.
+ *  No second auth client (no GoTrueClient warnings, nothing touches the app's
+ *  storage). Instrumented, so the calls still show up on the X-ray CALLS tab. */
+async function probeAs(email: string): Promise<RunResult> {
+  const fetchX = createInstrumentedFetch()
+  const res = await fetchX(`${URL_}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: { apikey: KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password: DEMO_PASSWORD }),
+  })
+  const auth = await res.json().catch(() => ({}))
+  if (!res.ok || !auth.access_token) {
+    return { count: 0, names: [], error: auth.msg ?? auth.error_description ?? `sign-in failed (${res.status})` }
+  }
+  const token = auth.access_token as string
+  try {
+    // The identical query, now under this identity's JWT → RLS decides rows.
+    const probe = createClient(URL_, KEY, { accessToken: async () => token, global: { fetch: fetchX } })
+    const { data, error } = await probe.from("entities").select("id,name").order("name")
+    return error
+      ? { count: 0, names: [], error: error.message }
+      : { count: data.length, names: data.map((e) => e.name as string) }
+  } finally {
+    // scope=local ends ONLY this probe's session. The demo accounts are shared:
+    // a global sign-out would log out every visitor using them (you included).
+    await fetchX(`${URL_}/auth/v1/logout?scope=local`, {
+      method: "POST",
+      headers: { apikey: KEY, Authorization: `Bearer ${token}` },
+    }).catch(() => {})
+  }
 }
 
 export function RlsTab() {
@@ -83,25 +105,13 @@ export function RlsTab() {
 
   async function runAs(role: Role, email: string) {
     setBusy(role)
-    const probe = makeProbeClient()
     try {
-      const auth = await probe.auth.signInWithPassword({ email, password: DEMO_PASSWORD })
-      if (auth.error) {
-        setResults((r) => ({ ...r, [role]: { count: 0, names: [], error: auth.error!.message } }))
-        return
-      }
-      // The identical query, now under this identity's JWT → RLS decides rows.
-      const { data, error } = await probe.from("entities").select("id,name").order("name")
-      setResults((r) => ({
-        ...r,
-        [role]: error
-          ? { count: 0, names: [], error: error.message }
-          : { count: data.length, names: data.map((e) => e.name as string) },
-      }))
-      setLastRun(role)
+      const result = await probeAs(email)
+      setResults((r) => ({ ...r, [role]: result }))
+      if (!result.error) setLastRun(role)
+    } catch (e) {
+      setResults((r) => ({ ...r, [role]: { count: 0, names: [], error: e instanceof Error ? e.message : "request failed" } }))
     } finally {
-      // Always drop the probe session; the app's own session is never touched.
-      await probe.auth.signOut().catch(() => {})
       setBusy(null)
     }
   }
@@ -158,6 +168,42 @@ export function RlsTab() {
           />
         ))}
       </div>
+
+      <SwitchHint />
+    </div>
+  )
+}
+
+/** "Run as" only peeks. Say so — and let a demo visitor switch the app itself. */
+function SwitchHint() {
+  const { isDemo, role, user } = useAuth()
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const isManager = user?.email?.toLowerCase() === "manager@demo.local"
+
+  async function switchToManager() {
+    setBusy(true); setErr(null)
+    const { error } = await supabase.auth.signInWithPassword({ email: "manager@demo.local", password: DEMO_PASSWORD })
+    setBusy(false)
+    if (error) setErr(error.message)
+  }
+
+  return (
+    <div className="border-t border-border px-4 py-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
+      <p>
+        <span className="text-foreground">Run as …</span> only looks through that identity's eyes —
+        the app itself stays signed in as <span className="text-accent">{role ?? "you"}</span>.
+      </p>
+      {isDemo && !isManager && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span>Want the app to act as Manager (Ingest, Connectors)?</span>
+          <Button size="xs" className="font-mono text-[10px]" disabled={busy} onClick={switchToManager}>
+            {busy ? "switching…" : "Switch the app to Manager"}
+          </Button>
+        </div>
+      )}
+      {!isDemo && <p className="mt-1">Your own role is set in Account.</p>}
+      {err && <p className="mt-1 text-destructive">{err}</p>}
     </div>
   )
 }

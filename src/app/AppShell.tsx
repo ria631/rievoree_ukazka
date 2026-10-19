@@ -84,7 +84,9 @@ export function AppShell() {
     if (!error) navigate({ to: "/dashboard" })
   }
   async function exitDemo() {
-    await supabase.auth.signOut()
+    // scope local: the demo accounts are shared — a global sign-out would end
+    // every visitor's session on them, not just this tab's.
+    await supabase.auth.signOut({ scope: "local" })
     navigate({ to: "/" })
   }
 
@@ -188,6 +190,7 @@ export function AppShell() {
               <MobileNav mode={realUser ? "user" : isDemo ? "demo" : "anon"}
                 navItems={isExploreTour ? SHOWCASE : navFor(role, isDemo)}
                 identity={isDemo ? `${role ?? "demo"} · demo` : (role ?? session?.user.email ?? "signed in")}
+                email={session?.user.email ?? ""}
                 onDemo={exploreDemo} onExitDemo={exitDemo} />
             </div>
           </div>
@@ -252,14 +255,28 @@ const DEMO_ROLES = [
   { email: "manager@demo.local", label: "Manager", hint: "+ upload, review, connectors" },
 ] as const
 
+/** Switch the app's session to another shared demo identity (both read-only). */
+function useDemoSwitch(email: string) {
+  const [busy, setBusy] = useState(false)
+  const navigate = useNavigate()
+  const path = useRouterState({ select: (s) => s.location.pathname })
+  async function pick(target: string) {
+    if (target === email) return
+    setBusy(true)
+    await supabase.auth.signInWithPassword({ email: target, password: "demo123456" })
+    setBusy(false)
+    // The read-only viewer tour can't open write pages — land on the dashboard.
+    if (target === DEMO_EMAIL && DEMO_BLOCKED.has(path)) navigate({ to: "/dashboard" })
+  }
+  return { busy, pick }
+}
+
 /** The "<role> · demo" chip — click it to switch demo identity. The guided tour
  *  clicks it too (data-tour anchors), so a visitor SEES the role change happen. */
 function DemoRoleSwitch({ role, email }: { role: string | null; email: string }) {
   const [open, setOpen] = useState(false)
-  const [busy, setBusy] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
-  const navigate = useNavigate()
-  const path = useRouterState({ select: (s) => s.location.pathname })
+  const { busy, pick: switchTo } = useDemoSwitch(email)
 
   useEffect(() => {
     if (!open) return
@@ -268,14 +285,9 @@ function DemoRoleSwitch({ role, email }: { role: string | null; email: string })
     return () => window.removeEventListener("mousedown", off)
   }, [open])
 
-  async function pick(target: string) {
+  function pick(target: string) {
     setOpen(false)
-    if (target === email) return
-    setBusy(true)
-    await supabase.auth.signInWithPassword({ email: target, password: "demo123456" })
-    setBusy(false)
-    // The read-only viewer tour can't open write pages — land on the dashboard.
-    if (target === DEMO_EMAIL && DEMO_BLOCKED.has(path)) navigate({ to: "/dashboard" })
+    void switchTo(target)
   }
 
   return (
@@ -302,8 +314,9 @@ function DemoRoleSwitch({ role, email }: { role: string | null; email: string })
   )
 }
 
-function MobileNav({ mode, navItems, identity, onDemo, onExitDemo }: { mode: "user" | "demo" | "anon"; navItems: readonly { to: string; label: string }[]; identity: string; onDemo: () => void; onExitDemo: () => void }) {
+function MobileNav({ mode, navItems, identity, email, onDemo, onExitDemo }: { mode: "user" | "demo" | "anon"; navItems: readonly { to: string; label: string }[]; identity: string; email: string; onDemo: () => void; onExitDemo: () => void }) {
   const [open, setOpen] = useState(false)
+  const demoSwitch = useDemoSwitch(email)
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
@@ -357,6 +370,18 @@ function MobileNav({ mode, navItems, identity, onDemo, onExitDemo }: { mode: "us
         )}
         {mode === "demo" && (
           <div className="mt-auto border-t border-border px-4 py-4">
+            <p className="mb-2 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">View the demo as</p>
+            <div className="mb-3 grid gap-1">
+              {DEMO_ROLES.map((r) => (
+                <button key={r.email} disabled={demoSwitch.busy}
+                  onClick={() => { setOpen(false); void demoSwitch.pick(r.email) }}
+                  className={cn("flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-left ring-1 ring-border transition hover:bg-secondary disabled:opacity-50",
+                    r.email === email && "bg-accent/10 ring-accent/30")}>
+                  <span className="font-mono text-xs uppercase tracking-wider">{r.label}</span>
+                  <span className="text-[10px] text-muted-foreground">{r.hint}</span>
+                </button>
+              ))}
+            </div>
             <Button variant="ghost" size="xs" className="font-mono text-[10px] uppercase tracking-wider"
               onClick={() => { setOpen(false); onExitDemo() }}>Exit demo</Button>
           </div>

@@ -217,7 +217,7 @@ export const CODE_MAP: Record<string, CodeTarget> = {
     { file: "src/components/xray/tabs/CallsTab.tsx", focus: "export function CallsTab", label: "this panel" },
   ] },
   "xray-rls": { title: "Row-level security", refs: [
-    { file: "src/components/xray/tabs/RlsTab.tsx", focus: "async function runAs", label: "run as a role" },
+    { file: "src/components/xray/tabs/RlsTab.tsx", focus: "async function probeAs", label: "run as a role" },
     { file: MIG("20260605000001_identity_and_tenancy"), focus: "create policy entities_select", label: "the RLS policy" },
     { file: MIG("20261013000001_security_hardening_demo_lockdown"), focus: "create or replace function private.is_admin", label: "admin hardening" },
   ] },
