@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="X-RAY">
+  <!-- Option 2 · Scan frame. The dark recess as a tile, lime viewfinder corners
+       and the scan line: the "click to x-ray" mark from the hero. -->
+  <defs>
+    <radialGradient id="recess" cx="50%" cy="45%" r="70%">
+      <stop offset="0" stop-color="#0d3d35"/>
+      <stop offset="1" stop-color="#03130f"/>
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#recess)"/>
+  <g fill="none" stroke="#A3E635" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M13 23V13h10"/>
+    <path d="M41 13h10v10"/>
+    <path d="M51 41v10H41"/>
+    <path d="M23 51H13V41"/>
+  </g>
+  <rect x="9" y="29.5" width="46" height="5" rx="2.5" fill="#69eab3" opacity=".35"/>
+  <rect x="13" y="30.5" width="38" height="3" rx="1.5" fill="#d9fbe9"/>
+</svg>
