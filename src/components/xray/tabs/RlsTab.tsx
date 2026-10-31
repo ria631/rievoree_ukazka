@@ -25,12 +25,13 @@ const DEMO_PASSWORD = "demo123456"
 
 type Role = "viewer" | "manager" | "admin"
 
-const IDENTITIES: { role: Role; email: string; label: string; reason: string }[] = [
+// `useApp`: a demo visitor can also switch the app itself to this identity.
+const IDENTITIES: { role: Role; email: string; label: string; reason: string; useApp?: boolean }[] = [
   { role: "viewer", email: "viewer@demo.local", label: "Viewer",
     reason: "my_entity_ids() — assigned entities only" },
-  { role: "manager", email: "manager@demo.local", label: "Manager",
+  { role: "manager", email: "manager@demo.local", label: "Manager", useApp: true,
     reason: "my_entity_ids() — assigned entities only" },
-  { role: "admin", email: "admin@demo.local", label: "Admin",
+  { role: "admin", email: "admin@demo.local", label: "Admin", useApp: true,
     reason: "member of all four — a demo admin is never platform staff" },
 ]
 
@@ -80,6 +81,18 @@ async function probeAs(email: string): Promise<RunResult> {
 
 export function RlsTab() {
   const { rlsRunToken } = useXrayPanel()
+  const { isDemo, user } = useAuth()
+  const [switching, setSwitching] = useState<Role | null>(null)
+  const [switchErr, setSwitchErr] = useState<string | null>(null)
+  const me = user?.email?.toLowerCase() ?? ""
+
+  // Demo only: sign the APP in as this shared demo identity (all read-only).
+  async function switchApp(role: Role, email: string) {
+    setSwitching(role); setSwitchErr(null)
+    const { error } = await supabase.auth.signInWithPassword({ email, password: DEMO_PASSWORD })
+    setSwitching(null)
+    if (error) setSwitchErr(error.message)
+  }
   const [results, setResults] = useState<Partial<Record<Role, RunResult>>>({})
   const [busy, setBusy] = useState<Role | null>(null)
   const [lastRun, setLastRun] = useState<Role | null>(null)
@@ -165,45 +178,28 @@ export function RlsTab() {
             active={lastRun === id.role}
             busy={busy === id.role}
             onRun={() => runAs(id.role, id.email)}
+            onUseApp={isDemo && id.useApp && me !== id.email ? () => switchApp(id.role, id.email) : undefined}
+            switching={switching === id.role}
           />
         ))}
       </div>
 
-      <SwitchHint />
+      <SwitchHint error={switchErr} />
     </div>
   )
 }
 
-/** "Run as" only peeks. Say so — and let a demo visitor switch the app itself. */
-function SwitchHint() {
-  const { isDemo, role, user } = useAuth()
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState<string | null>(null)
-  const isManager = user?.email?.toLowerCase() === "manager@demo.local"
-
-  async function switchToManager() {
-    setBusy(true); setErr(null)
-    const { error } = await supabase.auth.signInWithPassword({ email: "manager@demo.local", password: DEMO_PASSWORD })
-    setBusy(false)
-    if (error) setErr(error.message)
-  }
-
+/** "Run as" only peeks — say so. */
+function SwitchHint({ error }: { error: string | null }) {
+  const { isDemo, role } = useAuth()
   return (
     <div className="border-t border-border px-4 py-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
       <p>
         <span className="text-foreground">Run as …</span> only looks through that identity's eyes —
         the app itself stays signed in as <span className="text-accent">{role ?? "you"}</span>.
+        {isDemo ? <> <span className="text-foreground">Use app as …</span> switches the whole app (still read-only).</> : <> Your own role is set in Account.</>}
       </p>
-      {isDemo && !isManager && (
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span>Want the app to act as Manager (Ingest, Connectors)?</span>
-          <Button size="xs" className="font-mono text-[10px]" disabled={busy} onClick={switchToManager}>
-            {busy ? "switching…" : "Switch the app to Manager"}
-          </Button>
-        </div>
-      )}
-      {!isDemo && <p className="mt-1">Your own role is set in Account.</p>}
-      {err && <p className="mt-1 text-destructive">{err}</p>}
+      {error && <p className="mt-1 text-destructive">{error}</p>}
     </div>
   )
 }
@@ -215,6 +211,8 @@ function IdentityCard({
   active,
   busy,
   onRun,
+  onUseApp,
+  switching,
 }: {
   label: string
   reason: string
@@ -222,6 +220,8 @@ function IdentityCard({
   active: boolean
   busy: boolean
   onRun: () => void
+  onUseApp?: () => void
+  switching?: boolean
 }) {
   return (
     <div
@@ -262,16 +262,24 @@ function IdentityCard({
         {reason}
       </p>
 
-      <Button
-        data-tour={`rls-run-${label.toLowerCase()}`}
-        variant={active ? "default" : "outline"}
-        size="xs"
-        className="mt-auto font-mono text-[10px]"
-        disabled={busy}
-        onClick={onRun}
-      >
-        {busy ? "running…" : `Run as ${label}`}
-      </Button>
+      <div className="mt-auto flex flex-col gap-1">
+        <Button
+          data-tour={`rls-run-${label.toLowerCase()}`}
+          variant={active ? "default" : "outline"}
+          size="xs"
+          className="font-mono text-[10px]"
+          disabled={busy}
+          onClick={onRun}
+        >
+          {busy ? "running…" : `Run as ${label}`}
+        </Button>
+        {onUseApp && (
+          <button onClick={onUseApp} disabled={switching}
+            className="truncate rounded-md px-1 py-0.5 font-mono text-[10px] text-accent underline-offset-4 transition hover:underline disabled:opacity-50">
+            {switching ? "switching…" : `Use app as ${label}`}
+          </button>
+        )}
+      </div>
     </div>
   )
 }

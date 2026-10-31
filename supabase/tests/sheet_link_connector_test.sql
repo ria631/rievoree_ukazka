@@ -113,7 +113,7 @@ select is(
      row(-1, c.id, null, true, now())::private.url_fetches, 200,
      E'Account,Date,Debit,Credit\n5000,2026-10-02,100,\n2000,2026-10-02,,100\n', '{}'::jsonb, false, null)
    from public.connectors c where c.name = 'Costs sheet')
-   - 'sample' - 'unknown_accounts',
+   - 'sample' - 'unknown_accounts' - 'months',
   jsonb_build_object('status', 'preview', 'rows', 2, 'period', '2026-10', 'debit', 100, 'credit', 100, 'missing_dates', 0),
   'a dry run returns the summary, status preview');
 select is(

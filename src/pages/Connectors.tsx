@@ -113,11 +113,12 @@ function HowItWorks() {
             <>Copy the link and paste it above. The app turns it into the sheet's CSV export — or use
               <span className="text-foreground"> File → Share → Publish to web → CSV</span>. Dropbox, OneDrive and any
               public <code className="rounded bg-secondary px-1 text-foreground">https://…csv</code> work too.</>,
-            <>First row is the header: <span className="text-foreground">Account, Date, Debit, Credit</span> (+ Description,
-              Currency). Slovak works too — Účet, Dátum, MD, Dal; <code className="rounded bg-secondary px-1 text-foreground">;</code> separators,
-              decimal commas and 02.10.2026 dates are fine.</>,
-            <><span className="text-foreground">Sync now</span> — or just leave it: the database re-reads the link every hour,
-              and a sheet that hasn't changed is skipped.</>,
+            <>First row is the header: <span className="text-foreground">Account, Date, Debit, Credit</span> — or one signed
+              <span className="text-foreground"> Amount</span> (+ Description; Currency defaults to the company's). Slovak works too — Účet,
+              Dátum, MD, Dal; <code className="rounded bg-secondary px-1 text-foreground">;</code> separators, decimal commas and 02.10.2026 dates are fine.</>,
+            <><span className="text-foreground">Keep editing the sheet.</span> The database re-reads it every hour (or press Sync now):
+              each month is its own batch, only a month whose rows changed comes back for review, and approving it replaces
+              that month's previous version from this sheet — nothing is counted twice.</>,
           ].map((t, i) => (
             <li key={i} className="flex gap-3">
               <span className="grid size-5 shrink-0 place-items-center rounded-full bg-accent/15 font-mono text-[10px] font-bold text-accent">{i + 1}</span>
@@ -443,6 +444,19 @@ function ConnectorCard({ connector: c, entityName, readOnly, showcase }: {
 const money = new Intl.NumberFormat("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const num = (v: string | number | null | undefined) => (v == null || v === "" || Number(v) === 0 ? "" : money.format(Number(v)))
 
+/** "2026-10" → "Oct 2026". */
+function monthLabel(p: string): string {
+  const [y, m] = p.split("-").map(Number)
+  return new Date(Date.UTC(y, (m || 1) - 1, 1)).toLocaleDateString("en-GB", { month: "short", year: "numeric", timeZone: "UTC" })
+}
+
+/** "Oct 2026", or "Oct 2026 – Dec 2026 (3 months)" for a sheet spanning several. */
+function monthSpan(r: SheetSyncResult): string {
+  const ms = r.months ?? []
+  if (ms.length <= 1) return r.period ? monthLabel(r.period) : "—"
+  return `${monthLabel(ms[0].period)} – ${monthLabel(ms[ms.length - 1].period)} (${ms.length} months)`
+}
+
 /** Fetch → parse → ingest, lit as it happens, then what the sheet contained. */
 function SyncResult({ pending, result, error }: { pending: boolean; result: SheetSyncResult | null; error: string | null }) {
   const failed = !!error || result?.status === "error"
@@ -483,11 +497,25 @@ function SyncResult({ pending, result, error }: { pending: boolean; result: Shee
       {done && result && (
         <>
           <p className="mt-3 text-sm text-muted-foreground">
-            {result.status === "preview" && <>Read <span className="text-foreground">{result.rows} rows</span> for {result.period ?? "—"}. The shared demo stops here — on your own account this becomes a batch waiting for review.</>}
-            {result.status === "created" && <>Imported <span className="text-foreground">{result.rows} rows</span> for {result.period ?? "—"} — the batch is waiting for review on <Link to="/ingest" className="text-accent underline-offset-4 hover:underline">Ingest</Link>.</>}
+            {result.status === "preview" && <>Read <span className="text-foreground">{result.rows} rows</span> for {monthSpan(result)}. The shared demo stops here — on your own account each month becomes a batch waiting for review.</>}
+            {result.status === "created" && <>New versions are waiting for review on <Link to="/ingest" className="text-accent underline-offset-4 hover:underline">Ingest</Link> — one batch per changed month.</>}
             {result.status === "duplicate" && <>This exact content was already imported for this company — nothing new.</>}
             {result.status === "unchanged" && <>No change since the last sync{result.message ? ` (${result.message})` : ""} — nothing imported twice.</>}
           </p>
+          {(result.batches?.length ?? 0) > 0 && (
+            <ul className="mt-3 flex flex-wrap gap-1.5 font-mono text-[11px]">
+              {result.batches!.map((b) => (
+                <li key={b.period} title={b.message}
+                  className={cn("rounded-md px-2 py-1 ring-1",
+                    b.status === "created" ? "bg-accent/10 text-accent ring-accent/30"
+                      : b.status === "error" ? "bg-destructive/10 text-destructive ring-destructive/30"
+                      : "text-muted-foreground ring-border")}>
+                  {monthLabel(b.period)} · {b.status === "created" ? `new version, ${b.rows} rows → review`
+                    : b.status === "error" ? `error: ${b.message}` : "unchanged"}
+                </li>
+              ))}
+            </ul>
+          )}
           {result.rows != null && (
             <div className="mt-3 flex flex-wrap gap-2 font-mono text-[11px]">
               <span className="rounded-md bg-secondary px-2 py-1">debit {money.format(result.debit ?? 0)}</span>

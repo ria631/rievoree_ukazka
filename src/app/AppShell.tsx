@@ -248,11 +248,14 @@ function useScrolled() {
   return scrolled
 }
 
-// Demo identities a visitor can switch between. Both are DB-locked read-only;
-// the Manager one additionally SEES the write side (Ingest, Connectors).
+// Demo identities a visitor can switch between. All are DB-locked read-only;
+// Manager additionally SEES the write side (Ingest, Connectors), Admin also the
+// Users page. The demo admin is never platform staff (migration 43): it sees the
+// four sample companies as a member, nobody else's data.
 const DEMO_ROLES = [
   { email: DEMO_EMAIL, label: "Viewer", hint: "reads reports only" },
   { email: "manager@demo.local", label: "Manager", hint: "+ upload, review, connectors" },
+  { email: "admin@demo.local", label: "Admin", hint: "+ users & roles" },
 ] as const
 
 /** Switch the app's session to another shared demo identity (both read-only). */

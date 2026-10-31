@@ -133,6 +133,10 @@ export interface SheetSyncResult {
   unknown_accounts?: string[]
   sample?: SheetSyncRow[]
   batch_id?: string
+  /** Rows per month (YYYY-MM) — a sheet is imported one month per batch. */
+  months?: { period: string; rows: number; debit: number; credit: number }[]
+  /** Per month: a new version on its way to review, unchanged, or an error. */
+  batches?: { period: string; status: "created" | "unchanged" | "error"; rows?: number; batch_id?: string; message?: string }[]
 }
 
 /** "Sync now" for a spreadsheet link: the database fetches the link (pg_net)
