@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { ScanLine } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,7 +11,9 @@ import {
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 import { useXRayEvents } from "@/lib/xray/useXRayEvents"
+import { useXrayPanel } from "./XrayPanelContext"
 import { CallsTab } from "./tabs/CallsTab"
+import { CodeTab } from "./tabs/CodeTab"
 import { PipelineTab } from "./tabs/PipelineTab"
 import { RlsTab } from "./tabs/RlsTab"
 import { SqlTab } from "./tabs/SqlTab"
@@ -31,24 +32,24 @@ const TABS = [
   { id: "pipeline", label: "Pipeline" },
   { id: "rls", label: "RLS" },
   { id: "sql", label: "SQL" },
+  { id: "code", label: "Code" },
   { id: "arch", label: "Arch" },
 ] as const
 
-type TabId = (typeof TABS)[number]["id"]
-
 export function XRayPanel() {
   const events = useXRayEvents()
-  const [open, setOpen] = useState(false)
-  const [tab, setTab] = useState<TabId>("calls")
+  // Open/tab live in a shared context so the guided tour can drive the panel.
+  const { open, setOpen, tab, setTab } = useXrayPanel()
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={open} onOpenChange={setOpen} modal={false}>
       <SheetTrigger asChild>
         <Button
           variant="outline"
           size="sm"
           className="gap-2 rounded-full font-mono text-xs"
           aria-label="Open X-ray panel"
+          data-tour="xray-button"
         >
           <ScanLine className="size-3.5" strokeWidth={2.25} />
           X-RAY
@@ -60,7 +61,14 @@ export function XRayPanel() {
         </Button>
       </SheetTrigger>
 
-      <SheetContent className="dark flex w-full flex-col gap-0 overflow-hidden rounded-l-[1.5rem] bg-background p-0 text-foreground shadow-soft ring-1 ring-white/10 sm:max-w-xl">
+      <SheetContent
+        overlay={false}
+        onInteractOutside={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
+        // Start BELOW the 4rem sticky header so the panel never covers the
+        // logo/nav (reported overlap). top-16 + h-auto overrides the sheet's
+        // default inset-y-0/h-full via tailwind-merge.
+        className="dark top-16 flex h-auto w-full flex-col gap-0 overflow-hidden rounded-l-[1.5rem] bg-background p-0 text-foreground shadow-soft ring-1 ring-white/10 sm:max-w-xl">
         <SheetHeader className="gap-1 border-b border-border px-5 py-5">
           <SheetTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
             <ScanLine className="size-4 text-accent" strokeWidth={2.25} />
@@ -83,6 +91,7 @@ export function XRayPanel() {
               <button
                 key={t.id}
                 role="tab"
+                data-tour={`xray-tab-${t.id}`}
                 aria-selected={active}
                 onClick={() => setTab(t.id)}
                 className={cn(
@@ -98,11 +107,12 @@ export function XRayPanel() {
           })}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden">
+        <div data-tour={`xray-${tab}`} className="min-h-0 flex-1 overflow-hidden">
           {tab === "calls" && <CallsTab />}
           {tab === "pipeline" && <PipelineTab />}
           {tab === "rls" && <RlsTab />}
           {tab === "sql" && <SqlTab />}
+          {tab === "code" && <CodeTab />}
           {tab === "arch" && <ArchTab />}
         </div>
       </SheetContent>

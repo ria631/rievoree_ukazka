@@ -343,8 +343,6 @@ email_optional = false
 # Set the secrets as env vars (NEVER commit them):
 #   SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID / ..._SECRET
 #   SUPABASE_AUTH_EXTERNAL_GITHUB_CLIENT_ID / ..._SECRET
-# These are SEPARATE from the Drive connector OAuth app (GOOGLE_OAUTH_* in the
-# edge runtime) — login identity vs. Drive data access are different grants.
 # ---------------------------------------------------------------------------
 [auth.external.google]
 enabled = true
@@ -429,23 +427,6 @@ verify_jwt = true
 [functions.connector-webhook]
 enabled = true
 verify_jwt = false
-
-# connector-oauth: starts the Google Drive OAuth flow for the signed-in manager.
-[functions.connector-oauth]
-enabled = true
-verify_jwt = true
-
-# connector-callback: Google's redirect target. The browser arrives from Google
-# with no project JWT, so verify_jwt is off; the HMAC-signed `state` is the gate.
-[functions.connector-callback]
-enabled = true
-verify_jwt = false
-
-# connector-sync: user-triggered ("Sync now") or cron-triggered Drive pull. Cron
-# mode presents the service_role bearer, which the platform accepts.
-[functions.connector-sync]
-enabled = true
-verify_jwt = true
 
 # admin-users: privileged user management (create / reset password / reset MFA).
 # verify_jwt on; the function additionally requires the caller to be a platform

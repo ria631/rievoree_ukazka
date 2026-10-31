@@ -137,6 +137,7 @@ function CallRow({
   return (
     <div className="border-b border-border">
       <button
+        data-tour="xray-call-row"
         onClick={onToggle}
         className="flex w-full items-baseline justify-between gap-3 py-1.5 text-left"
         aria-expanded={open}

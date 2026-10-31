@@ -24,7 +24,7 @@ const PANELS: Record<Kind, () => React.ReactElement> = {
 const STATIONS: { n: string; title: string; lead: string; code: string; kind: Kind }[] = [
   {
     n: "01", title: "Ingest, transformed", kind: "pipeline",
-    lead: "Messy spreadsheets land, get validated, z-score-screened for anomalies, then loaded — a Deno worker and Postgres do the real work. Nothing simulated.",
+    lead: "Messy spreadsheets land, get validated, z-score-screened for anomalies, then loaded — real Postgres functions do the work. Run it yourself in the demo.",
     code: sliceFrom(dbSrc, "update public.ingest_queue", 7),
   },
   {
@@ -119,6 +119,12 @@ export function Showcase() {
               <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-80px" }}
                 transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 0.7, 0.2, 1] }}>
                 {PANELS[s.kind]()}
+                {/* Honesty: these are on-brand illustrations, not a live feed. The
+                    real thing (RLS-filtered, timed at the fetch seam) is one click
+                    into the demo. */}
+                <p className="mt-2 text-center font-mono text-[10px] uppercase tracking-widest text-foreground/40">
+                  Illustration · the live version is in the demo
+                </p>
               </motion.div>
             </div>
           </div>

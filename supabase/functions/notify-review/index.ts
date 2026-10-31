@@ -27,6 +27,20 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+// Constant-time string compare — the bearer must be the service-role key.
+// verify_jwt only proves the token is a VALID project JWT (the anon key is one
+// too), so without this anyone holding the public anon key could POST here and
+// forge pipeline_events. pg_net presents the service-role key, so we require it.
+const enc = new TextEncoder()
+function timingSafeEqual(a: string, b: string): boolean {
+  const ab = enc.encode(a)
+  const bb = enc.encode(b)
+  let diff = ab.length ^ bb.length
+  const n = Math.max(ab.length, bb.length)
+  for (let i = 0; i < n; i++) diff |= (ab[i] ?? 0) ^ (bb[i] ?? 0)
+  return diff === 0
+}
+
 const CORS = {
   // Called server-to-server by pg_net (no browser, no cookies); a wildcard
   // origin is harmless here and keeps a manual curl test simple.
@@ -56,6 +70,14 @@ function json(status: number, body: unknown): Response {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS })
   if (req.method !== "POST") return json(405, { error: "method not allowed" })
+
+  // Only the database (pg_net, bearing the service-role key) may call this.
+  // A valid-but-non-service JWT (e.g. the public anon key) is rejected, so
+  // pipeline_events can't be forged through this endpoint.
+  const bearer = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "")
+  if (!bearer || !timingSafeEqual(bearer, SERVICE_ROLE_KEY)) {
+    return json(401, { error: "service role required" })
+  }
 
   const body = await req.json().catch(() => null)
   if (!body || typeof body !== "object") {
