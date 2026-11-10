@@ -65,7 +65,7 @@ export function usePipelineEvents(): {
       })
 
     // Resolve entity_id → name (RLS-scoped: only the caller's entities), so the
-    // timeline reads "Northwind Trading" instead of an opaque uuid prefix.
+    // timeline reads "Danube Office Park s.r.o." instead of an opaque uuid prefix.
     supabase
       .from("entities")
       .select("id,name")

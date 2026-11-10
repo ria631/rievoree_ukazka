@@ -1,0 +1,7 @@
+Account,Date,Description,Debit,Credit,Currency
+5000,02.10.2026,"Metro Energy — electricity & heat, October",14820.40,0,EUR
+5100,06.10.2026,TechFix — planned maintenance,5930.00,0,EUR
+5100,09.10.2026,"TechFix — lift service contract, Q4",2100.00,0,EUR
+5200,01.10.2026,Rievoree AM — management fee,4774.05,0,EUR
+5600,10.10.2026,CleanGuard — cleaning & security,9734.40,0,EUR
+2000,12.10.2026,Supplier invoices — facility manager sheet,0,37358.85,EUR

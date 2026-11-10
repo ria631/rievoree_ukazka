@@ -28,6 +28,9 @@ export function XrayScan({ children }: { children: ReactNode }) {
   const [on, setOn] = useState(false)
   const [mounted, setMounted] = useState(false) // keep editor in DOM once opened
   const root = useRef<HTMLDivElement>(null)
+  const clipRef = useRef<HTMLDivElement>(null)
+  const lineRef = useRef<HTMLDivElement>(null)
+  const progress = useRef(0)
 
   useEffect(() => {
     const el = root.current
@@ -35,18 +38,25 @@ export function XrayScan({ children }: { children: ReactNode }) {
     const reduce = window.matchMedia(REDUCE).matches
 
     el.dataset.scan = reduce ? "idle" : "run" // scan line visible during the sweep
-    const controls = animate(
-      el,
-      { "--scan": on ? 1 : 0 },
-      reduce ? { duration: 0 } : { duration: 0.95, ease: [0.45, 0, 0.2, 1] },
-    )
+    // Animate ONLY the editor layer's clip and the line's transform. (This used
+    // to animate a CSS variable on the landing's root, which re-styled the whole
+    // page every frame and made the reveal stutter.)
+    const paint = (v: number) => {
+      progress.current = v
+      if (clipRef.current) clipRef.current.style.clipPath = `inset(0 0 ${((1 - v) * 100).toFixed(2)}% 0)`
+      if (lineRef.current) lineRef.current.style.transform = `translate3d(0, ${(v * 100).toFixed(2)}vh, 0)`
+    }
+    const controls = animate(progress.current, on ? 1 : 0, {
+      ...(reduce ? { duration: 0 } : { duration: 0.9, ease: [0.45, 0, 0.2, 1] }),
+      onUpdate: paint,
+    })
     controls.finished.then(() => { el.dataset.scan = "idle" }).catch(() => {})
 
     // Lock body scroll while the editor owns the viewport.
     document.body.style.overflow = on ? "hidden" : ""
 
     return () => { controls.stop() }
-  }, [on])
+  }, [on, mounted])
 
   useEffect(() => () => { document.body.style.overflow = "" }, [])
 
@@ -60,13 +70,14 @@ export function XrayScan({ children }: { children: ReactNode }) {
 
   return (
     <XrayContext.Provider value={{ on, toggle }}>
-    <div ref={root} className="xray-scan relative" style={{ ["--scan" as string]: 0 }}>
+    <div ref={root} className="xray-scan relative">
       {/* The landing — always in normal flow; the editor reveals over it. */}
       {children}
 
       {/* Full-bleed editor — revealed top-down by the scan, clipped away at rest. */}
       {mounted && (
-        <div className="xray-editor-clip fixed inset-0 z-50 overflow-hidden" aria-hidden={!on}>
+        <div ref={clipRef} className="xray-editor-clip fixed inset-0 z-50 overflow-hidden" aria-hidden={!on}
+          style={{ clipPath: "inset(0 0 100% 0)" }}>
           <Suspense
             fallback={
               <div className="grid h-full w-full place-items-center bg-[#1e1e1e] font-mono text-xs text-white/40">
@@ -80,7 +91,7 @@ export function XrayScan({ children }: { children: ReactNode }) {
       )}
 
       {/* Scan line riding the reveal edge. */}
-      <div aria-hidden className="xray-scanline" />
+      <div ref={lineRef} aria-hidden className="xray-scanline" />
 
       {/* Exit control — only while x-rayed; entry lives on the hero panel button. */}
       {on && (

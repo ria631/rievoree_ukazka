@@ -117,8 +117,47 @@ function getHighlighter() {
   return hlPromise
 }
 
+// ── Off-main-thread highlighting ──────────────────────────────────────────
+// All highlighting runs in a Web Worker (highlight.worker.ts), so opening the
+// code view never freezes the page. If a worker can't be created, it falls back
+// to the same highlighter on the main thread.
+let worker: Worker | null | undefined
+let seq = 0
+const pending = new Map<number, { resolve: (h: string) => void; reject: (e: Error) => void }>()
+function getWorker(): Worker | null {
+  if (worker !== undefined) return worker
+  try {
+    worker = new Worker(new URL("./highlight.worker.ts", import.meta.url), { type: "module" })
+    worker.onmessage = (e: MessageEvent<{ id: number; html?: string; error?: string }>) => {
+      const p = pending.get(e.data.id)
+      if (!p) return
+      pending.delete(e.data.id)
+      if (e.data.html != null) p.resolve(e.data.html)
+      else p.reject(new Error(e.data.error ?? "highlight failed"))
+    }
+    worker.onerror = () => { worker = null } // fall back to the main thread from now on
+  } catch {
+    worker = null
+  }
+  return worker
+}
+
+/** Warm the worker (WASM + grammars compile) in the background, so the first
+ *  "show me the code" is instant. */
+export function prewarmHighlighter() {
+  for (const lang of ["tsx", "typescript", "sql"] as const) void highlightCode("const a = 1", lang).catch(() => {})
+}
+
 /** Highlight code to VS Code Dark+ HTML. Returns Shiki's escaped <pre> markup. */
 export async function highlightCode(code: string, lang: XrayLang): Promise<string> {
+  const w = getWorker()
+  if (w) {
+    const id = ++seq
+    return new Promise<string>((resolve, reject) => {
+      pending.set(id, { resolve, reject })
+      w.postMessage({ id, code, lang })
+    })
+  }
   const hl = await getHighlighter()
   return hl.codeToHtml(code, { lang, theme: "dark-plus" })
 }
