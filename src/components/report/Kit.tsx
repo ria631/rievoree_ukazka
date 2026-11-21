@@ -20,10 +20,9 @@ export const num = new Intl.NumberFormat("en-IE", { maximumFractionDigits: 0 })
 export const pct = (n: number, d = 1) => `${(Math.round(n * 10 ** d) / 10 ** d || 0).toFixed(d)}%`
 
 /**
- * The page header: printed on the lime sheet and torn along its bottom edge —
- * everything under it is the machinery. Crumbs (nav group / page), an optional
- * status pill, the signed-in role, the title, one line of meaning, and the
- * page's main controls on the right.
+ * The page header: plain white type on the dark app — crumbs (nav group / page),
+ * an optional status pill, the signed-in role, the title, one line of meaning,
+ * and the page's main controls on the right. A hairline closes it off.
  */
 export function PageIntro({ eyebrow, title, children, actions, status }: {
   eyebrow: string; title: string; children?: ReactNode; actions?: ReactNode; status?: ReactNode
@@ -31,28 +30,28 @@ export function PageIntro({ eyebrow, title, children, actions, status }: {
   const path = useRouterState({ select: (s) => s.location.pathname })
   const { role, session } = useAuth()
   return (
-    <header className="paper torn-sheet -mx-4 mb-6 px-4 pb-[54px] pt-3 text-ink min-[900px]:-mx-9 min-[900px]:px-9 min-[900px]:pt-[26px]">
-      <div className="flex min-h-[34px] items-center gap-3.5 text-sm text-ink-soft">
+    <header className="mb-7 border-b border-border pb-7 pt-5 min-[900px]:pt-7">
+      <div className="flex min-h-[34px] items-center gap-3.5 text-sm text-muted-foreground">
         <nav aria-label="Breadcrumb" className="hidden items-center gap-2 sm:flex">
-          <span>{navGroupOf(path)}</span><span aria-hidden>/</span><span className="font-semibold text-ink">{eyebrow}</span>
+          <span>{navGroupOf(path)}</span><span aria-hidden>/</span><span className="font-semibold text-foreground">{eyebrow}</span>
         </nav>
         <span className="flex-1" />
         {status && (
-          <span className="inline-flex h-[34px] items-center gap-2 rounded-full border-[1.5px] border-ink px-3 text-[13px] font-semibold text-ink">
-            <span className="size-2 rounded-full bg-ink" />{status}
+          <span className="inline-flex h-[34px] items-center gap-2 rounded-full border border-border bg-card px-3 text-[13px] font-semibold text-foreground">
+            <span className="size-2 rounded-full bg-signal" />{status}
           </span>
         )}
         {session && (
           <span title={`Signed in as ${session.user.email ?? ""} (${role ?? "viewer"})`}
-            className="hidden size-[34px] place-items-center rounded-full bg-ink font-display text-[15px] font-extrabold text-paper sm:grid">
+            className="hidden size-[34px] place-items-center rounded-full border border-border bg-secondary font-display text-[15px] font-extrabold text-foreground sm:grid">
             {(role ?? "v").charAt(0).toUpperCase()}
           </span>
         )}
       </div>
-      <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-4 min-[900px]:mt-[22px]">
+      <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-4 min-[900px]:mt-5">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }} className="min-w-0">
-          <h1 className="font-display text-[clamp(2.4rem,5vw,4.4rem)] font-extrabold uppercase leading-[0.86] tracking-[-0.005em]">{title}</h1>
-          {children && <p className="mt-2.5 max-w-[62ch] text-base leading-relaxed text-ink-soft [&_.text-foreground]:font-semibold [&_.text-foreground]:text-ink">{children}</p>}
+          <h1 className="font-display text-[clamp(2.2rem,4.4vw,3.8rem)] font-extrabold uppercase leading-[0.9] tracking-[-0.005em] text-foreground">{title}</h1>
+          {children && <p className="mt-3 max-w-[62ch] text-base leading-relaxed text-muted-foreground [&_.text-foreground]:font-semibold">{children}</p>}
         </motion.div>
         {actions && <div className="flex flex-wrap items-center gap-2.5 min-[900px]:ml-auto">{actions}</div>}
       </div>
@@ -79,14 +78,14 @@ export function FilterLabel({ label, children }: { label: string; children: Reac
   )
 }
 
-/** Company (SPV / building) filter. `sheet` = the ink-on-lime variant that sits
- *  in the page header; otherwise a labelled control in a filter row. */
-export function EntitySelect({ value, onChange, names, sheet }: { value: string; onChange: (v: string) => void; names: Map<string, string>; sheet?: boolean }) {
+/** Company (SPV / building) filter. `inHeader` = the bare, larger variant that
+ *  sits in the page header; otherwise a labelled control in a filter row. */
+export function EntitySelect({ value, onChange, names, inHeader }: { value: string; onChange: (v: string) => void; names: Map<string, string>; inHeader?: boolean }) {
   if (names.size < 2) return null
   const options = [{ value: "all", label: `All companies (${names.size})` }, ...[...names.entries()].map(([id, name]) => ({ value: id, label: name.replace(/ s\.r\.o\.$/, "") }))]
-  if (sheet) return (
+  if (inHeader) return (
     <SimpleSelect aria-label="Company" value={value} onValueChange={onChange} options={options} size="default"
-      className="h-[42px] min-w-[13rem] rounded-md border-[1.5px] border-ink bg-transparent px-3.5 font-sans text-sm font-semibold text-ink hover:border-ink hover:bg-ink/5 [&_svg]:opacity-90" />
+      className="h-[42px] min-w-[13rem] rounded-md border border-border bg-card px-3.5 font-sans text-sm font-semibold text-foreground hover:border-foreground/40" />
   )
   return (
     <FilterLabel label="Company">
@@ -122,13 +121,14 @@ export function KpiTile({ label, value, format, hint, delta, goodUp = true, spar
   return (
     <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: i * 0.05, ease: "easeOut" }}
       data-live={`${label} ${format(value)}`}
-      className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-2.5 gap-y-0.5 rounded-xl border border-border bg-card px-4 pb-3.5 pt-4 sm:px-[18px]">
+      className="@container grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-2.5 gap-y-0.5 rounded-xl border border-border bg-card px-4 pb-3.5 pt-4 sm:px-[18px]">
       <span className="col-span-2 text-[13.5px] text-muted-foreground">{label}</span>
       <div className={cn("min-w-0 font-display text-[clamp(1.5rem,2.4vw,2.25rem)] font-bold leading-[1.1] tabular-nums",
         tone === "good" && "text-signal", tone === "bad" && "text-destructive")}>
         <CountUp value={value} format={format} delay={i * 0.05} />
       </div>
-      {hasSpark ? <div className="h-8 w-[84px] self-end max-sm:hidden"><Sparkline data={spark} color={color} /></div> : <span />}
+      {/* The sparkline only where the tile is wide enough to keep the number clear of it. */}
+      {hasSpark ? <div className="hidden h-8 w-[84px] self-end @min-[19rem]:block"><Sparkline data={spark} color={color} /></div> : <span />}
       {(delta != null || hint) && (
         <div className="col-span-2 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] leading-snug text-muted-foreground">
           {delta != null && <DeltaChip delta={delta} goodUp={goodUp} />}

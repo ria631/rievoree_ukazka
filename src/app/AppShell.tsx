@@ -116,7 +116,7 @@ function ExploreDemoButton({ className, label }: { className?: string; label: st
   return <button onClick={() => void explore()} disabled={busy} className={className}>{busy ? "Opening…" : label}</button>
 }
 
-/* ───────────────────────── the product: sidebar + torn sheet ───────────────────────── */
+/* ───────────────────────── the product: dark shell + top menu ───────────────────────── */
 
 function AppLayout({ path, role, email, isDemo }: { path: string; role: string | null; email: string; isDemo: boolean }) {
   const isExploreTour = email === DEMO_EMAIL
@@ -125,32 +125,47 @@ function AppLayout({ path, role, email, isDemo }: { path: string; role: string |
   // don't bounce silently. Role demos (manager@/admin@) MAY reach them (the DB
   // blocks their writes), so the tour can show Ingest.
   const blocked = isExploreTour && DEMO_BLOCKED.has(path)
-  const side = <SidebarBody role={role} email={email} isDemo={isDemo} isExploreTour={isExploreTour} onNavigate={() => setMenuOpen(false)} />
+  const rank = RANK[role ?? "viewer"] ?? 0
+  const items = NAV.flatMap((g) => g.items).filter((it) => !(isDemo && it.to === "/account"))
 
   return (
-    <div className="min-h-screen min-[900px]:grid min-[900px]:grid-cols-[var(--side-w)_minmax(0,1fr)]">
-      {/* Phone / tablet: a lime bar, the sidebar slides in from the left. */}
-      <div className="sticky top-0 z-40 flex items-center gap-3 bg-paper px-4 py-2.5 text-ink min-[900px]:hidden">
-        <BrandLink className="text-xl" />
-        <span className="flex-1" />
-        <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-          <SheetTrigger asChild>
-            <button aria-label="Open menu" className="grid size-10 place-items-center rounded-md hover:bg-ink/10">
-              <Menu className="size-[22px]" strokeWidth={2.2} />
+    <div className="min-h-screen">
+      {/* The menu lives at the top: identity + role + guides, then the pages. */}
+      <header data-shell-top className="sticky top-0 z-40 border-b border-border bg-side/95 backdrop-blur-md">
+        <div className="flex h-14 items-center gap-3 px-4 min-[900px]:px-6">
+          <BrandLink to="/dashboard" className="text-xl" />
+          <span className="flex-1" />
+          <div className="hidden items-center gap-2.5 min-[900px]:flex">
+            {isDemo ? <TopRoleSwitch email={email} /> : <TopSignedIn role={role} email={email} />}
+            <span className="mx-1 h-6 w-px bg-border" aria-hidden />
+            <button onClick={() => requestTourStart()}
+              className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-accent-foreground transition hover:brightness-110">
+              <ScanLine className="size-3.5" strokeWidth={2.25} /> Tour
             </button>
-          </SheetTrigger>
-          <SheetContent side="left" aria-describedby={undefined} showCloseButton={false} data-mobile-menu
-            className="w-[min(300px,86vw)] gap-0 border-r border-border bg-side px-3.5 py-[18px]">
-            <SheetTitle className="sr-only">Menu</SheetTitle>
-            {side}
-          </SheetContent>
-        </Sheet>
-      </div>
-
-      <aside data-shell-side aria-label="Main"
-        className="sticky top-0 hidden h-svh flex-col border-r border-border bg-side px-3.5 py-[18px] min-[900px]:flex">
-        {side}
-      </aside>
+            <CodeXrayButton className="rounded-md px-3 py-1.5 text-[11px] tracking-wider" />
+          </div>
+          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+            <SheetTrigger asChild>
+              <button aria-label="Open menu" className="grid size-10 place-items-center rounded-md text-foreground hover:bg-card min-[900px]:hidden">
+                <Menu className="size-[22px]" strokeWidth={2.2} />
+              </button>
+            </SheetTrigger>
+            <SheetContent side="right" aria-describedby={undefined} showCloseButton={false} data-mobile-menu
+              className="w-[min(320px,88vw)] gap-0 border-l border-border bg-side px-3.5 py-[18px]">
+              <SheetTitle className="sr-only">Menu</SheetTitle>
+              <SidebarBody role={role} email={email} isDemo={isDemo} isExploreTour={isExploreTour} onNavigate={() => setMenuOpen(false)} />
+            </SheetContent>
+          </Sheet>
+        </div>
+        <nav data-tour="main-nav" aria-label="Pages"
+          className="hidden h-11 items-stretch gap-1 overflow-x-auto px-4 min-[900px]:flex min-[900px]:px-6 [scrollbar-width:none]">
+          {items.map((it) => {
+            const need = it.min ? RANK[it.min] : 0
+            const lockedBy = rank < need ? it.min : isExploreTour && it.hands ? (it.min ?? "manager") : null
+            return lockedBy ? <TopLocked key={it.to} item={it} lockedBy={lockedBy} /> : <TopLink key={it.to} item={it} />
+          })}
+        </nav>
+      </header>
 
       <main className="app-main @container relative min-w-0 px-4 pb-32 min-[900px]:px-9">
         {blocked ? <DemoBlockedScreen path={path} /> : <Outlet />}
@@ -166,6 +181,79 @@ function AppLayout({ path, role, email, isDemo }: { path: string; role: string |
   )
 }
 
+const tabBase = "flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 text-[14px] font-medium transition-colors"
+
+function TopLink({ item }: { item: NavItem }) {
+  const Icon = item.icon
+  return (
+    <Link to={item.to} data-tour={`nav-${item.to.slice(1)}`} className={tabBase}
+      activeProps={{ className: "text-foreground shadow-[inset_0_-2px_0_var(--accent)] [&_svg]:text-accent", "aria-current": "page" }}
+      inactiveProps={{ className: "text-muted-foreground hover:text-foreground" }}>
+      <Icon className="size-4 shrink-0" strokeWidth={1.8} />
+      {item.label}
+    </Link>
+  )
+}
+
+function TopLocked({ item, lockedBy }: { item: NavItem; lockedBy: string }) {
+  const Icon = item.icon
+  return (
+    <span aria-disabled="true" data-tour={`nav-${item.to.slice(1)}`} title={`Needs the ${lockedBy} role — switch at the top right to see it`}
+      className={cn(tabBase, "cursor-not-allowed text-muted-foreground opacity-45")}>
+      <Icon className="size-4 shrink-0" strokeWidth={1.8} />
+      {item.label}
+      <span className="font-mono text-[10px] text-cold">{lockedBy}+</span>
+    </span>
+  )
+}
+
+/** "Acting as" in the top bar — the same anchors the guided tour clicks. */
+function TopRoleSwitch({ email }: { email: string }) {
+  const { busy, pick } = useDemoSwitch(email)
+  const current = DEMO_ROLES.find((r) => r.email === email) ?? DEMO_ROLES[0]
+  return (
+    <div data-tour="role-switch" className="flex items-center gap-2.5">
+      <span data-tour="demo-banner" title={`Read-only demo. ${current.note}`}
+        className="hidden items-center gap-1.5 rounded-full bg-card px-2.5 py-1 text-[12px] text-muted-foreground ring-1 ring-border min-[1180px]:inline-flex">
+        <span className="size-1.5 rounded-full bg-signal" /> Read-only demo
+      </span>
+      <span className="text-[12px] text-cold">as</span>
+      <div role="group" aria-label="Acting as" data-tour="role-menu"
+        className="grid grid-cols-3 gap-[3px] rounded-lg border border-border p-[3px]">
+        {DEMO_ROLES.map((r) => {
+          const on = r.email === email
+          return (
+            <button key={r.email} aria-pressed={on} data-tour={`role-${r.label.toLowerCase()}`} disabled={!!busy}
+              onClick={() => void pick(r.email)} title={r.note}
+              className={cn("rounded-md px-2.5 py-1 text-[13px] font-semibold transition-colors disabled:cursor-wait",
+                on ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground",
+                busy === r.email && "animate-pulse")}>
+              {r.label}
+            </button>
+          )
+        })}
+      </div>
+      <ExitDemo />
+    </div>
+  )
+}
+
+function TopSignedIn({ role, email }: { role: string | null; email: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="hidden max-w-[220px] truncate text-[13px] text-muted-foreground min-[1180px]:inline" title={email}>{email}</span>
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-card px-2.5 py-1 font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground ring-1 ring-border">
+        <span className="size-1.5 rounded-full bg-signal" />{(role ?? "viewer").replace("_", " ")}
+      </span>
+      <button onClick={() => void supabase.auth.signOut()}
+        className="rounded-md px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted-foreground transition hover:bg-secondary hover:text-foreground">
+        Sign out
+      </button>
+    </div>
+  )
+}
+
+/** The phone menu: every page, the guides and the role switch. */
 function SidebarBody({ role, email, isDemo, isExploreTour, onNavigate }: {
   role: string | null; email: string; isDemo: boolean; isExploreTour: boolean; onNavigate: () => void
 }) {
@@ -292,7 +380,7 @@ function useDemoSwitch(email: string) {
   return { busy, pick }
 }
 
-/** "Acting as" — the segmented demo role switch at the foot of the sidebar. The
+/** "Acting as" in the phone menu — the segmented demo role switch. The
  *  guided tour clicks it too (data-tour anchors), so a visitor SEES the role
  *  change happen. */
 function DemoRoleSwitch({ email }: { role: string | null; email: string }) {
@@ -359,7 +447,7 @@ function DemoBlockedScreen({ path }: { path: string }) {
         <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
           You're the read-only viewer, so <span className="font-mono text-foreground">{feature}</span> (where
           you'd upload, approve or manage) is off. Switch to <b className="text-foreground">Manager</b> in the
-          sidebar to look around it, or create a free account to try it for real.
+          menu at the top to look around it, or create a free account to try it for real.
         </p>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row">

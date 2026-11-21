@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react"
 import { Link } from "@tanstack/react-router"
 import { useExploreDemo } from "@/app/AppShell"
 import { AUTHOR, EVIDENCE, TOP_TESTS, contactLinks, repoUrl } from "@/lib/author"
 import { FILES, SRC, hl } from "./landing/repoSource"
 import type { LandingEls } from "./landing/tear"
+import { Desk, SkeletonList } from "./landing/Desk"
 import "./landing/landing.css"
 
 /**
@@ -37,6 +38,23 @@ export function Landing() {
     }).catch(() => root.current?.classList.add("nogl"))
     return () => { cancelled = true; dispose?.() }
   }, []) // mount once: the refs are stable for the page's lifetime
+
+  // Header: backed with paper once the hero scrolls under it, dark over the
+  // machinery, paper again over the closing sheet. Works without WebGL too.
+  useEffect(() => {
+    const on = () => {
+      const { bar, hero, close } = els.current
+      if (!bar || !hero || !close) return
+      const pastHero = hero.getBoundingClientRect().bottom <= 64
+      const onClose = close.getBoundingClientRect().top <= 64
+      bar.classList.toggle("is-scrolled", window.scrollY > 8 && !pastHero)
+      bar.classList.toggle("is-dark", pastHero && !onClose)
+      bar.classList.toggle("is-paper", onClose)
+    }
+    on()
+    addEventListener("scroll", on, { passive: true })
+    return () => removeEventListener("scroll", on)
+  }, [])
 
   const demoBtn = (cls: string, label = "Open the live demo") => (
     <button className={`btn ${cls}`} onClick={() => void explore()} disabled={busy}>{busy ? "Opening…" : label}</button>
@@ -230,24 +248,147 @@ const STEPS = [
   },
 ]
 
+/** What the desk is doing in each act — over the desk, or under it on phones. */
+const ACT_CAPTIONS = [
+  "Three companies send this month's spreadsheets",
+  "Every row is checked — one odd figure waits for a person",
+  "Each company's numbers stay private to its own people",
+  "The portfolio report rebuilds itself within a minute",
+  "X-ray: the skeleton underneath — the real tables, jobs and policies",
+]
+
+type ActLoop = { pin: () => void; unpin: () => void }
+
+/**
+ * The month on a loop: act 1…4 (three seconds each, the report a little
+ * longer), act 5 the X-ray of the whole solution, a fade, again. Sets
+ * cumulative a1…a5 classes, `data-act` (which step card is lit, where the
+ * token sits) and `out` on the section's flow; CSS does the rest. Runs only
+ * while the desk is on screen and resumes where it paused. `pin` holds the
+ * X-ray (the story jumps to its end under it); `unpin` fades back and starts
+ * the month again. Reduced motion: the finished desk, no loop.
+ */
+function useActLoop(ref: RefObject<HTMLDivElement | null>) {
+  const ctl = useRef<ActLoop>({ pin() {}, unpin() {} })
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const acts = (k: number) => {
+      for (let i = 1; i <= 5; i++) el.classList.toggle(`a${i}`, i <= k)
+      el.dataset.act = String(k)
+    }
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const still = () => { acts(4); delete el.dataset.act }
+      el.classList.add("play", "on")
+      still()
+      ctl.current = { pin: () => acts(5), unpin: still }
+      return
+    }
+    const plan: [number, () => void][] = [
+      [0, () => { el.classList.remove("out", "skip"); acts(1) }],
+      [3000, () => acts(2)],
+      [6000, () => acts(3)],
+      [9000, () => acts(4)],
+      [12400, () => acts(5)],
+      [19400, () => el.classList.add("out")],
+      [19900, () => acts(0)],
+    ]
+    const CYCLE = 19960 // a beat after the reset, so the next act's animations restart
+    const OUT = 5 // plan index of the fade
+    let i = 0
+    let timer = 0
+    let left = 0
+    let since = 0
+    let started = false
+    let pinned = false
+    let visible = false
+    const wait = (ms: number) => { left = ms; since = performance.now(); timer = window.setTimeout(step, ms) }
+    function step() {
+      const [at, run] = plan[i]
+      run()
+      i = (i + 1) % plan.length
+      wait((i ? plan[i][0] : CYCLE) - at)
+    }
+    const io = new IntersectionObserver(([e]) => {
+      clearTimeout(timer)
+      visible = e.isIntersecting
+      el.classList.toggle("on", visible)
+      if (pinned) return
+      if (visible) {
+        if (started) wait(left)
+        else { started = true; el.classList.add("play"); step() }
+      } else if (started) left = Math.max(0, left - (performance.now() - since))
+    }, { threshold: 0.25 })
+    // Watch the desk itself: the whole flow can be taller than the screen.
+    io.observe(el.querySelector(".desk") ?? el)
+    ctl.current = {
+      pin() {
+        if (pinned) return
+        pinned = true
+        started = true
+        clearTimeout(timer)
+        el.classList.remove("out")
+        el.classList.add("play", "skip")
+        acts(5)
+      },
+      unpin() {
+        // Back through the loop's own fade and reset, so pausing off screen
+        // keeps working in the middle of it.
+        if (!pinned) return
+        pinned = false
+        clearTimeout(timer)
+        i = OUT
+        left = 0
+        if (visible) step()
+      },
+    }
+    return () => { io.disconnect(); clearTimeout(timer) }
+  }, [ref])
+  return ctl
+}
+
 function HowItWorks() {
+  const flow = useRef<HTMLDivElement>(null)
+  const loop = useActLoop(flow)
+  const [pinned, setPinned] = useState(false)
+  const toggle = () => {
+    if (pinned) loop.current.unpin()
+    else loop.current.pin()
+    setPinned(!pinned)
+  }
   return (
     <section className="sec" id="how">
       <div className="sec-head">
         <h2>How it works</h2>
-        <p>From a spreadsheet to a report a CFO can trust, in four steps.</p>
+        <p>From a spreadsheet to a report a CFO can trust, in four steps — then the same month on X-ray, down to the tables and jobs that run it.</p>
       </div>
-      <ol className="steps">
-        {STEPS.map((s, i) => (
-          <li key={s.title}>
-            <span className="num">{String(i + 1).padStart(2, "0")}</span>
-            <h3>{s.title}</h3>
-            <p className="plain">{s.plain}</p>
-            <p className="tech">{s.tech}</p>
-            <a className="path" href={repoUrl(s.path)} target="_blank" rel="noreferrer">{s.label} ↗</a>
-          </li>
-        ))}
-      </ol>
+      <div ref={flow} className="flow">
+        <div className="desk-wrap">
+          <Desk />
+          <div className="dk-cap" aria-hidden="true">
+            {ACT_CAPTIONS.map((c, i) => <span key={c} className={`c${i + 1}`}><b>{i < 4 ? i + 1 : "X"}</b>{c}</span>)}
+          </div>
+          <button type="button" className="dk-xbtn" aria-pressed={pinned} onClick={toggle}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16" />
+            </svg>
+            {pinned ? "Back to the desk" : "See the skeleton"}
+          </button>
+          {pinned && <SkeletonList />}
+        </div>
+        <div className="track" aria-hidden="true"><span className="line" /><span className="rail"><span className="token"><i /><i /><i /></span></span></div>
+        <ol className="steps">
+          {STEPS.map((s, i) => (
+            <li key={s.title} style={{ ["--i" as string]: i }}>
+              <span className="num">{String(i + 1).padStart(2, "0")}</span>
+              <h3>{s.title}</h3>
+              <p className="plain">{s.plain}</p>
+              <p className="tech">{s.tech}</p>
+              <a className="path" href={repoUrl(s.path)} target="_blank" rel="noreferrer">{s.label} ↗</a>
+            </li>
+          ))}
+        </ol>
+      </div>
     </section>
   )
 }

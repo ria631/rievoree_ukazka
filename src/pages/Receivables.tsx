@@ -41,7 +41,7 @@ export function Receivables() {
   return (
     <div className="relative">
       <PageIntro eyebrow="Credit control" title="Receivables & payables"
-        actions={<EntitySelect sheet value={entityId} onChange={setEntityId} names={names} />}>
+        actions={<EntitySelect inHeader value={entityId} onChange={setEntityId} names={names} />}>
         What tenants still owe us, what we owe our suppliers, and how late — bucketed by days past due.
         {asOf && <> Open items as at <span className="text-foreground">{dLong(asOf)}</span>.</>}
       </PageIntro>

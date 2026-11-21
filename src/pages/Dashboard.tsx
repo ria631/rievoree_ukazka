@@ -55,7 +55,7 @@ export function Dashboard() {
     <div className="relative">
       <PageIntro eyebrow="Overview" title="Dashboard"
         status={last ? <>Books closed to {mLong(last)}</> : undefined}
-        actions={<div data-tour="dash-filter"><EntitySelect sheet value={entityId} onChange={setEntityId} names={names} /></div>}>
+        actions={<div data-tour="dash-filter"><EntitySelect inHeader value={entityId} onChange={setEntityId} names={names} /></div>}>
         How the portfolio did last month — what it earns, how full it is, how much cash is in the bank —
         and whether the lender would be comfortable. Showing <span className="text-foreground">{scopeLabel}</span>.
       </PageIntro>

@@ -44,7 +44,7 @@ export function BudgetFlow() {
   return (
     <div className="relative">
       <PageIntro eyebrow="Cash budget" title="Budget flow"
-        actions={<EntitySelect sheet value={entityId} onChange={setEntityId} names={names} />}>
+        actions={<EntitySelect inHeader value={entityId} onChange={setEntityId} names={names} />}>
         The year's cash plan by category — tenant receipts in; running costs, tax, capex, debt service and
         dividends out — against what actually went through the bank.
         {last && <> Actuals to <span className="text-foreground">{mLong(last)}</span>, plan after.</>}

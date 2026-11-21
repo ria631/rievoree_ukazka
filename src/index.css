@@ -10,16 +10,15 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ----------------------------------------------------------------------------
- * Brand "paper machinery" (design/app-shell.html): every page header is printed
- * on a lime sheet and torn along its bottom edge; everything under it is the
- * machinery — a dark emerald recess. Lime is the ONE action colour; emerald,
+ * Brand "paper machinery": the public pages (landing, sign-in) are one lime
+ * sheet; inside, the app is the machinery — a dark emerald recess with plain
+ * white type. Lime is the ONE action colour; emerald,
  * teal, red and gold are DATA signals (positive, data/costs, negative/anomaly,
  * waiting for a person), never decoration. Tokens follow the shadcn contract so
  * every ui/ component inherits them; .dark mirrors :root.
  * -------------------------------------------------------------------------- */
 :root {
   --radius: 0.75rem;                       /* cards 12px, controls 6px */
-  --side-w: 236px;                         /* sidebar width (AppShell) */
 
   --background: #061716;                   /* the machinery: deepest recess */
   --foreground: #E4F2EC;
@@ -46,7 +45,7 @@
   --line-hi: #2C5C57;                      /* input borders, strong hairline */
   --input: #2C5C57;
   --ring: #A3E635;
-  --side: #04100F;                         /* sidebar */
+  --side: #04100F;                         /* menu bar */
   --paper: #A3E635;                        /* the sheet */
   --ink: #16301F;                          /* ink printed on the sheet */
   --ink-soft: #3A5A3F;
@@ -344,32 +343,13 @@
 /* Tour auto-play countdown under the step card. */
 @keyframes tour-progress { from { width: 0% } to { width: 100% } }
 
-/* Guided tour on a desktop: the card lives in a rail beside the sidebar and
+/* Guided tour on a desktop: the card lives in a rail on the left and
    the page slides right to make room, so the card never covers what it
-   explains (+36px: the torn header bleeds into the page gutter). */
+   explains (+36px of breathing room beside the rail). */
 html.tour-rail .app-main {
   padding-left: calc(var(--tour-left, 408px) + 36px);
 }
 
-/* ============================================================================
- * The torn sheet — every app page header is printed on lime paper and torn
- * along its bottom edge (edge shapes from src/lib/tornEdge.ts). Inside it the
- * .paper token scope flips components to ink-on-lime.
- * -------------------------------------------------------------------------- */
-.torn-sheet {
-  position: relative;
-  background: var(--paper);
-  -webkit-mask: var(--torn) bottom / 100% 22px repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - 21px) no-repeat;
-          mask: var(--torn) bottom / 100% 22px repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - 21px) no-repeat;
-}
-.torn-sheet::after {
-  content: "";
-  position: absolute;
-  inset: auto 0 0 0;
-  height: 22px;
-  background: var(--fibre) bottom / 100% 22px repeat-x;
-  pointer-events: none;
-}
 /* The X-ray drawer sits under the page: a torn lime lip along its left edge. */
 .torn-lip::before {
   content: "";

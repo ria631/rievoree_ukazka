@@ -21,7 +21,7 @@ import { ArchTab } from "./tabs/ArchTab"
 /**
  * X-ray panel — the exhibit that makes the backend visible. A lime pill floats
  * in the corner of every app page (or press X); it pulls out a dark console
- * from under the torn page:
+ * with a torn lime edge:
  *   CALLS    — every request this page made, timed at the fetch seam
  *   PIPELINE — live pipeline_events timeline (Realtime)
  *   RLS      — "same query, three identities"
