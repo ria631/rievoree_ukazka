@@ -3,57 +3,50 @@ import { Link } from "@tanstack/react-router"
 import { useExploreDemo } from "@/app/AppShell"
 import { AUTHOR, EVIDENCE, TOP_TESTS, contactLinks, repoUrl } from "@/lib/author"
 import { FILES, SRC, hl } from "./landing/repoSource"
-import type { LandingEls } from "./landing/tear"
+import { CodeHero } from "./landing/CodeHero"
+import { TornHole } from "./landing/TornHole"
 import { Desk, SkeletonList } from "./landing/Desk"
 import "./landing/landing.css"
 
 /**
  * The landing — a portfolio first, a product second. Five screens, each with
- * one job: who built this and what it is (the torn sheet showing the repo's
- * own code), the moment that proves it (row-level security, live in the
- * browser), how it works in four plain steps, what it shows its author can
- * do — with the tests as evidence — and how to reach her or open the demo.
+ * one job: who built this and what it is (money forming out of a rain of the
+ * repo's own code, then turning into the code that books and reports it — the
+ * product's idea in fifteen seconds), the moment that proves it
+ * (row-level security, live in the browser), how it works (a live desk, then
+ * its skeleton), what it shows its author can do — with the tests as
+ * evidence — and how to reach her or open the demo.
+ *
+ * Light on purpose: no WebGL. One 2D canvas for the code rain at ~30 fps,
+ * the rest HTML, SVG and CSS on transform and opacity — all paused off screen.
  */
 export function Landing() {
   const { busy, explore } = useExploreDemo()
-  const root = useRef<HTMLDivElement>(null)
-  // The elements the WebGL scene drives, collected by callback refs.
-  const els = useRef<Partial<LandingEls>>({})
-  const bind = (k: keyof LandingEls) => (el: HTMLElement | null) => { els.current[k] = (el ?? undefined) as never }
-  const exploreRef = useRef(explore)
-  exploreRef.current = explore
+  const bar = useRef<HTMLElement>(null)
+  const hero = useRef<HTMLElement>(null)
+  const close = useRef<HTMLElement>(null)
+  const copy = useRef<HTMLDivElement>(null)
 
-  // The torn sheets load after first paint (three.js is its own chunk); without
-  // WebGL the page stays a flat lime sheet with a dark window — still whole.
+  // Header: light text over the dark hero, a dark backing once the page
+  // scrolls, paper over the closing sheet. One check per frame at most.
   useEffect(() => {
-    let dispose: (() => void) | undefined
-    let cancelled = false
-    import("./landing/tear").then(({ mountLanding }) => {
-      if (cancelled) return
-      const all = els.current
-      const keys: (keyof LandingEls)[] = ["hero", "stage", "canvas", "anchor", "hint", "bar", "close", "canvas2", "anchor2", "hint2"]
-      if (keys.some((k) => !all[k])) return
-      try { dispose = mountLanding(all as LandingEls, () => void exploreRef.current()) }
-      catch { root.current?.classList.add("nogl") }
-    }).catch(() => root.current?.classList.add("nogl"))
-    return () => { cancelled = true; dispose?.() }
-  }, []) // mount once: the refs are stable for the page's lifetime
-
-  // Header: backed with paper once the hero scrolls under it, dark over the
-  // machinery, paper again over the closing sheet. Works without WebGL too.
-  useEffect(() => {
-    const on = () => {
-      const { bar, hero, close } = els.current
-      if (!bar || !hero || !close) return
-      const pastHero = hero.getBoundingClientRect().bottom <= 64
-      const onClose = close.getBoundingClientRect().top <= 64
-      bar.classList.toggle("is-scrolled", window.scrollY > 8 && !pastHero)
-      bar.classList.toggle("is-dark", pastHero && !onClose)
-      bar.classList.toggle("is-paper", onClose)
+    let raf = 0
+    const check = () => {
+      raf = 0
+      const b = bar.current
+      const h = hero.current
+      const c = close.current
+      if (!b || !h || !c) return
+      const onClose = c.getBoundingClientRect().top <= 64
+      const scrolled = window.scrollY > 8 || h.getBoundingClientRect().top < -8
+      b.classList.toggle("top-dark", !scrolled && !onClose)
+      b.classList.toggle("is-dark", scrolled && !onClose)
+      b.classList.toggle("is-paper", onClose)
     }
-    on()
+    const on = () => { if (!raf) raf = requestAnimationFrame(check) }
+    check()
     addEventListener("scroll", on, { passive: true })
-    return () => removeEventListener("scroll", on)
+    return () => { removeEventListener("scroll", on); cancelAnimationFrame(raf) }
   }, [])
 
   const demoBtn = (cls: string, label = "Open the live demo") => (
@@ -62,8 +55,8 @@ export function Landing() {
   const contacts = contactLinks()
 
   return (
-    <div ref={root} className="lp">
-      <header ref={bind("bar")} className="bar">
+    <div className="lp">
+      <header ref={bar} className="bar">
         <div className="wrap">
           <Link to="/" className="brand" aria-label="X-Ray home"><img src="/xray-mark.svg" alt="" />X-Ray</Link>
           <nav aria-label="Sections">
@@ -79,12 +72,9 @@ export function Landing() {
 
       <main id="top">
         {/* 1 · who, and what this is */}
-        <section ref={bind("hero")} className="hero" aria-label="Introduction">
-          <div ref={bind("stage")} className="hero-stage">
-            <canvas ref={bind("canvas")} id="gl" aria-hidden="true" />
-          </div>
+        <section ref={hero} className="hero dark" aria-label="Introduction">
           <div className="wrap hero-grid">
-            <div className="txt">
+            <div ref={copy} className="txt">
               <p className="kicker">Backend &amp; data engineer</p>
               <h1>
                 <span className="lp-mask"><span className="name">{AUTHOR.name.split(" ")[0]}</span></span>
@@ -104,13 +94,9 @@ export function Landing() {
                 <a href="#contact">Get in touch ↓</a>
               </p>
             </div>
-            <figure className="hole">
-              <div ref={bind("anchor")} className="anchor" aria-hidden="true" />
-              <figcaption>The page, torn open on this repo's own code.</figcaption>
-            </figure>
+            <CodeHero host={hero} avoid={copy} />
           </div>
         </section>
-        <span ref={bind("hint")} className="dive-hint" aria-hidden="true">see how it works ↓</span>
 
         <div className="machinery">
           <div className="wrap">
@@ -120,9 +106,7 @@ export function Landing() {
           </div>
 
           {/* 5 · contact, and the demo */}
-          <section ref={bind("close")} className="close" id="contact" aria-label="Contact and demo">
-            <canvas ref={bind("canvas2")} id="gl2" aria-hidden="true" />
-            <span ref={bind("hint2")} className="dive-hint" aria-hidden="true">open the demo</span>
+          <section ref={close} className="close" id="contact" aria-label="Contact and demo">
             <div className="wrap close-in">
               <div className="copy">
                 <h2>Now tear into the real one</h2>
@@ -141,7 +125,7 @@ export function Landing() {
                   </div>
                 </div>
               </div>
-              <div ref={bind("anchor2")} className="anchor" aria-hidden="true" />
+              <TornHole onOpen={() => void explore()} busy={busy} />
               <footer>
                 <span className="me">{AUTHOR.name}</span>
                 <a href={AUTHOR.github} target="_blank" rel="noreferrer">GitHub</a>

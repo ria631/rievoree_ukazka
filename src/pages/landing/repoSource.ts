@@ -11,7 +11,7 @@ import instrumentedFetch from "../../lib/xray/instrumentedFetch.ts?raw"
 
 /** Lines from the one containing `from` through the first one (from there on)
  *  containing `to` — or matching it, when `to` is a RegExp. */
-function excerpt(raw: string, from: string, to: string | RegExp, { before = 0 } = {}): string {
+export function excerpt(raw: string, from: string, to: string | RegExp, { before = 0 } = {}): string {
   const lines = raw.split("\n")
   const a = lines.findIndex((l) => l.includes(from))
   if (a < 0) return lines.slice(0, 12).join("\n")
