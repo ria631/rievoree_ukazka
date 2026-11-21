@@ -44,51 +44,51 @@
 @media (max-width:820px){.lp .bar nav{display:none}}
 
 /* ================= HERO: the sheet, torn in WebGL ================= */
-.lp .hero{position:relative;height:290vh;background:var(--paper)}
-.lp .hero-stage{position:sticky;top:0;height:100svh;overflow:hidden}
-.lp #gl{position:absolute;inset:0;width:100%;height:100%;display:block}
-.lp .hero-copy{position:relative;z-index:2;height:calc(100% - 96px);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;pointer-events:none;color:var(--ink)}
-.lp .hero-copy .txt{pointer-events:auto;padding-top:40px;will-change:transform,opacity}
+/* HERO — one screen, scrolls like a page. The canvas fills the section; the
+   copy and the stats sit in normal flow above it, so nothing can overlap
+   whatever the window's proportions. Type scales with width AND height. */
+.lp .hero{position:relative;min-height:100svh;background:var(--paper);display:grid;grid-template-rows:minmax(0,1fr) auto;padding-top:64px}
+.lp .hero-stage{position:absolute;inset:0;overflow:hidden}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .35s ease}
+#gl.on{opacity:1}
+.lp .hero-copy{position:relative;z-index:2;display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr);align-items:center;gap:clamp(16px,3vw,48px);padding-block:clamp(16px,4vh,56px);pointer-events:none;color:var(--ink)}
+.lp .hero-copy .txt{pointer-events:auto;min-width:0}
 .lp .hero h1{font-family:var(--f-disp);font-weight:800;text-transform:uppercase;line-height:.86;letter-spacing:-.01em}
-.lp .hero h1 .l1{display:block;font-size:clamp(1.6rem,3.3vw,3rem)}
-.lp .hero h1 .l2{display:block;white-space:nowrap;font-family:var(--f-stencil);font-size:clamp(3.4rem,9vw,10rem);line-height:.84;margin:.02em 0 .04em}
-.lp .hero h1 .l3{display:block;font-size:clamp(1.8rem,4.6vw,4.3rem)}
+.lp .hero h1 .l1{display:block;font-size:clamp(1.4rem,min(3vw,5vh),3rem)}
+.lp .hero h1 .l2{display:block;white-space:nowrap;font-family:var(--f-stencil);font-size:clamp(3rem,min(8.2vw,15vh),9.5rem);line-height:.84;margin:.02em 0 .04em}
+.lp .hero h1 .l3{display:block;font-size:clamp(1.6rem,min(4.2vw,7.2vh),4.1rem)}
 .lp .hero h1 .l2 span{display:inline-block;transform:translateY(105%);animation:lp-rise .8s cubic-bezier(.2,.75,.2,1) forwards}
 .lp .hero h1 .lp-mask{display:block;overflow-x:visible;overflow-y:clip;padding-bottom:.04em}
 .lp .hero h1 .l1,.lp .hero h1 .l3{transform:translateY(110%);animation:lp-rise .7s cubic-bezier(.2,.75,.2,1) forwards}
 .lp .hero h1 .l3{animation-delay:.45s}
 @keyframes lp-rise{to{transform:none}}
-.lp .hero .lede{margin-top:22px;max-width:44ch;font-size:18px;color:var(--ink-soft)}
-.lp .hero .ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
-.lp .hero .note{margin-top:22px;max-width:46ch;font-family:var(--f-code);font-size:12.5px;line-height:1.6;color:var(--ink-soft)}
+.lp .hero .lede{margin-top:clamp(12px,2.4vh,22px);max-width:46ch;font-size:clamp(15.5px,min(1.2vw,2vh),18px);color:var(--ink-soft)}
+.lp .hero .ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:clamp(16px,3vh,28px)}
+.lp .hero .note{margin-top:16px;max-width:52ch;font-family:var(--f-code);font-size:12.5px;line-height:1.6;color:var(--ink-soft)}
 .lp .hero .note b{color:var(--ink);font-weight:700}
-.lp .anchor{justify-self:center;width:min(92%,560px);aspect-ratio:1;pointer-events:none}
-.lp .stats{position:absolute;z-index:2;left:0;right:0;bottom:0;color:var(--ink);pointer-events:none}
+/* the hole lives inside its own column, never bigger than the space it has */
+.lp .anchor{justify-self:center;align-self:center;width:min(100%,560px,60vh);aspect-ratio:1;pointer-events:none}
+.lp .stats{position:relative;z-index:2;color:var(--ink);pointer-events:none}
 .lp .stats .wrap{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--rule)}
-.lp .stat{padding:16px 0 22px;border-left:1px solid var(--rule);padding-left:22px}
+.lp .stat{padding:clamp(10px,1.8vh,16px) 0 clamp(12px,2.4vh,22px);border-left:1px solid var(--rule);padding-left:22px}
 .lp .stat:first-child{border-left:0;padding-left:0}
-.lp .stat .v{font-family:var(--f-disp);font-weight:800;font-size:clamp(1.8rem,3.4vw,3.4rem);line-height:1}
+.lp .stat .v{font-family:var(--f-disp);font-weight:800;font-size:clamp(1.6rem,min(3vw,5.4vh),3.2rem);line-height:1}
 .lp .stat .l{margin-top:6px;font-family:var(--f-code);font-size:11.5px;color:var(--ink-soft)}
-.lp .dive-hint{position:absolute;z-index:3;font-family:var(--f-code);font-size:12px;color:var(--ink);background:var(--paper);border:1.5px solid var(--ink);padding:6px 10px;border-radius:4px;pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap}
-.lp .in-copy{position:absolute;z-index:3;inset:0;display:grid;place-items:center;text-align:center;pointer-events:none;opacity:0}
-.lp .in-copy h2{font-family:var(--f-disp);font-weight:800;text-transform:uppercase;font-size:clamp(2.6rem,6.4vw,6.2rem);line-height:.9;color:var(--lime);text-shadow:0 0 40px rgba(6,23,22,.9)}
-.lp .in-copy p{margin-top:16px;font-family:var(--f-code);font-size:14px;color:var(--text);text-shadow:0 0 14px #061716}
+.lp .dive-hint{position:fixed;left:0;top:0;z-index:70;font-family:var(--f-code);font-size:12px;color:var(--ink);background:var(--paper);border:1.5px solid var(--ink);padding:6px 10px;border-radius:4px;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap}
 .lp.nogl .close{background:var(--paper)}
-.lp.nogl .hero-stage{background:radial-gradient(40% 45% at 72% 50%,var(--deep-3) 0 45%,transparent 46%),var(--paper)}
+.lp.nogl .hero-stage{background:radial-gradient(closest-side at 74% 46%,var(--deep-3) 0 22%,transparent 23%),var(--paper)}
+/* a short window: the side note goes first, then breathing room */
+@media (max-height:900px){.lp .hero .note{display:none}}
 @media (max-width:980px){
-  .lp .hero{height:240vh}
-  .lp .hero-copy{grid-template-columns:1fr;grid-template-rows:auto 1fr;align-items:start;padding-top:84px}
-  .lp .hero-copy .txt{padding-top:0}
-  .lp .hero .lede{font-size:16.5px;margin-top:14px}
+  .lp .hero{min-height:auto}
+  .lp .hero-copy{grid-template-columns:1fr;grid-template-rows:auto auto;align-items:start;padding-top:20px}
   .lp .hero .note{display:none}
-  .lp .anchor{width:min(80vw,420px);align-self:center;margin-bottom:8px}
-  .lp .stats{display:none}
+  .lp .anchor{width:min(78vw,380px);margin:8px auto 4px}
   .lp .stats .wrap{grid-template-columns:repeat(2,1fr)}
   .lp .stat:nth-child(3){border-left:0;padding-left:0}
   .lp .stat{padding:10px 0 12px 16px}
   .lp .stat .v{font-size:1.6rem}
 }
-@media (max-width:980px) and (max-height:760px){.lp .stats{display:none}.lp .anchor{margin-bottom:24px}}
 
 /* ================= MACHINERY (below the paper) ================= */
 .lp .machinery{position:relative;background:var(--deep)}
@@ -98,7 +98,7 @@
 @media (max-width:900px){.lp .sec-head{grid-template-columns:1fr;gap:14px}}
 
 /* exploded view */
-.lp .explode{position:relative;height:420vh}
+.lp .explode{position:relative;height:270vh}
 .lp .ex-sticky{position:sticky;top:0;height:100svh;overflow:hidden}
 .lp .ex-grid{display:grid;grid-template-columns:minmax(0,400px) minmax(0,1fr);height:100%;gap:24px;align-items:center}
 .lp .ex-insp{position:relative;z-index:3}
@@ -195,7 +195,8 @@
 
 /* close: back on the paper, torn again in 3D */
 .lp .close{position:relative;margin-top:140px;background:var(--paper);color:var(--ink);overflow:hidden;min-height:100svh}
-.lp #gl2{position:absolute;inset:0;width:100%;height:100%;display:block}
+.lp #gl2{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .35s ease}
+#gl2.on{opacity:1}
 .lp .close-in{position:relative;z-index:2;min-height:100svh;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:1fr auto;align-items:center;pointer-events:none}
 .lp .close-in>*{pointer-events:auto}
 .lp .close-in .anchor{pointer-events:none}
@@ -257,3 +258,7 @@
   .lp .proof .where{grid-column:1}
   .lp .contact{position:static}
 }
+
+/* the exploded plates move on every scroll step: give each its own GPU layer
+   so their masks and rims are rasterised once, not on every frame */
+.lp .plate,.lp .cube{will-change:transform}
