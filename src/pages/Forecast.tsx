@@ -55,7 +55,7 @@ export function Forecast() {
   return (
     <div className="relative">
       <PageIntro eyebrow="Rolling 12 months" title="Financial forecast"
-        actions={<EntitySelect sheet value={entityId} onChange={setEntityId} names={names} />}>
+        actions={<EntitySelect inHeader value={entityId} onChange={setEntityId} names={names} />}>
         Next year's income built lease by lease from the rent roll: contracts run to expiry with their indexation,
         expiries renew or re-let after a void, costs follow last year plus inflation. Move a driver — it re-forecasts instantly.
       </PageIntro>

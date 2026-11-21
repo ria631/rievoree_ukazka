@@ -64,7 +64,7 @@ export function Journal() {
   return (
     <div className="relative">
       <PageIntro eyebrow="General ledger" title="Journal"
-        actions={<EntitySelect sheet value={entityId} onChange={setEntityId} names={names} />}>
+        actions={<EntitySelect inHeader value={entityId} onChange={setEntityId} names={names} />}>
         Every posting, grouped by the document it came from — rent invoices, supplier bills, bank statement items,
         journal vouchers — and the proof the books hold: total debits equal total credits.
       </PageIntro>

@@ -33,18 +33,15 @@ import { AskFeedback } from "@/components/tour/slots"
 const SEEN_KEY = "xray-tour-choice"
 const DEMO_PASSWORD = "demo123456"
 const MANAGER = "manager@demo.local"
-// Space kept clear at the top: nothing on desktop (the sidebar layout has no
-// top bar), the sticky lime bar on a phone.
-const headerH = () => (window.innerWidth >= 900 ? 8 : 60)
-/** Right edge of the sidebar, when it's on screen (the rail sits beside it). */
-const sideRight = () => {
-  const r = document.querySelector("[data-shell-side]")?.getBoundingClientRect()
-  return r && r.width > 0 ? r.right : 0
+// Space kept clear at the top: the sticky menu bar (and its page tabs).
+const headerH = () => {
+  const r = document.querySelector("[data-shell-top]")?.getBoundingClientRect()
+  return r && r.height > 0 ? Math.max(0, r.bottom) : 8
 }
 const PAD = 10 // spotlight padding around the target
 const RAIL_X = 14
 const RAIL_W = 368
-const RAIL_MIN_VW = 1280 // below this the card is a bottom sheet (sidebar + rail + page must fit)
+const RAIL_MIN_VW = 1180 // below this the card is a bottom sheet (rail + page must fit)
 const SHEET_VH = 0.44
 
 // Pacing — unhurried, so a visitor can follow every move.
@@ -85,7 +82,7 @@ async function scrollSettled(alive: () => boolean, max = 1800) {
   }
 }
 
-const inFixed = (el: HTMLElement) => !!el.closest('[data-slot="sheet-content"], [data-shell-side], [data-tour="xray-button"]')
+const inFixed = (el: HTMLElement) => !!el.closest('[data-slot="sheet-content"], [data-shell-top], [data-tour="xray-button"]')
 const railMode = () => window.innerWidth >= RAIL_MIN_VW
 
 /** Bring the target into the free part of the screen (beside the rail, or above the sheet). */
@@ -246,13 +243,13 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
         }
       }
 
-      // 3 · the rail sits beside the sidebar, full height
+      // 3 · the rail sits under the menu bar, full height
       const card = cardRef.current
       const isRail = vw >= RAIL_MIN_VW
       if (card && isRail) {
         const top = headerH() + 12
         card.style.top = `${top}px`
-        card.style.left = `${sideRight() + RAIL_X}px`
+        card.style.left = `${RAIL_X}px`
         card.style.maxHeight = `${vh - top - 14}px`
       }
 
@@ -478,7 +475,7 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
   const inChapter = chapterSteps.findIndex((s) => s.id === cs.id) + 1
   const target = cs.code ? CODE_MAP[cs.code] : null
 
-  // The sidebar's "Take the tour" asks over the bus; offer the routes again.
+  // The menu's "Tour" button asks over the bus; offer the routes again.
   useTourStartRequest(() => { if (!running) setChoice("pending") })
 
   return (
@@ -515,7 +512,7 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
                   <MousePointerClick className="size-5 text-foreground" />
                   <span className="font-semibold">I'll explore myself</span>
                   <span className="text-xs leading-relaxed text-muted-foreground">
-                    Click around freely. “X-ray code” in the sidebar opens the real code of any chart you click.
+                    Click around freely. “X-ray code” in the menu bar opens the real code of any chart you click.
                   </span>
                 </button>
               </div>
@@ -572,7 +569,7 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
           onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}
           className={cn("fixed z-[60] flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_24px_70px_-20px_rgba(0,0,0,0.9)] ring-1 ring-accent/25",
             rail ? "" : "inset-x-2 bottom-2")}
-          style={rail ? { left: sideRight() + RAIL_X, width: RAIL_W, top: headerH() + 12 } : { maxHeight: `${SHEET_VH * 100}vh` }}>
+          style={rail ? { left: RAIL_X, width: RAIL_W, top: headerH() + 12 } : { maxHeight: `${SHEET_VH * 100}vh` }}>
 
           {/* Header: chapter, chapter list, auto, close */}
           <div className="relative flex items-center gap-2 px-4 pt-3.5">

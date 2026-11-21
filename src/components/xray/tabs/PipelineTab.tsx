@@ -152,7 +152,7 @@ function EmptyState({ authed }: { authed: boolean }) {
         <p>
           Viewers don't see the machinery: the <span className="text-foreground">pipeline_events</span> policy
           is manager and up, so Postgres returns nothing here.
-          {isDemo && <><br />Switch to <span className="text-accent">Manager</span> in the sidebar to watch the
+          {isDemo && <><br />Switch to <span className="text-accent">Manager</span> at the top right to watch the
           hourly refresh and the connector syncs.</>}
         </p>
       ) : (

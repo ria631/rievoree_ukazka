@@ -46,7 +46,7 @@ export function Pl() {
   return (
     <div className="relative">
       <PageIntro eyebrow="Income statement" title="P&L"
-        actions={<EntitySelect sheet value={entityId} onChange={setEntityId} names={names} />}>
+        actions={<EntitySelect inHeader value={entityId} onChange={setEntityId} names={names} />}>
         Revenue, the costs of running the buildings, and what is left: <span className="text-foreground">net operating
         income</span> — then depreciation and interest down to profit before tax. Every line against its budget.
       </PageIntro>

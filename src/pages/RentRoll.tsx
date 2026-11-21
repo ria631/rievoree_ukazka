@@ -50,7 +50,7 @@ export function RentRoll() {
   return (
     <div className="relative">
       <PageIntro eyebrow="Leases & income" title="Rent roll"
-        actions={<EntitySelect sheet value={entityId} onChange={setEntityId} names={names} />}>
+        actions={<EntitySelect inHeader value={entityId} onChange={setEntityId} names={names} />}>
         Every unit, its tenant, rent and lease dates — the contract base behind the rental income.
         {asOf && <> As at <span className="text-foreground">{dLong(asOf)}</span>.</>}
       </PageIntro>
