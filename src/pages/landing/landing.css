@@ -22,6 +22,7 @@
   --fs-code:13px;
   --gx:max(20px,env(safe-area-inset-left,0px));
   --maxw:1240px;
+  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .09 0 0 0 0 .19 0 0 0 0 .12 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)' opacity='.38'/%3E%3C/svg%3E");
   background:var(--deep);color:var(--text);font-family:var(--f-ui);font-size:var(--fs-body);line-height:1.6;overflow-x:clip;-webkit-font-smoothing:antialiased
 }
 .lp h1,.lp h2,.lp h3{margin:0;text-wrap:balance}
@@ -45,9 +46,9 @@
 
 /* ---------- header: lime over the paper, dark over the machinery ---------- */
 .lp .bar{position:fixed;inset:0 0 auto 0;z-index:60;color:var(--ink);border-bottom:1px solid transparent;transition:background .3s,color .3s,border-color .3s}
-.lp .bar.is-dark{background:color-mix(in srgb,var(--deep) 90%,transparent);backdrop-filter:blur(10px);color:var(--text);border-color:var(--line)}
+.lp .bar.is-dark{background:color-mix(in srgb,var(--deep) 97%,transparent);color:var(--text);border-color:var(--line)}
 .lp .bar.is-dark .btn-ink{background:var(--lime);color:var(--ink)}
-.lp .bar.is-paper,.lp .bar.is-scrolled{background:color-mix(in srgb,var(--paper) 94%,transparent);backdrop-filter:blur(8px);border-color:var(--rule)}
+.lp .bar.is-paper,.lp .bar.is-scrolled{background:color-mix(in srgb,var(--paper) 97%,transparent);border-color:var(--rule)}
 .lp .bar .wrap{display:flex;align-items:center;gap:28px;height:64px}
 .lp .brand{display:flex;align-items:center;gap:10px;flex:none;white-space:nowrap;font-family:var(--f-disp);font-weight:800;font-size:var(--fs-h3);text-decoration:none;text-transform:uppercase}
 .lp .brand img{width:28px;height:28px;border-radius:6px}
@@ -57,11 +58,10 @@
 .lp .spacer{flex:1}
 @media (max-width:1023px){.lp .bar nav{display:none}}
 
-/* ---------- 1 · hero: one screen; the copy and the hole share it ---------- */
-.lp .hero{position:relative;min-height:100svh;background:var(--paper);color:var(--ink);display:flex;align-items:center;padding:96px 0 48px}
-.lp .hero-stage{position:absolute;inset:0;overflow:hidden}
-.lp #gl,.lp #gl2{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .6s ease}
-.lp #gl.on,.lp #gl2.on{opacity:1}
+/* ---------- 1 · hero: one screen; the copy and the X-ray lens share it ---------- */
+/* paper grain: one small noise tile, rasterised once and repeated */
+.lp .hero,.lp .close{background:var(--grain) 0 0 / 220px 220px,var(--paper)}
+.lp .hero{position:relative;min-height:100svh;color:var(--ink);display:flex;align-items:center;padding:96px 0 48px}
 .lp .hero-grid{position:relative;z-index:2;width:100%;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);align-items:center;gap:clamp(24px,4vw,64px);pointer-events:none}
 .lp .hero .txt{pointer-events:auto;min-width:0}
 .lp .hero .kicker{font-family:var(--f-disp);font-weight:700;font-size:var(--fs-h3);text-transform:uppercase;letter-spacing:.02em;color:var(--ink-soft)}
@@ -75,18 +75,9 @@
 .lp .hero .ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
 .lp .hero .aside{margin-top:18px;font-size:var(--fs-small);color:var(--ink-soft)}
 .lp .hero .aside a{color:var(--ink);font-weight:600;text-decoration:underline;text-underline-offset:3px}
-.lp .hole{margin:0;display:flex;flex-direction:column;align-items:center;gap:8px}
-.lp .anchor{width:min(100%,520px,60vh);aspect-ratio:1;pointer-events:none}
-.lp .hole figcaption{font-size:var(--fs-small);color:var(--ink-soft)}
-.lp .dive-hint{position:fixed;left:0;top:0;z-index:70;font-size:var(--fs-small);font-weight:600;color:var(--ink);background:var(--paper);border:1.5px solid var(--ink);padding:5px 10px;border-radius:4px;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap}
-.lp.nogl .hero-stage{background:radial-gradient(closest-side at 74% 50%,var(--deep-3) 0 20%,transparent 21%),var(--paper)}
-.lp.nogl .close{background:var(--paper)}
 @media (max-width:760px){
   .lp .hero{min-height:auto;padding:84px 0 40px}
   .lp .hero-grid{grid-template-columns:1fr;gap:8px}
-  .lp .hole{order:-1}
-  .lp .anchor{width:min(64vw,260px)}
-  .lp .hole figcaption{display:none}
 }
 
 /* ---------- the machinery: sections on the dark recess ---------- */
@@ -198,10 +189,9 @@
 @media (max-width:640px){.lp .areas{grid-template-columns:1fr}}
 
 /* ---------- 5 · contact and the demo: back on the paper ---------- */
-.lp .close{position:relative;margin-top:clamp(80px,12vh,140px);background:var(--paper);color:var(--ink);overflow:hidden;min-height:100svh}
+.lp .close{position:relative;margin-top:clamp(80px,12vh,140px);color:var(--ink);overflow:hidden;min-height:100svh}
 .lp .close-in{position:relative;z-index:2;min-height:100svh;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);grid-template-rows:1fr auto;align-items:center;gap:24px 48px;pointer-events:none}
 .lp .close-in>*{pointer-events:auto}
-.lp .close-in .anchor{pointer-events:none;justify-self:center}
 .lp .close .copy{padding:110px 0 40px;max-width:600px}
 .lp .close h2{font-family:var(--f-disp);font-weight:800;text-transform:uppercase;font-size:var(--fs-h2);line-height:.95}
 .lp .close .copy>p{margin-top:16px;font-size:var(--fs-lede);color:var(--ink-soft)}
@@ -218,7 +208,7 @@
 @media (max-width:900px){
   .lp .close{min-height:auto}
   .lp .close-in{min-height:auto;grid-template-columns:1fr;grid-template-rows:auto auto auto}
-  .lp .close-in .anchor{order:-1;margin:96px auto 0;width:min(60vw,280px)}
+  .lp .close-in .th{order:-1;margin:96px auto 0;width:min(70vw,300px)}
   .lp .close .copy{padding:8px 0 32px}
 }
 
