@@ -4,7 +4,7 @@ import { useExploreDemo } from "@/app/AppShell"
 import { AUTHOR, EVIDENCE, TOP_TESTS, contactLinks, repoUrl } from "@/lib/author"
 import { FILES, SRC, hl } from "./landing/repoSource"
 import type { LandingEls } from "./landing/tear"
-import { Desk } from "./landing/Desk"
+import { Desk, SkeletonList } from "./landing/Desk"
 import "./landing/landing.css"
 
 /**
@@ -254,41 +254,54 @@ const ACT_CAPTIONS = [
   "Every row is checked — one odd figure waits for a person",
   "Each company's numbers stay private to its own people",
   "The portfolio report rebuilds itself within a minute",
+  "X-ray: the skeleton underneath — the real tables, jobs and policies",
 ]
+
+type ActLoop = { pin: () => void; unpin: () => void }
 
 /**
  * The month on a loop: act 1…4 (three seconds each, the report a little
- * longer), a fade, again. Sets cumulative a1…a4 classes, `data-act` (which
- * step card is lit, where the token sits) and `out` on the section's flow;
- * CSS does the rest. Runs only while the flow is on screen and resumes where
- * it paused. Reduced motion: the finished desk, no loop.
+ * longer), act 5 the X-ray of the whole solution, a fade, again. Sets
+ * cumulative a1…a5 classes, `data-act` (which step card is lit, where the
+ * token sits) and `out` on the section's flow; CSS does the rest. Runs only
+ * while the desk is on screen and resumes where it paused. `pin` holds the
+ * X-ray (the story jumps to its end under it); `unpin` fades back and starts
+ * the month again. Reduced motion: the finished desk, no loop.
  */
 function useActLoop(ref: RefObject<HTMLDivElement | null>) {
+  const ctl = useRef<ActLoop>({ pin() {}, unpin() {} })
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      el.classList.add("play", "on", "a1", "a2", "a3", "a4")
-      return
-    }
     const acts = (k: number) => {
-      for (let i = 1; i <= 4; i++) el.classList.toggle(`a${i}`, i <= k)
+      for (let i = 1; i <= 5; i++) el.classList.toggle(`a${i}`, i <= k)
       el.dataset.act = String(k)
     }
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const still = () => { acts(4); delete el.dataset.act }
+      el.classList.add("play", "on")
+      still()
+      ctl.current = { pin: () => acts(5), unpin: still }
+      return
+    }
     const plan: [number, () => void][] = [
-      [0, () => { el.classList.remove("out"); acts(1) }],
+      [0, () => { el.classList.remove("out", "skip"); acts(1) }],
       [3000, () => acts(2)],
       [6000, () => acts(3)],
       [9000, () => acts(4)],
-      [12300, () => el.classList.add("out")],
-      [12800, () => acts(0)],
+      [12400, () => acts(5)],
+      [19400, () => el.classList.add("out")],
+      [19900, () => acts(0)],
     ]
-    const CYCLE = 12860 // a beat after the reset, so the next act's animations restart
+    const CYCLE = 19960 // a beat after the reset, so the next act's animations restart
+    const OUT = 5 // plan index of the fade
     let i = 0
     let timer = 0
     let left = 0
     let since = 0
     let started = false
+    let pinned = false
+    let visible = false
     const wait = (ms: number) => { left = ms; since = performance.now(); timer = window.setTimeout(step, ms) }
     function step() {
       const [at, run] = plan[i]
@@ -298,35 +311,70 @@ function useActLoop(ref: RefObject<HTMLDivElement | null>) {
     }
     const io = new IntersectionObserver(([e]) => {
       clearTimeout(timer)
-      if (e.isIntersecting) {
-        el.classList.add("on")
+      visible = e.isIntersecting
+      el.classList.toggle("on", visible)
+      if (pinned) return
+      if (visible) {
         if (started) wait(left)
         else { started = true; el.classList.add("play"); step() }
-      } else {
-        el.classList.remove("on")
-        if (started) left = Math.max(0, left - (performance.now() - since))
-      }
+      } else if (started) left = Math.max(0, left - (performance.now() - since))
     }, { threshold: 0.25 })
-    io.observe(el)
+    // Watch the desk itself: the whole flow can be taller than the screen.
+    io.observe(el.querySelector(".desk") ?? el)
+    ctl.current = {
+      pin() {
+        if (pinned) return
+        pinned = true
+        started = true
+        clearTimeout(timer)
+        el.classList.remove("out")
+        el.classList.add("play", "skip")
+        acts(5)
+      },
+      unpin() {
+        // Back through the loop's own fade and reset, so pausing off screen
+        // keeps working in the middle of it.
+        if (!pinned) return
+        pinned = false
+        clearTimeout(timer)
+        i = OUT
+        left = 0
+        if (visible) step()
+      },
+    }
     return () => { io.disconnect(); clearTimeout(timer) }
   }, [ref])
+  return ctl
 }
 
 function HowItWorks() {
   const flow = useRef<HTMLDivElement>(null)
-  useActLoop(flow)
+  const loop = useActLoop(flow)
+  const [pinned, setPinned] = useState(false)
+  const toggle = () => {
+    if (pinned) loop.current.unpin()
+    else loop.current.pin()
+    setPinned(!pinned)
+  }
   return (
     <section className="sec" id="how">
       <div className="sec-head">
         <h2>How it works</h2>
-        <p>From a spreadsheet to a report a CFO can trust, in four steps.</p>
+        <p>From a spreadsheet to a report a CFO can trust, in four steps — then the same month on X-ray, down to the tables and jobs that run it.</p>
       </div>
       <div ref={flow} className="flow">
         <div className="desk-wrap">
           <Desk />
           <div className="dk-cap" aria-hidden="true">
-            {ACT_CAPTIONS.map((c, i) => <span key={c} className={`c${i + 1}`}><b>{i + 1}</b>{c}</span>)}
+            {ACT_CAPTIONS.map((c, i) => <span key={c} className={`c${i + 1}`}><b>{i < 4 ? i + 1 : "X"}</b>{c}</span>)}
           </div>
+          <button type="button" className="dk-xbtn" aria-pressed={pinned} onClick={toggle}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16" />
+            </svg>
+            {pinned ? "Back to the desk" : "See the skeleton"}
+          </button>
+          {pinned && <SkeletonList />}
         </div>
         <div className="track" aria-hidden="true"><span className="line" /><span className="rail"><span className="token"><i /><i /><i /></span></span></div>
         <ol className="steps">

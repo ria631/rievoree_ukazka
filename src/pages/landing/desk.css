@@ -3,7 +3,7 @@
    Units: --u is 1/1200 of the desk's width, so every object, font and shadow
    scales with the picture. Objects are placed with --x/--y/--w/--h/--r.
 
-   Story: HowItWorks puts a1…a4 (cumulative) and `out` on .flow. The normal
+   Story: HowItWorks puts a1…a5 (cumulative), `out` and `skip` on .flow. The normal
    styles below each `.aN` rule ARE the finished state; animations only play
    INTO them (fill: backwards), so reduced motion simply shows the finished
    desk. Ambient motion (steam, tablet, calculator, leaves) runs only while
@@ -257,18 +257,100 @@
 .lp .dk-pencil .fer{fill:#BFC6C4}
 .lp .dk-pencil .era{fill:#F08C8C}
 
+/* ─────────── act 5 · X-ray: the desk on film, its skeleton lit ───────────
+   Brand colours only: emerald film (the X-ray console's), lime for what flows,
+   teal for the ways in, emerald for Postgres, gold where a person decides,
+   red for the policy that keeps companies apart (the stamp's red). */
+.lp .dk-xr{position:absolute;inset:0;z-index:3;opacity:0;pointer-events:none;
+  background:
+    repeating-linear-gradient(to bottom,rgba(127,227,182,.035) 0 1px,transparent 1px 3px),
+    radial-gradient(90% 85% at 50% 45%,rgba(9,40,37,.55),transparent 70%),
+    rgba(3,13,12,.89)}
+.lp .a5 .dk-xr{opacity:1;animation:dk-reveal 1.3s linear .05s backwards}
+.lp .out .dk-xr{opacity:0;transition:opacity .45s ease}
+@keyframes dk-reveal{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.lp .dk-sweep{position:absolute;top:0;bottom:0;left:0;z-index:4;width:calc(3 * var(--u));background:#D4F78A;opacity:0;pointer-events:none;
+  box-shadow:0 0 calc(18 * var(--u)) #A3E635,0 0 calc(60 * var(--u)) rgba(163,230,53,.55)}
+.lp .dk-sweep b{position:absolute;top:calc(64 * var(--u));left:calc(10 * var(--u));padding:calc(3 * var(--u)) calc(9 * var(--u));border-radius:calc(20 * var(--u));background:#A3E635;color:#16301F;
+  font-family:var(--f-code);font-size:calc(11 * var(--u));font-weight:700;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+.lp .a5 .dk-sweep{animation:dk-sweep 1.3s linear .05s both}
+@keyframes dk-sweep{0%{opacity:0;transform:translateX(0)}5%{opacity:1}94%{opacity:1}100%{opacity:0;transform:translateX(calc(1200 * var(--u)))}}
+
+.lp .dk-skel{position:absolute;inset:0;width:100%;height:100%}
+.lp .dk-skel *{transform-box:fill-box;transform-origin:center}
+.lp .dk-skel text{font-family:var(--f-code)}
+.lp .dk-skel .lane{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;fill:#A3E635}
+.lp .dk-skel .pg{fill:rgba(127,227,182,.035);stroke:#2C5C57;stroke-width:1.5;stroke-dasharray:6 6}
+.lp .dk-skel .pg-t{font-family:var(--f-disp);font-size:15px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;fill:#7FE3B6}
+.lp .dk-skel .pg-s{font-family:var(--f-ui);font-size:12px;font-weight:500;letter-spacing:0;text-transform:none;fill:#A9C2BB}
+.lp .dk-skel .rls rect{fill:rgba(240,106,93,.10);stroke:#F06A5D;stroke-width:1.5}
+.lp .dk-skel .rls text{transform-box:view-box;transform-origin:0 0;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;fill:#F59186;text-anchor:middle}
+.lp .dk-skel .bx{fill:#0B2423;stroke:#2C5C57;stroke-width:1.2}
+.lp .dk-skel .ac{fill:#7FE3B6}
+.lp .dk-skel .src .ac{fill:#5DCFDA}
+.lp .dk-skel .rev .ac{fill:#E8C55A}
+.lp .dk-skel .rev .bx{stroke:rgba(232,197,90,.55)}
+.lp .dk-skel .app .ac{fill:#A3E635}
+.lp .dk-skel .ten .ac{fill:#F06A5D}
+.lp .dk-skel .tt{font-family:var(--f-disp);font-size:16px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;fill:#E4F2EC}
+.lp .dk-skel .sb{font-size:11.5px;fill:#A9C2BB}
+.lp .dk-skel .e{fill:none;stroke:rgba(163,230,53,.35);stroke-width:2;stroke-dasharray:1;stroke-dashoffset:0}
+.lp .dk-skel .ef{fill:none;stroke:#C9F46E;stroke-width:2.4;stroke-linecap:round;stroke-dasharray:3 11;opacity:0}
+.lp .dk-skel .rev .e{stroke:rgba(232,197,90,.4)}
+.lp .dk-skel .rev .ef{stroke:#E8C55A}
+.lp .dk-skel .pol .e{stroke:rgba(240,106,93,.5);stroke-dasharray:4 4}
+.lp .dk-skel .pol .ef{display:none}
+.lp .dk-skel .tests rect{fill:rgba(163,230,53,.08);stroke:rgba(163,230,53,.45)}
+.lp .dk-skel .tests text{font-size:11.5px;font-weight:600;fill:#D9F99D;text-anchor:middle}
+.lp .a5 .dk-skel .nd,.lp .a5 .dk-skel .rls,.lp .a5 .dk-skel .tests,.lp .a5 .dk-skel .pg{animation:dk-node .45s cubic-bezier(.3,1.4,.5,1) var(--dl) backwards}
+@keyframes dk-node{from{opacity:0;transform:scale(.92)}}
+.lp .a5 .dk-skel .e{animation:dk-line .5s ease calc(var(--dl) + .15s) backwards}
+.lp .a5 .dk-skel .ef{opacity:1;animation:dk-in .3s ease calc(var(--dl) + .55s) backwards,dk-flow .9s linear infinite}
+@keyframes dk-flow{to{stroke-dashoffset:-14}}
+
 /* ─────────── the caption: what this act is doing ─────────── */
 .lp .dk-cap{position:absolute;left:50%;top:14px;transform:translateX(-50%);display:grid;z-index:5;pointer-events:none;max-width:calc(100% - 28px)}
 .lp .dk-cap span{grid-area:1/1;justify-self:center;display:flex;align-items:center;gap:10px;padding:7px 14px 7px 8px;border-radius:999px;background:rgba(6,23,22,.88);border:1px solid var(--line-hi);
   font-size:var(--fs-small);line-height:1.3;color:var(--text);white-space:nowrap;opacity:0;transform:translateY(-4px);transition:opacity .35s ease,transform .35s ease}
 .lp .dk-cap b{flex:none;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--lime);color:var(--ink);font-family:var(--f-code);font-size:var(--fs-code);font-weight:700}
 .lp .flow[data-act="1"] .dk-cap .c1,.lp .flow[data-act="2"] .dk-cap .c2,
-.lp .flow[data-act="3"] .dk-cap .c3,.lp .flow[data-act="4"] .dk-cap .c4{opacity:1;transform:none}
+.lp .flow[data-act="3"] .dk-cap .c3,.lp .flow[data-act="4"] .dk-cap .c4,
+.lp .flow[data-act="5"] .dk-cap .c5{opacity:1;transform:none}
+.lp .dk-cap .c5 b{background:#D4F78A}
 .lp .flow.out .dk-cap span{opacity:0}
+
+/* see the skeleton any time: pins act 5, or goes back to the desk */
+.lp .dk-xbtn{position:absolute;right:14px;bottom:14px;z-index:6;display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 16px 0 12px;border-radius:999px;
+  border:1px solid var(--lime);background:rgba(6,23,22,.9);color:var(--text);font-family:var(--f-ui);font-size:var(--fs-small);font-weight:600;cursor:pointer;
+  transition:background-color .2s,color .2s}
+.lp .dk-xbtn svg{width:18px;height:18px;flex:none}
+.lp .dk-xbtn:hover,.lp .dk-xbtn[aria-pressed="true"]{background:var(--lime);color:var(--ink)}
 @media (max-width:760px){
   .lp .dk-cap{position:static;transform:none;max-width:none;margin-top:10px}
   .lp .dk-cap span{white-space:normal;justify-self:start}
+  .lp .dk-xbtn{position:static;margin-top:10px}
 }
+
+/* the skeleton as a list, phones only (the desk is too small to read there) */
+.lp .dk-list{margin-top:12px;padding:16px 16px 18px;border:1px solid var(--line-hi);border-radius:14px;background:#061716}
+.lp .dk-list h4{margin:14px 0 8px;font-family:var(--f-code);font-size:var(--fs-code);font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--lime)}
+.lp .dk-list h4:first-child{margin-top:0}
+.lp .dk-list h4.db{color:var(--em)}
+.lp .dk-list h4.pol{color:#F59186}
+.lp .dk-list h4 em{display:block;margin-top:2px;font-family:var(--f-ui);font-style:normal;font-size:var(--fs-small);font-weight:500;letter-spacing:0;text-transform:none;color:var(--dim)}
+.lp .dk-list ul,.lp .dk-list ol{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.lp .dk-list li{display:flex;flex-direction:column;gap:2px;padding:8px 12px;border:1px solid var(--line);border-left:3px solid var(--em);border-radius:8px;background:var(--deep-2)}
+.lp .dk-list li.src{border-left-color:var(--teal)}
+.lp .dk-list li.rev{border-left-color:#E8C55A}
+.lp .dk-list li.app{border-left-color:var(--lime)}
+.lp .dk-list li.ten{border-left-color:var(--red)}
+.lp .dk-list li b{font-family:var(--f-disp);font-weight:800;font-size:var(--fs-body);text-transform:uppercase;color:var(--text)}
+.lp .dk-list li span{font-family:var(--f-code);font-size:var(--fs-code);color:var(--dim);overflow-wrap:anywhere}
+.lp .dk-list .tests{margin-top:14px;font-family:var(--f-code);font-size:var(--fs-code);color:#D9F99D}
+@media (min-width:761px){.lp .dk-list{display:none}}
+
+/* pinned mid-month: the story jumps to its finished state under the film */
+.lp .skip .dk-story *,.lp .skip .dk-story{animation:none!important}
 
 /* paused off screen; finished and still for reduced motion */
 .lp .flow:not(.on) .desk *{animation-play-state:paused!important}

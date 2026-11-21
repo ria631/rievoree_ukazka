@@ -158,6 +158,13 @@
 .lp .flow[data-act="1"] .steps li:nth-child(1),.lp .flow[data-act="2"] .steps li:nth-child(2),
 .lp .flow[data-act="3"] .steps li:nth-child(3),.lp .flow[data-act="4"] .steps li:nth-child(4){
   border-color:var(--lime);background-color:#0E2C29;box-shadow:0 0 0 1px rgba(163,230,53,.22),0 18px 40px -22px rgba(163,230,53,.45)}
+/* act 5 (X-ray): every card shows its machinery line lit, the track glows */
+.lp .steps .tech{transition:color .45s}
+.lp .flow[data-act="5"] .steps li{border-color:var(--line-hi)}
+.lp .flow[data-act="5"] .steps .tech{color:var(--lime)}
+.lp .flow.play[data-act="5"] .track .token{opacity:0}
+.lp .track .line{transition:background-color .45s,box-shadow .45s}
+.lp .flow[data-act="5"] .track .line{background:var(--lime);box-shadow:0 0 12px rgba(163,230,53,.55)}
 .lp .steps li:hover{outline:1px solid var(--lime);outline-offset:-1px}
 .lp .steps .num{font-family:var(--f-disp);font-weight:800;font-size:var(--fs-h3);color:var(--lime)}
 .lp .steps h3{font-family:var(--f-disp);font-weight:800;text-transform:uppercase;font-size:var(--fs-h3);line-height:1.1}

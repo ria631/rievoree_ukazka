@@ -5,8 +5,10 @@ import "./desk.css"
  * The desk — a top-down month-end scene for "How it works": three companies'
  * spreadsheets land, an X-ray beam checks them (one row is held for a person),
  * a stamp marks each one private to its own people, and the portfolio report
- * builds itself beside them. Plain HTML + SVG, animated by CSS on the act
- * classes HowItWorks sets (a1…a4, out); see desk.css.
+ * builds itself beside them. Then an X-ray sweep turns the desk to film and
+ * shows the skeleton underneath: the real tables, functions, jobs and policies
+ * that did each of those things. Plain HTML + SVG, animated by CSS on the act
+ * classes HowItWorks sets (a1…a5, out, skip); see desk.css.
  *
  * Everything is placed on a 1200 × 560 grid of desk units, so the whole scene
  * scales as one picture. Decorative: the steps below carry the meaning.
@@ -311,6 +313,101 @@ function StampTool() {
   )
 }
 
+/* ───────────── act 5 · the X-ray: the skeleton under the desk ─────────────
+   The real moving parts, named as they are in this repo. Laid out on the same
+   1200 × 560 grid, left to right in the order a month travels. */
+
+type Node = { x: number; y: number; w: number; h: number; t: string; s: string[]; k: "src" | "db" | "rev" | "app" | "ten" }
+
+const NODES: Node[] = [
+  { x: 34, y: 92, w: 228, h: 66, k: "src", t: "Upload", s: ["CSV · Excel → Storage", "edge fn ingest-submit"] },
+  { x: 34, y: 170, w: 228, h: 66, k: "src", t: "Google Sheet link", s: ["pg_cron + pg_net", "pulled every 10 min"] },
+  { x: 34, y: 248, w: 228, h: 66, k: "src", t: "Signed webhook", s: ["edge fn connector-webhook", "HMAC-verified"] },
+  { x: 34, y: 326, w: 228, h: 66, k: "src", t: "Excel parser", s: ["Node worker (Docker)", "claims jobs · SKIP LOCKED"] },
+  { x: 316, y: 100, w: 266, h: 66, k: "db", t: "Staging", s: ["ingest_batches", "journal_staging"] },
+  { x: 316, y: 196, w: 266, h: 66, k: "db", t: "Check", s: ["transform_batch · rulesets", "detect_anomalies · z-score"] },
+  { x: 316, y: 292, w: 266, h: 66, k: "rev", t: "Review — a person", s: ["needs_review → notify-review", "approve · reject · recheck"] },
+  { x: 316, y: 392, w: 266, h: 50, k: "ten", t: "Tenancy", s: ["entity_members · my_entity_ids()"] },
+  { x: 614, y: 100, w: 266, h: 66, k: "db", t: "Ledger", s: ["load_batch · advisory lock", "journal_entries"] },
+  { x: 614, y: 196, w: 266, h: 66, k: "db", t: "Refresh", s: ["trigger → report_refresh_queue", "pg_cron · every minute"] },
+  { x: 614, y: 292, w: 266, h: 66, k: "db", t: "Reports", s: ["mv_account_monthly", "view report_account_monthly"] },
+  { x: 614, y: 392, w: 266, h: 50, k: "db", t: "pipeline_events", s: ["every stage logged"] },
+  { x: 962, y: 110, w: 214, h: 66, k: "app", t: "React app", s: ["TanStack Query · supabase-js", "JWT → PostgREST"] },
+  { x: 962, y: 206, w: 214, h: 66, k: "app", t: "X-ray panel", s: ["instrumentedFetch", "every call timed"] },
+  { x: 962, y: 302, w: 214, h: 66, k: "app", t: "Realtime", s: ["pipeline_events", "→ live timeline"] },
+]
+
+/** Edges in travel order; `k` colours the flagged path (gold) and the policy link (red). */
+const EDGES: { d: string; x: number; k?: "rev" | "pol" }[] = [
+  { d: "M262 125H282", x: 262 }, { d: "M262 203H282", x: 262 }, { d: "M262 281H282", x: 262 }, { d: "M262 359H282", x: 262 },
+  { d: "M282 359V133H316", x: 282 },
+  { d: "M449 166V196", x: 449 },
+  { d: "M449 262V292", x: 449, k: "rev" },
+  { d: "M582 229C598 229 598 126 614 126", x: 590 },
+  { d: "M582 325C604 325 602 152 614 152", x: 596, k: "rev" },
+  { d: "M747 166V196", x: 747 },
+  { d: "M747 262V292", x: 747 },
+  { d: "M747 358V392", x: 747 },
+  { d: "M880 325C928 325 918 143 962 143", x: 900 },
+  { d: "M880 417C930 417 928 335 962 335", x: 900 },
+  { d: "M1069 176V206", x: 1069 },
+  { d: "M449 442V462H928V458", x: 700, k: "pol" },
+]
+
+const at5 = (x: number) => `${(0.15 + 1.25 * (x / 1200)).toFixed(2)}s`
+
+function Skeleton() {
+  return (
+    <svg className="dk-skel" viewBox="0 0 1200 560">
+      <text className="lane" x="34" y="80">Ways in</text>
+      <rect className="pg" x="296" y="64" width="604" height="410" rx="14" style={{ "--dl": at5(296) } as CSSProperties} />
+      <text className="pg-t" x="316" y="88">Postgres · Supabase<tspan className="pg-s" dx="10">the business logic runs inside the database</tspan></text>
+      <g className="rls" style={{ "--dl": at5(908) } as CSSProperties}>
+        <rect x="908" y="80" width="40" height="378" rx="8" />
+        <text transform="rotate(-90 928 269)" x="928" y="273">Row-level security · entities_select</text>
+      </g>
+      <text className="lane" x="962" y="98">In the browser</text>
+      {EDGES.map((e) => (
+        <g key={e.d} className={`ed${e.k ? ` ${e.k}` : ""}`} style={{ "--dl": at5(e.x + 30) } as CSSProperties}>
+          <path className="e" d={e.d} pathLength={1} />
+          <path className="ef" d={e.d} />
+        </g>
+      ))}
+      {NODES.map((n) => (
+        <g key={n.t} className={`nd ${n.k}`} style={{ "--dl": at5(n.x) } as CSSProperties}>
+          <rect className="bx" x={n.x} y={n.y} width={n.w} height={n.h} rx="8" />
+          <rect className="ac" x={n.x} y={n.y + 10} width="3" height={n.h - 20} rx="1.5" />
+          <text className="tt" x={n.x + 14} y={n.y + 23}>{n.t}</text>
+          {n.s.map((line, i) => <text key={line} className="sb" x={n.x + 14} y={n.y + 41 + i * 15}>{line}</text>)}
+        </g>
+      ))}
+      <g className="tests" style={{ "--dl": at5(600) } as CSSProperties}>
+        <rect x="296" y="488" width="604" height="34" rx="8" />
+        <text x="598" y="510">Tested on every change · 98 pgTAP assertions · 81 unit tests · Playwright under CSP</text>
+      </g>
+    </svg>
+  )
+}
+
+/** The same skeleton as a readable list — for phones, where the desk is too
+ *  small to read; HowItWorks shows it while the X-ray is pinned. */
+export function SkeletonList() {
+  const by = (titles: string[]) => titles.map((t) => NODES.find((n) => n.t === t)!)
+  const item = (n: Node) => <li key={n.t} className={n.k}><b>{n.t}</b><span>{n.s.join(" · ")}</span></li>
+  return (
+    <div className="dk-list">
+      <h4>Ways in</h4>
+      <ul>{by(["Upload", "Google Sheet link", "Signed webhook", "Excel parser"]).map(item)}</ul>
+      <h4 className="db">Postgres · Supabase <em>the business logic runs inside the database</em></h4>
+      <ol>{by(["Staging", "Check", "Review — a person", "Ledger", "Refresh", "Reports", "pipeline_events", "Tenancy"]).map(item)}</ol>
+      <h4 className="pol">Row-level security <em>entities_select — every read filtered by company</em></h4>
+      <h4>In the browser</h4>
+      <ul>{by(["React app", "X-ray panel", "Realtime"]).map(item)}</ul>
+      <p className="tests">Tested on every change · 98 pgTAP assertions · 81 unit tests · Playwright under CSP</p>
+    </div>
+  )
+}
+
 /* ───────────── the scene ───────────── */
 
 const IMPRESSIONS = [
@@ -389,6 +486,10 @@ export function Desk() {
 
       {/* the plant leans over everything */}
       <div className="dk-o dk-plant" style={at(-44, -64, 280, 280, 0, 2.2)}><Plant /></div>
+
+      {/* act 5: the same desk on X-ray film, its skeleton showing */}
+      <div className="dk-xr"><Skeleton /></div>
+      <div className="dk-sweep"><b>X-ray</b></div>
     </div>
   )
 }
