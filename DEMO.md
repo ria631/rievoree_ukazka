@@ -11,7 +11,7 @@ your own account.
 1. **Landing → Explore the demo.** You land on the Dashboard as a read-only
    visitor. Nothing you do here is saved.
 
-2. **Open the 🔬 X-RAY panel (top-right) → Calls.** Every number on the page
+2. **Press X (or the lime X-RAY pill, bottom-right) → Calls.** Every number on the page
    came from Postgres through one instrumented fetch; the panel logs each call
    with its status and timing. This is the whole point — the backend runs in
    the open.
@@ -28,7 +28,7 @@ your own account.
    payables accounts; the cash budget's actuals are the tagged bank lines; the
    forecast is built lease by lease from the rent roll, in the browser.
 
-5. **Sign in as a role to see the machinery** (login page → *Explore as a role*):
+5. **Switch role to see the machinery** (sidebar → *Acting as*, or login page → *Explore as a role*):
    - **Manager** → **Ingest**: upload a CSV (use the template), watch it get
      validated and z-score-screened; a batch at *Needs review* shows the flagged
      anomaly. Approve it and the figures flow into the reports. **Connectors**: press

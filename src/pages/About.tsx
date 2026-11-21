@@ -3,19 +3,19 @@ import { Link } from "@tanstack/react-router"
 
 const STACK = ["React 19", "TypeScript", "Vite", "Tailwind v4", "TanStack", "recharts", "Supabase", "Postgres", "Edge / Deno", "Docker", "pg_cron", "pg_net", "RLS"]
 
-// Real, vetted demo figures (same provenance as the landing — no invented numbers).
+// Real demo figures (same provenance as the landing — the Journal page's totals).
 const FIGURES: [string, string][] = [
-  ["€3.06M", "processed · total debit"],
-  ["936", "account-months"],
-  ["4", "entities · RLS-scoped"],
-  ["18", "monthly periods"],
+  ["€120.0M", "posted · debit side"],
+  ["4,708", "documents · all balanced"],
+  ["4", "companies · RLS-scoped"],
+  ["24", "monthly periods"],
 ]
 
 const LAYERS = [
   ["Browser", "React 19 reaches Postgres through one instrumented fetch — the seam the X-ray panel taps."],
   ["Edge / Deno", "Validated ingest and review notifications run as Deno edge functions."],
   ["Postgres", "Row-level security, trigger chains, scheduled refresh and HTTP callbacks live in the database."],
-  ["Docker worker", "A containerised Deno service drains the ingest queue with atomic, skip-locked claims."],
+  ["Docker worker", "A containerised Deno service drains the ingest queue with atomic, skip-locked claims — in the local stack (docker compose); the hosted demo parses CSV in the browser."],
 ]
 
 export function About() {

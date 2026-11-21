@@ -27,6 +27,11 @@ import { BatchDetail } from "@/components/BatchDetail"
 import { ClassifyAccounts } from "@/components/ClassifyAccounts"
 import { ChartEditor } from "@/components/ChartEditor"
 
+/** The Docker ETL worker (worker/) is what reads XLSX. It runs with the local
+ *  stack (`docker compose up`), not behind the hosted demo — set
+ *  VITE_XLSX_WORKER=true where it does. CSV is parsed in the browser everywhere. */
+const XLSX_WORKER = import.meta.env.VITE_XLSX_WORKER === "true"
+
 function canManage(role: string | null) {
   return role === "manager" || role === "admin" || role === "super_admin"
 }
@@ -118,8 +123,12 @@ export function Ingest() {
       } catch { return }
     }
 
-    // XLSX has no client parser → upload without rows (still needs the worker).
-    if (!/\.csv$/i.test(file.name)) { doUpload(null, period); return }
+    // XLSX has no client parser → upload without rows; only the Docker ETL
+    // worker reads it, and that worker runs in the local stack, not the hosted demo.
+    if (!/\.csv$/i.test(file.name)) {
+      if (!XLSX_WORKER) { setMapError("Excel files are read by the ETL worker, which only runs in the local Docker stack. Save the sheet as CSV and upload that."); return }
+      doUpload(null, period); return
+    }
 
     // Parse CSV in the browser → typed rows for process_uploaded_rows.
     const text = await file.text()
@@ -188,8 +197,8 @@ export function Ingest() {
           <MonthPicker value={period} onChange={setPeriod} />
         </div>
         <div className="space-y-1.5">
-          <Label className="font-mono text-[10px] uppercase tracking-widest">File (CSV / XLSX)</Label>
-          <FilePicker file={file} accept=".csv,.xlsx,text/csv" onPick={setFile} />
+          <Label className="font-mono text-[10px] uppercase tracking-widest">{XLSX_WORKER ? "File (CSV / XLSX)" : "File (CSV)"}</Label>
+          <FilePicker file={file} accept={XLSX_WORKER ? ".csv,.xlsx,text/csv" : ".csv,text/csv"} onPick={setFile} />
         </div>
         <Button type="submit" className="font-mono" disabled={upload.isPending || saveRules.isPending}>
           {upload.isPending || saveRules.isPending ? "Uploading…" : "Upload"}

@@ -30,7 +30,9 @@ function isDemoEmail(email: string | undefined) {
 export function AppShell() {
   const { session, role, active, loading } = useAuth()
   const path = useRouterState({ select: (s) => s.location.pathname })
-  const onPaper = PAPER_ROUTES.has(path)
+  // An unknown URL: a visitor gets the 404 on paper, not a bounce to sign-in.
+  const notFound = useRouterState({ select: (s) => s.statusCode === 404 })
+  const onPaper = PAPER_ROUTES.has(path) || (notFound && !session)
 
   if (loading) {
     return (
@@ -79,8 +81,8 @@ function PaperLayout({ path }: { path: string }) {
           <span className="flex-1" />
           <nav className="flex items-center gap-1 text-[15px] font-medium">
             <ExploreDemoButton className="rounded-md px-3 py-2 opacity-75 transition hover:opacity-100" label="Demo" />
-            <Link to="/about" className="hidden rounded-md px-3 py-2 opacity-75 transition hover:opacity-100 sm:block" activeProps={{ className: "opacity-100" }}>About</Link>
-            <Link to="/login" className="rounded-md px-3 py-2 opacity-75 transition hover:opacity-100" activeProps={{ className: "opacity-100" }}>Sign in</Link>
+            <Link to="/about" className="hidden rounded-md px-3 py-2 opacity-75 transition hover:opacity-100 sm:block" activeProps={{ className: "opacity-100" }}>O nás</Link>
+            <Link to="/login" className="rounded-md px-3 py-2 opacity-75 transition hover:opacity-100" activeProps={{ className: "opacity-100" }}>Prihlásiť</Link>
           </nav>
         </div>
       </header>
@@ -269,7 +271,7 @@ function SignedIn({ role, email }: { role: string | null; email: string }) {
 // Users page. The demo admin is never platform staff (migration 43): it sees the
 // four sample companies as a member, nobody else's data.
 const DEMO_ROLES = [
-  { email: DEMO_EMAIL, label: "Viewer", note: "Viewers read reports only." },
+  { email: DEMO_EMAIL, label: "Viewer", note: "Viewers read reports only — this one is invited to all four companies." },
   { email: "manager@demo.local", label: "Manager", note: "Managers can also upload, review and connect sheets." },
   { email: "admin@demo.local", label: "Admin", note: "Admins can also manage users and roles." },
 ] as const
@@ -374,17 +376,18 @@ function DemoBlockedScreen({ path }: { path: string }) {
 
 // Friendly 404 for a signed-in user who hits an unknown route.
 function NotFoundScreen() {
+  const { session } = useAuth()
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center gap-5 px-6 text-center">
       <span className="font-display text-7xl font-extrabold text-accent">404</span>
       <div>
         <h1 className="font-display text-3xl font-extrabold uppercase">Page not found</h1>
         <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-          That route doesn't exist. Head back to the dashboard.
+          That route doesn't exist. {session ? "Head back to the dashboard." : "Start from the front page, or open the demo."}
         </p>
       </div>
-      <Link to="/dashboard" className="rounded-md bg-accent px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
-        Go to dashboard
+      <Link to={session ? "/dashboard" : "/"} className="rounded-md bg-accent px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
+        {session ? "Go to dashboard" : "Back to the start"}
       </Link>
     </div>
   )

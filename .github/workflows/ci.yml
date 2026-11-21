@@ -46,7 +46,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 3.2.0   # pinned: "latest" broke CI when [inbucket] became [local_smtp]
       # Provider secrets referenced by config.toml via env() — dummy values so
       # the local stack boots (OAuth isn't exercised by the tests).
       - name: Start local stack

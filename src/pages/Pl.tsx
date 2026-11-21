@@ -19,7 +19,7 @@ const ROW = "grid grid-cols-[minmax(170px,1fr)_84px_repeat(3,minmax(84px,112px))
  */
 export function Pl() {
   const { data: rows, isLoading, error } = useReport()
-  const { data: budgets } = useBudget()
+  const { data: budgets, isLoading: budgetLoading } = useBudget()
   const { entityId, setEntityId, names, include } = useEntityScope()
   const [scope, setScope] = useState("ytd")
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
@@ -68,6 +68,9 @@ export function Pl() {
             </ChartCard>
             <ChartCard tour="pl-variance" title="Biggest variances vs budget" hint={scopeLabel(scope, last)}>
               {hasBudget && variances.length ? <VarianceBars data={variances} />
+                : budgetLoading ? <div className="flex flex-col gap-3 py-10" aria-label="Loading budgets">
+                    {[0.9, 0.7, 0.8, 0.5, 0.6].map((w, i) => <div key={i} className="h-3 animate-pulse rounded bg-secondary" style={{ width: `${w * 100}%` }} />)}
+                  </div>
                 : <p className="py-16 text-center font-mono text-xs text-muted-foreground">No budget for this scope.</p>}
             </ChartCard>
           </div>

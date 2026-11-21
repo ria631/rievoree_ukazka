@@ -28,7 +28,7 @@ type Role = "viewer" | "manager" | "admin"
 // `useApp`: a demo visitor can also switch the app itself to this identity.
 const IDENTITIES: { role: Role; email: string; label: string; reason: string; useApp?: boolean }[] = [
   { role: "viewer", email: "viewer@demo.local", label: "Viewer",
-    reason: "my_entity_ids() — assigned entities only" },
+    reason: "my_entity_ids() — invited to one company" },
   { role: "manager", email: "manager@demo.local", label: "Manager", useApp: true,
     reason: "my_entity_ids() — assigned entities only" },
   { role: "admin", email: "admin@demo.local", label: "Admin", useApp: true,
@@ -191,12 +191,14 @@ export function RlsTab() {
 
 /** "Run as" only peeks — say so. */
 function SwitchHint({ error }: { error: string | null }) {
-  const { isDemo, role } = useAuth()
+  const { isDemo, role, session } = useAuth()
+  const guest = session?.user.email === "demo@demo.local"
   return (
     <div className="border-t border-border px-4 py-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
       <p>
         <span className="text-foreground">Run as …</span> only looks through that identity's eyes —
-        the app itself stays signed in as <span className="text-accent">{role ?? "you"}</span>.
+        the app itself stays signed in as <span className="text-accent">{guest ? "the demo guest" : (role ?? "you")}</span>.
+        {guest && <> The guest is a viewer too, but invited to all four companies — so the reports show four, while viewer@ above sees one.</>}
         {isDemo ? <> <span className="text-foreground">Use app as …</span> switches the whole app (still read-only).</> : <> Your own role is set in Account.</>}
       </p>
       {error && <p className="mt-1 text-destructive">{error}</p>}

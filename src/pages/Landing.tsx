@@ -7,13 +7,14 @@ import "./landing/landing.css"
 
 const GITHUB_URL = "https://github.com/ria631/rievoree_ukazka"
 
-// Seeded demo totals (supabase/seed.sql): real figures from the sandbox, not
-// invented statistics.
+// The demo books as the Journal page reports them (shared demo, all four
+// companies; it resets hourly to this state). Real figures, not invented ones —
+// re-check them there if the generator changes.
 const STATS = [
-  ["€3.06M", "processed, total debit"],
-  ["936", "account-months"],
+  ["€120.0M", "posted to the ledger, debit side"],
+  ["4,708", "documents, every one balanced"],
   ["4", "companies, RLS-scoped"],
-  ["18", "monthly periods"],
+  ["24", "monthly periods"],
 ] as const
 
 /**
@@ -166,8 +167,8 @@ const LAYERS = [
     ink: <><div className="ink" style={{ left: 14, top: 60 }}>{"entities_select\njournal_entries\ningest_queue  deny all"}</div><div className="ink" style={{ right: 14, bottom: 14, textAlign: "right" }}>{"pg_cron  refresh-report-mv\npg_net   connector fetch"}</div></>,
   },
   {
-    k: "Layer 4 of 4", name: "Worker", sub: "Deno in Docker", file: FILES.worker,
-    what: "A worker claims the job without ever colliding with another worker, validates the rows, flags outliers by z-score and loads the batch. Once a minute pg_cron refreshes the report.",
+    k: "Layer 4 of 4", name: "Worker", sub: "Deno in Docker, local stack", file: FILES.worker,
+    what: "In the local stack a Deno worker claims each job without ever colliding with another one and reads the file, Excel included. (The hosted demo parses CSV in the browser instead.) Postgres validates, flags outliers by z-score and loads; once a minute pg_cron refreshes the report.",
     code: lines(SRC.worker, "order by run_after", 6),
     ink: <><div className="ink" style={{ left: 14, top: 60 }}>{"queue\n#1184 pending\n#1183 processing\n#1182 loaded"}</div><div className="ink" style={{ right: 14, bottom: 14, textAlign: "right" }}>{"z-score screen\ndelete-and-reload"}</div></>,
   },
@@ -301,7 +302,7 @@ function WhoSeesWhat() {
     <section className="lp-block" id="rls">
       <div className="sec-head">
         <h2>Same query. Different rows.</h2>
-        <p>Who sees which company is decided inside Postgres, not in the frontend. Pick a person and the policy filters the table for them.</p>
+        <p>Who sees which company is decided inside Postgres, not in the frontend. Pick a person and the policy filters the table for them. <span className="replay">A replay of the seeded memberships — in the demo, X-ray → RLS runs it live.</span></p>
       </div>
       <div className="rls">
         <div className="rls-box">

@@ -1,13 +1,52 @@
 # X-Ray Financial Reporting Engine
 
+[![CI](https://github.com/ria631/rievoree_ukazka/actions/workflows/ci.yml/badge.svg)](https://github.com/ria631/rievoree_ukazka/actions/workflows/ci.yml)
+
 A full-stack financial reporting tool whose real product is **visible backend
-machinery**: every page carries an X-ray panel (🔬) that shows the live API
-calls, RLS policies, SQL and security layers doing the work.
+machinery**: every page carries an X-ray panel that shows the live API calls,
+RLS policies, SQL and security layers doing the work.
 
 **Live demo:** https://rievoree-ukazka.vercel.app — click **Explore the demo**
-(read-only, no account), then open the **X-RAY** panel on any page.
+(read-only, no account), then press **X** (or the lime X-RAY pill) on any page.
 
 Portfolio project by **Mariia Chernenko**. All data is fake, built from scratch.
+
+![The landing: the page tears open on the repo's own source](docs/img/landing.jpg)
+
+| The books of a four-building property group | X-ray → RLS: the same query as three people |
+|---|---|
+| ![Dashboard](docs/img/dashboard.jpg) | ![X-ray RLS tab: 1 / 2 / 4 companies](docs/img/xray-rls.jpg) |
+
+### Five minutes, if you're reviewing
+1. **Explore the demo** → Dashboard. Every figure is a query result, RLS-scoped.
+2. Press **X** → **RLS** → *Run as* Viewer / Manager / Admin: Postgres returns
+   1 / 2 / 4 companies for the identical `select` (real sign-ins, isolated session).
+3. **Calls** — every request the page made, timed at one fetch seam
+   ([`instrumentedFetch.ts`](src/lib/xray/instrumentedFetch.ts)).
+4. **X-ray code** (sidebar) → click any chart: an editor opens on the exact lines
+   that draw it, the component and the SQL/maths behind it.
+5. Switch to **Manager** in the sidebar → **Ingest**: a batch held by the z-score
+   screen, and why ([`detect_anomalies`](supabase/tests/detect_anomalies_test.sql)).
+6. Skim [`supabase/migrations/`](supabase/migrations) and
+   [`supabase/tests/`](supabase/tests): 44 migrations, 92 pgTAP assertions.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  B["Browser<br/>React 19 · TanStack<br/>one instrumented fetch"] --> A["Supabase Auth<br/>JWT · TOTP · OAuth"]
+  B --> R["PostgREST / RPC"]
+  B --> E["Edge functions (Deno)<br/>ingest-submit · admin-users<br/>connector-webhook · notify-review"]
+  R --> P[("Postgres<br/>RLS on every table<br/>triggers · materialized views")]
+  E --> P
+  P -- "pg_cron: refresh reports,<br/>re-read linked sheets" --> P
+  P -- "pg_net: fetch a sheet,<br/>call notify-review" --> E
+  P -. "ingest_queue<br/>(skip-locked claims)" .-> W["ETL worker (Deno, Docker)<br/>local stack · XLSX"]
+  B -. "Realtime: pipeline_events" .- P
+```
+
+The hosted demo parses CSV in the browser and validates, screens and loads in
+Postgres; the Docker worker (dotted) is the XLSX path in the local stack.
 
 ---
 
@@ -32,11 +71,14 @@ reports out — and you can watch every layer run:
   webhook. Both feed the same pipeline; already-seen content is skipped.
 
 ### What's real vs. illustrative (honesty invariant)
-Every figure in the product app is a real query result. The small panels in the
-landing page's "What it does" section are **on-brand illustrations** (labelled as
-such) — the live versions are one click into the demo. The X-ray **SQL** tab
-shows reference SQL pulled from the migrations, clearly marked "not a live
-EXPLAIN"; the **Calls** and **Pipeline** tabs are live.
+Every figure in the product app is a real query result. On the landing, the
+code under the torn page and in the "four layers" section is **pulled from the
+repo files at build time** (`src/pages/landing/repoSource.ts`, Vite `?raw`),
+never retyped; the "Who sees what" table is a **replay** of the seeded
+memberships (labelled as such) — the live version is the X-ray **RLS** tab,
+which runs the query against Postgres as each role. The X-ray **SQL** tab shows
+reference SQL pulled from the migrations, clearly marked "not a live EXPLAIN";
+the **Calls** and **Pipeline** tabs are live.
 
 ---
 
@@ -50,7 +92,8 @@ EXPLAIN"; the **Calls** and **Pipeline** tabs are live.
 | `supabase/tests/` | pgTAP: ETL transform, z-score, load, tenant isolation |
 | `supabase/functions/` | Deno edge functions (ingest-submit, notify-review, connectors, admin-users) |
 | `worker/` | Deno ETL worker — used locally for XLSX; the hosted path parses CSV in-browser |
-| `docs/` | Design spec, DB operation notes, the Claude-in-Chrome review prompts |
+| `docs/` | Design spec and plans, README images |
+| `design/` | HTML mockups of the brand (landing, app shell, mark) and the Claude-in-Chrome QA prompt |
 
 ## Security model
 
@@ -62,15 +105,21 @@ EXPLAIN"; the **Calls** and **Pipeline** tabs are live.
   migration `20261013000001`.)
 - **Demo accounts are DB-locked read-only** (`profiles.is_demo`): they can't
   change role/password/2FA, provision, or manage connectors/members, and an
-  hourly `reset_demo_state()` keeps the showcase clean.
+  hourly `reset_demo_state()` keeps the showcase clean. Their password is
+  public, so a demo identity only ever lists other demo identities — never a
+  real account that joined a sample company (migration `20261121000001`, test
+  `demo_members_privacy_test.sql`).
 - **Defense in depth:** column-level grants under RLS under triggers — frozen
   profile columns are protected at three layers.
 - **Least privilege:** API roles hold only what they can legitimately use;
   `ingest_queue` is deny-all by design.
+- **Headers on deploy** (`vercel.json`): a CSP limited to the app, Google Fonts
+  and Supabase (`wasm-unsafe-eval` only for the code highlighter),
+  `frame-ancestors 'none'`, `nosniff`, a strict referrer and permissions policy.
 
 ## Getting started (local)
 
-Prerequisites: Node 20+, Docker, [Supabase CLI](https://supabase.com/docs/guides/local-development).
+Prerequisites: Node 20+, Docker, [Supabase CLI](https://supabase.com/docs/guides/local-development) (CI pins 3.2.0).
 
 ```bash
 npm install
@@ -90,8 +139,8 @@ read-only — register a real account to try uploads and role switching.
 ## Tests
 
 ```bash
-supabase test db          # pgTAP: transform, z-score, load, tenant isolation
-cd worker && deno test    # CSV/XLSX parser + CSV-injection sanitizer
+supabase test db          # pgTAP (92): transform, z-score, load, tenant isolation, demo lockdown
+cd worker && deno test    # 13 tests: CSV/XLSX parser + CSV-injection sanitizer
 npm run build             # tsc -b (typecheck) + vite build
 bash scripts/check-migrations.sh   # migration-safety scanner (no fake-RLS)
 ```
