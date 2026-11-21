@@ -41,7 +41,7 @@ export function Landing() {
     import("./landing/tear").then(({ mountLanding }) => {
       if (cancelled) return
       const all = els.current
-      const keys: (keyof LandingEls)[] = ["hero", "stage", "canvas", "anchor", "txt", "stats", "inCopy", "hint", "bar", "close", "canvas2", "anchor2", "hint2"]
+      const keys: (keyof LandingEls)[] = ["hero", "stage", "canvas", "anchor", "hint", "bar", "close", "canvas2", "anchor2", "hint2"]
       if (keys.some((k) => !all[k])) return
       try { dispose = mountLanding(all as LandingEls, () => void exploreRef.current()) }
       catch { root.current?.classList.add("nogl") }
@@ -74,36 +74,33 @@ export function Landing() {
         <section ref={bind("hero")} className="hero" aria-label="Introduction">
           <div ref={bind("stage")} className="hero-stage">
             <canvas ref={bind("canvas")} id="gl" aria-hidden="true" />
-            <div className="wrap hero-copy">
-              <div ref={bind("txt")} className="txt">
-                <h1 aria-label="See the machinery of your finance">
-                  <span className="lp-mask"><span className="l1">See the</span></span>
-                  <span className="lp-mask"><span className="l2">
-                    {"Machinery".split("").map((c, i) => <span key={i} aria-hidden="true" style={{ animationDelay: `${0.15 + i * 0.045}s` }}>{c}</span>)}
-                  </span></span>
-                  <span className="lp-mask"><span className="l3">of your finance</span></span>
-                </h1>
-                <p className="lede">A financial reporting engine: messy spreadsheets in, validated and anomaly-screened reports out. Built backend-first, with row-level security, a real ETL pipeline and scheduled jobs, and you can watch every layer work.</p>
-                <div className="ctas">
-                  {demoBtn("btn-ink")}
-                  <a className="btn btn-ghost" href={GITHUB_URL} target="_blank" rel="noreferrer">Read the source</a>
-                </div>
-                <p className="byline">A portfolio project by <b>{AUTHOR.name}</b>, built end to end — database to browser.</p>
-                <p className="note">The page is torn open on the <b>real source</b> beneath it: an RLS policy, the report view, the worker's queue claim. Move around it, then click the hole or scroll to go in.</p>
+          </div>
+          <div className="wrap hero-copy">
+            <div className="txt">
+              <h1 aria-label="See the machinery of your finance">
+                <span className="lp-mask"><span className="l1">See the</span></span>
+                <span className="lp-mask"><span className="l2">
+                  {"Machinery".split("").map((c, i) => <span key={i} aria-hidden="true" style={{ animationDelay: `${0.15 + i * 0.045}s` }}>{c}</span>)}
+                </span></span>
+                <span className="lp-mask"><span className="l3">of your finance</span></span>
+              </h1>
+              <p className="lede">A financial reporting engine: messy spreadsheets in, validated and anomaly-screened reports out. Built backend-first, with row-level security, a real ETL pipeline and scheduled jobs, and you can watch every layer work.</p>
+              <div className="ctas">
+                {demoBtn("btn-ink")}
+                <a className="btn btn-ghost" href={GITHUB_URL} target="_blank" rel="noreferrer">Read the source</a>
               </div>
-              <div ref={bind("anchor")} className="anchor" aria-hidden="true" />
+              <p className="byline">A portfolio project by <b>{AUTHOR.name}</b>, built end to end — database to browser.</p>
+              <p className="note">The page is torn open on the <b>real source</b> beneath it: an RLS policy, the report view, the worker's queue claim. Click the hole to take the app apart.</p>
             </div>
-            <div ref={bind("stats")} className="stats" aria-label="Demo dataset">
-              <div className="wrap">
-                {STATS.map(([v, l]) => <div key={l} className="stat"><div className="v">{v}</div><div className="l">{l}</div></div>)}
-              </div>
-            </div>
-            <span ref={bind("hint")} className="dive-hint">click to go in</span>
-            <div ref={bind("inCopy")} className="in-copy" aria-hidden="true">
-              <div><h2>You're in<br />the machinery</h2><p>Every layer from here down is real code from the repo.</p></div>
+            <div ref={bind("anchor")} className="anchor" aria-hidden="true" />
+          </div>
+          <div className="stats" aria-label="Demo dataset">
+            <div className="wrap">
+              {STATS.map(([v, l]) => <div key={l} className="stat"><div className="v">{v}</div><div className="l">{l}</div></div>)}
             </div>
           </div>
         </section>
+        <span ref={bind("hint")} className="dive-hint" aria-hidden="true">see the four layers ↓</span>
 
         <div className="machinery">
           <Exploded />
@@ -116,7 +113,7 @@ export function Landing() {
 
           <section ref={bind("close")} className="close" id="open" aria-label="Open the demo">
             <canvas ref={bind("canvas2")} id="gl2" aria-hidden="true" />
-            <span ref={bind("hint2")} className="dive-hint" style={{ position: "absolute" }}>open the demo</span>
+            <span ref={bind("hint2")} className="dive-hint" aria-hidden="true">open the demo</span>
             <div className="wrap close-in">
               <div className="copy">
                 <h2>Now tear into the real one</h2>

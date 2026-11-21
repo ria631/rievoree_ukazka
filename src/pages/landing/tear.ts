@@ -1,12 +1,15 @@
 /**
- * The torn sheet, in real time (three.js). The lime page is a mesh; six petals
- * tear along jagged lines, roll up about straight creases (in the vertex shader)
- * and throw real shadows into a recess 1.8 hole-radii deep, where the repo's own
- * source lies, glowing. Scrolling dives the camera through the hole.
+ * The torn sheet (three.js). The lime page is a mesh; six petals tear along
+ * jagged lines, roll up about straight creases (in the vertex shader) and throw
+ * real shadows into a recess 1.8 hole-radii deep, where the repo's own source
+ * lies, glowing.
  *
- * Imperative by nature (one renderer per sheet, one rAF loop), so it lives
- * outside React: Landing mounts it with element refs and gets a disposer back.
- * Loaded on demand — the landing paints its copy on plain lime first.
+ * Rendered on demand, never in an idle loop: each sheet tears open once (about
+ * a second), then holds still — it is redrawn only when the window resizes or
+ * the code texture arrives. Scrolling the page costs the GPU nothing.
+ *
+ * Imperative by nature, so it lives outside React: Landing mounts it with
+ * element refs and gets a disposer back. Loaded after first paint.
  */
 import * as THREE from "three"
 import { SRC, KEYWORDS } from "./repoSource"
@@ -84,6 +87,11 @@ function sourceCanvas() {
     for (let y = 0; y < W; y += 4) g.fillRect(0, y, W, 1)
     const LH = 40
     const font = '500 25px "JetBrains Mono", ui-monospace, monospace'
+    // Text goes onto its own layer first; the glow is that layer blurred once,
+    // not a shadowBlur per glyph (thousands of those took over a second).
+    const text = document.createElement("canvas")
+    text.width = text.height = W
+    const t = text.getContext("2d")!
     ;[[SRC.rls, SRC.worker], [SRC.report, SRC.fetch]].forEach((blocks, ci) => {
       let y = 70, ln = 1
       const x = ci ? 1080 : 56
@@ -92,31 +100,33 @@ function sourceCanvas() {
       while (y < W - 20) {
         for (const line of all) {
           if (y > W - 20) break
-          g.font = '400 21px "JetBrains Mono", monospace'
-          g.fillStyle = "rgba(127,227,182,.22)"
-          g.textAlign = "right"
-          g.fillText(String(ln++), x + 38, y)
-          g.textAlign = "left"
+          t.font = '400 21px "JetBrains Mono", monospace'
+          t.fillStyle = "rgba(127,227,182,.22)"
+          t.textAlign = "right"
+          t.fillText(String(ln++), x + 38, y)
+          t.textAlign = "left"
           let cx = x + 62
-          g.font = font
+          t.font = font
           const isComment = /^\s*(--|\/\/)/.test(line)
           const toks = isComment ? [line] : line.split(/(\s+|[(),;.`]|'[^']*'|"[^"]*")/).filter(Boolean)
           const colR = x + (ci ? 940 : 990)
-          for (const t of toks) {
-            if (cx + g.measureText(t).width > colR) break
-            let col = "#7FE3B6", glow = 10
-            if (isComment) { col = "#3F7A69"; glow = 0 } else if (/^['"]/.test(t)) col = "#5DCFDA"; else if (KEYWORDS.has(t)) col = "#A3E635"
-            g.shadowColor = col
-            g.shadowBlur = glow
-            g.fillStyle = col
-            g.fillText(t, cx, y)
-            cx += g.measureText(t).width
+          for (const tok of toks) {
+            const w = t.measureText(tok).width
+            if (cx + w > colR) break
+            t.fillStyle = isComment ? "#3F7A69" : /^['"]/.test(tok) ? "#5DCFDA" : KEYWORDS.has(tok) ? "#A3E635" : "#7FE3B6"
+            t.fillText(tok, cx, y)
+            cx += w
           }
-          g.shadowBlur = 0
           y += LH
         }
       }
     })
+    g.save()
+    g.filter = "blur(6px)"
+    g.globalAlpha = 0.6
+    g.drawImage(text, 0, 0)
+    g.restore()
+    g.drawImage(text, 0, 0)
     return c
   })()
   return codeCanvas
@@ -186,6 +196,8 @@ interface Tear {
   layout: () => void
   light: (mx: number, my: number, t: number, op: number, hov: number) => void
   over: (clientX: number, clientY: number) => boolean
+  /** Draw one frame at tear progress p (0 closed → 1 open). */
+  draw: (p: number) => void
   dispose: () => void
 }
 
@@ -194,7 +206,7 @@ function createTear({ canvas, host, anchor, seed, size = 0.62, mobile, reduce }:
   canvas: HTMLCanvasElement; host: HTMLElement; anchor: HTMLElement; seed: number; size?: number; mobile: boolean; reduce: boolean
 }): Tear {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" })
-  renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.75 : 2))
+  renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 1.75))
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.toneMapping = THREE.NoToneMapping
   renderer.shadowMap.enabled = true
@@ -255,7 +267,7 @@ function createTear({ canvas, host, anchor, seed, size = 0.62, mobile, reduce }:
       const dl = Math.min(Math.abs(tw - lo), TAU - Math.abs(tw - lo)), dh = Math.min(Math.abs(tw - hi), TAU - Math.abs(tw - hi))
       return Math.min(dl, dh) * d
     }
-    const H = 2.55, step = mobile ? 1 / 38 : 1 / 56, n = Math.round((2 * H) / step), tris = n * n * 2
+    const H = 2.55, step = mobile ? 1 / 32 : 1 / 46, n = Math.round((2 * H) / step), tris = n * n * 2
     const pos = new Float32Array(tris * 9), uv = new Float32Array(tris * 6), aAxis = new Float32Array(tris * 6), aHk = new Float32Array(tris * 3)
     const aRnd = new Float32Array(tris * 9), aEdge = new Float32Array(tris * 3), aTip = new Float32Array(tris * 3)
     let o = 0
@@ -294,7 +306,7 @@ function createTear({ canvas, host, anchor, seed, size = 0.62, mobile, reduce }:
   scene.add(new THREE.AmbientLight(0xffffff, 1.25))
   const key = new THREE.DirectionalLight(0xfffbe8, 2.2)
   key.castShadow = true
-  key.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048)
+  key.shadow.mapSize.set(mobile ? 1024 : 1536, mobile ? 1024 : 1536)
   key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02; key.shadow.radius = 4
   scene.add(key, key.target)
   const glow = new THREE.PointLight(0x2fe0a8, 0, 0, 1.6)
@@ -310,6 +322,7 @@ function createTear({ canvas, host, anchor, seed, size = 0.62, mobile, reduce }:
     layout: () => {},
     light: () => {},
     over: () => false,
+    draw: () => {},
     dispose: () => {},
   }
   const worldAtZ0 = (px: number, py: number) => {
@@ -362,6 +375,18 @@ function createTear({ canvas, host, anchor, seed, size = 0.62, mobile, reduce }:
     const rpx = (T.R / (2 * CAMZ * Math.tan((FOV * Math.PI) / 360))) * hr.height
     return Math.hypot(clientX - hx, clientY - hy) < rpx * 0.9
   }
+  let lastP = 0
+  T.draw = (p: number) => {
+    if (disposed) return
+    lastP = p
+    U.uProg.value = p
+    U.uGrow.value = 1
+    U.uTime.value = 0
+    camera.position.set(0, 0, CAMZ)
+    camera.lookAt(0, 0, 0)
+    T.light(0, 0, 0, p, 0)
+    renderer.render(scene, camera)
+  }
   T.dispose = () => {
     disposed = true
     if (tear) { tear.m.geometry.dispose(); tear.s.geometry.dispose() }
@@ -376,19 +401,17 @@ function createTear({ canvas, host, anchor, seed, size = 0.62, mobile, reduce }:
     t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = ANISO
     codeT = t
     T.layout()
+    T.draw(lastP)
   })
   T.layout()
   return T
 }
 
 export interface LandingEls {
-  hero: HTMLElement      // the tall scroll section
-  stage: HTMLElement     // its sticky viewport
+  hero: HTMLElement      // the first screen
+  stage: HTMLElement     // the canvas host inside it
   canvas: HTMLCanvasElement
   anchor: HTMLElement    // where the hole sits
-  txt: HTMLElement       // hero copy (fades as you dive)
-  stats: HTMLElement
-  inCopy: HTMLElement    // "you're in the machinery"
   hint: HTMLElement      // cursor hint over the hole
   bar: HTMLElement       // the fixed header
   close: HTMLElement     // the closing section
@@ -397,123 +420,134 @@ export interface LandingEls {
   hint2: HTMLElement
 }
 
+const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
+// Start the tear part-way: the first fifth is hairline cracks, which read as
+// noise at this size. Then about a second to fully open.
+const P0 = 0.22
+const OPEN_MS = 1100
+
 /**
- * Mount both tears and the scroll/pointer choreography. Returns a disposer.
+ * Tear a sheet open once, then stop. Returns a cancel function.
+ * Adaptive: if a frame takes too long to draw (a weak GPU), the animation is
+ * skipped and the sheet is drawn open — one frame, not a second of stutter.
+ */
+function openOnce(T: Tear, reduce: boolean, onFirstFrame: () => void): () => void {
+  if (reduce) { T.draw(1); onFirstFrame(); return () => {} }
+  let raf = 0
+  let t0 = 0
+  let frames = 0
+  const step = (now: number) => {
+    if (!t0) { t0 = now; T.draw(P0); onFirstFrame() } // first frame may compile shaders: not timed
+    const k = Math.min(1, (now - t0) / OPEN_MS)
+    const s0 = performance.now()
+    T.draw(P0 + (1 - P0) * easeOut(k))
+    const slow = ++frames > 1 && performance.now() - s0 > 45
+    if (slow) { T.draw(1); return }
+    if (k < 1) raf = requestAnimationFrame(step)
+  }
+  raf = requestAnimationFrame(step)
+  return () => cancelAnimationFrame(raf)
+}
+
+/**
+ * Mount both tears, the hover hint and the header colour. Returns a disposer.
  * Throws if WebGL is unavailable — the caller falls back to the flat page.
  */
 export function mountLanding(els: LandingEls, onOpenDemo: () => void): () => void {
   const mobile = matchMedia("(max-width: 980px)").matches
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches
-  const hero = createTear({ canvas: els.canvas, host: els.stage, anchor: els.anchor, seed: 1234, mobile, reduce })
-  let close: Tear
-  try {
-    close = createTear({ canvas: els.canvas2, host: els.close, anchor: els.anchor2, seed: 77, size: 0.6, mobile, reduce })
-  } catch (e) {
-    hero.dispose()
-    throw e
-  }
+  const hero = createTear({ canvas: els.canvas, host: els.stage, anchor: els.anchor, seed: 1234, size: 0.58, mobile, reduce })
+  const cancels: (() => void)[] = []
+  cancels.push(openOnce(hero, reduce, () => els.canvas.classList.add("on")))
 
-  const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
-  const mouse = { x: 0, y: 0 }, sm = { x: 0, y: 0 }
-  let hover = 0, hoverS = 0, hover2 = 0, hover2S = 0, dive = 0
-
-  const onMove = (e: PointerEvent) => {
-    mouse.x = e.clientX / innerWidth - 0.5
-    mouse.y = e.clientY / innerHeight - 0.5
-    hover = dive < 0.02 && hero.over(e.clientX, e.clientY) ? 1 : 0
-    els.hint.style.opacity = hover ? "1" : "0"
-    els.hint.style.left = `${e.clientX + 16}px`
-    els.hint.style.top = `${e.clientY + 14}px`
-    els.canvas.style.cursor = hover ? "pointer" : ""
-    const cr = els.close.getBoundingClientRect()
-    hover2 = e.clientY > cr.top && e.clientY < cr.bottom && close.over(e.clientX, e.clientY) ? 1 : 0
-    els.hint2.style.opacity = hover2 ? "1" : "0"
-    els.hint2.style.left = `${e.clientX - cr.left + 16}px`
-    els.hint2.style.top = `${e.clientY - cr.top + 14}px`
-    els.canvas2.style.cursor = hover2 ? "pointer" : ""
+  // The closing sheet is built only when it's needed: while the browser is
+  // idle after the hero opened, or as the visitor scrolls within ~a screen of
+  // it — whichever comes first. Building it and drawing its first (invisible)
+  // frame compiles the shaders, so the tear later never stalls a scroll.
+  let close: Tear | null = null
+  let closeFailed = false
+  let closeOpened = false
+  const ensureClose = () => {
+    if (!close && !closeFailed) {
+      try {
+        close = createTear({ canvas: els.canvas2, host: els.close, anchor: els.anchor2, seed: 77, size: 0.56, mobile, reduce })
+        close.draw(P0)
+      } catch { closeFailed = true }
+    }
+    return close
   }
-  const onStageClick = () => {
-    if (hover) scrollTo({ top: els.hero.offsetTop + els.hero.offsetHeight - innerHeight * 1.02, behavior: reduce ? "auto" : "smooth" })
+  const idle = (cb: () => void) => {
+    if (typeof window.requestIdleCallback === "function") window.requestIdleCallback(cb, { timeout: 5000 })
+    else setTimeout(cb, 1800)
   }
-  const onCloseClick = () => { if (hover2) onOpenDemo() }
-  const readScroll = () => {
-    dive = Math.max(0, Math.min(1, (scrollY - els.hero.offsetTop) / (els.hero.offsetHeight - innerHeight)))
-  }
-  let rt = 0
-  const onResize = () => { clearTimeout(rt); rt = window.setTimeout(() => { hero.layout(); close.layout() }, 120) }
-
-  addEventListener("pointermove", onMove, { passive: true })
-  els.stage.addEventListener("click", onStageClick)
-  els.canvas2.addEventListener("click", onCloseClick)
-  addEventListener("scroll", readScroll, { passive: true })
-  addEventListener("resize", onResize)
-  readScroll()
-
-  // The closing sheet tears when it comes into view, not before.
-  let closeVisible = false, closeStart = 0
+  const warm = window.setTimeout(() => idle(() => { ensureClose() }), OPEN_MS + 600)
+  cancels.push(() => clearTimeout(warm))
+  const near = new IntersectionObserver((es) => { if (es[0].isIntersecting) ensureClose() }, { rootMargin: "0px 0px 100% 0px" })
+  near.observe(els.close)
   const io = new IntersectionObserver((es) => {
-    closeVisible = es[0].isIntersecting
-    if (closeVisible && !closeStart) closeStart = performance.now() + 250
-  }, { threshold: 0.25 })
+    if (!es[0].isIntersecting || closeOpened) return
+    const c = ensureClose()
+    if (!c) return
+    closeOpened = true
+    cancels.push(openOnce(c, reduce, () => els.canvas2.classList.add("on")))
+  }, { threshold: 0.3 })
   io.observe(els.close)
 
-  const t0 = performance.now() + 350, OPEN = reduce ? 0 : 1900
-  const from = new THREE.Vector3(), to = new THREE.Vector3(), look = new THREE.Vector3(), lookFrom = new THREE.Vector3(), lookTo = new THREE.Vector3()
-  let raf = 0
-  const frame = (now: number) => {
-    sm.x += (mouse.x - sm.x) * 0.06; sm.y += (mouse.y - sm.y) * 0.06
-    hoverS += (hover - hoverS) * 0.08; hover2S += (hover2 - hover2S) * 0.08
-    const t = (now - t0) / 1000
-    const d = ease(dive)
-    // ── hero
-    if (dive < 1) {
-      const H = hero, op = OPEN ? Math.max(0, Math.min(1, (now - t0) / OPEN)) : 1
-      H.U.uTime.value = t; H.U.uProg.value = op; H.U.uGrow.value = 1 + d * 0.9 + hoverS * 0.04
-      const calm = 1 - Math.min(1, d * 3), rx = sm.x * 0.55 * calm, ry = -sm.y * 0.35 * calm
-      H.camera.position.lerpVectors(from.set(rx, ry, CAMZ), to.set(H.center.x, H.center.y, -H.depth + 1.25 * H.R), d)
-      H.camera.lookAt(look.lerpVectors(lookFrom.set(rx * 0.3, ry * 0.3, 0), lookTo.set(H.center.x, H.center.y, -H.depth), Math.min(1, d * 1.3)))
-      H.camera.fov = FOV + d * 14
-      H.camera.updateProjectionMatrix()
-      H.light(sm.x, sm.y, t, op, hoverS)
-      H.renderer.render(H.scene, H.camera)
-    }
-    els.txt.style.opacity = String(Math.max(0, 1 - d * 4))
-    els.txt.style.transform = `translateY(${-d * 120}px)`
-    els.stats.style.opacity = String(Math.max(0, 1 - d * 5))
-    els.inCopy.style.opacity = String(Math.max(0, Math.min(1, (dive - 0.86) * 8)))
-    els.canvas.style.opacity = String(Math.max(0, Math.min(1, (1 - dive) * 8)))
-    els.stage.style.background = d > 0.5 ? "var(--deep)" : ""
-    if (dive > 0.02) els.hint.style.opacity = "0"
-    // ── closing sheet
-    if (closeVisible) {
-      const C = close, op = closeStart ? (OPEN ? Math.max(0, Math.min(1, (now - closeStart) / OPEN)) : 1) : 0
-      C.U.uTime.value = t; C.U.uProg.value = op; C.U.uGrow.value = 1 + hover2S * 0.08
-      const cr = els.close.getBoundingClientRect(), py = (cr.top + cr.height / 2 - innerHeight / 2) / innerHeight
-      C.camera.position.set(sm.x * 0.5, -sm.y * 0.3 + py * 0.6, CAMZ)
-      C.camera.lookAt(sm.x * 0.15, py * 0.2, 0)
-      C.light(sm.x, sm.y, t, op, hover2S)
-      C.renderer.render(C.scene, C.camera)
-    }
-    // ── header: ink on the paper, light over the machinery
-    const endHero = els.hero.offsetTop + els.hero.offsetHeight - innerHeight
-    const overClose = els.close.getBoundingClientRect().top <= 64
-    els.bar.classList.toggle("is-dark", !overClose && ((d > 0.45 && scrollY <= endHero) || scrollY > endHero))
-    els.bar.classList.toggle("is-paper", overClose)
-    raf = requestAnimationFrame(frame)
+  // Hover: a hint and a pointer over the hole (geometry only — no redraw).
+  let overHero = false, overClose = false
+  const onMove = (e: PointerEvent) => {
+    const hr = els.hero.getBoundingClientRect()
+    overHero = e.clientY > hr.top && e.clientY < hr.bottom && hero.over(e.clientX, e.clientY)
+    els.hint.style.opacity = overHero ? "1" : "0"
+    els.hint.style.transform = `translate(${e.clientX + 16}px, ${e.clientY + 14}px)`
+    els.stage.style.cursor = overHero ? "pointer" : ""
+    const cr = els.close.getBoundingClientRect()
+    overClose = !!close && closeOpened && e.clientY > cr.top && e.clientY < cr.bottom && close.over(e.clientX, e.clientY)
+    els.hint2.style.opacity = overClose ? "1" : "0"
+    els.hint2.style.transform = `translate(${e.clientX + 16}px, ${e.clientY + 14}px)`
+    els.canvas2.style.cursor = overClose ? "pointer" : ""
   }
-  raf = requestAnimationFrame(frame)
+  const onHeroClick = () => {
+    if (overHero) document.getElementById("layers")?.scrollIntoView({ behavior: reduce ? "auto" : "smooth" })
+  }
+  const onCloseClick = () => { if (overClose) onOpenDemo() }
+
+  // Header: ink on the paper, light over the machinery.
+  const onScroll = () => {
+    const pastHero = els.hero.getBoundingClientRect().bottom <= 64
+    const onClose = els.close.getBoundingClientRect().top <= 64
+    els.bar.classList.toggle("is-dark", pastHero && !onClose)
+    els.bar.classList.toggle("is-paper", onClose)
+  }
+
+  // Resize: re-lay the sheets out, redraw each once at its current state.
+  let rt = 0
+  const onResize = () => {
+    clearTimeout(rt)
+    rt = window.setTimeout(() => {
+      hero.layout(); hero.draw(1)
+      if (close) { close.layout(); close.draw(closeOpened ? 1 : P0) }
+    }, 150)
+  }
+
+  addEventListener("pointermove", onMove, { passive: true })
+  addEventListener("scroll", onScroll, { passive: true })
+  addEventListener("resize", onResize)
+  els.stage.addEventListener("click", onHeroClick)
+  els.canvas2.addEventListener("click", onCloseClick)
+  onScroll()
 
   return () => {
-    cancelAnimationFrame(raf)
+    cancels.forEach((c) => c())
     clearTimeout(rt)
     io.disconnect()
+    near.disconnect()
     removeEventListener("pointermove", onMove)
-    els.stage.removeEventListener("click", onStageClick)
-    els.canvas2.removeEventListener("click", onCloseClick)
-    removeEventListener("scroll", readScroll)
+    removeEventListener("scroll", onScroll)
     removeEventListener("resize", onResize)
+    els.stage.removeEventListener("click", onHeroClick)
+    els.canvas2.removeEventListener("click", onCloseClick)
     hero.dispose()
-    close.dispose()
+    close?.dispose()
   }
 }
-
