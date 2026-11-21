@@ -2,16 +2,15 @@ import { useEffect, useRef, useState } from "react"
 import { useNavigate, useRouterState } from "@tanstack/react-router"
 import { AnimatePresence, motion } from "motion/react"
 import {
-  ScanLine, X, Wand2, MousePointerClick, Code2, List, Play, Pause, RotateCcw, Database, Check, Radio,
+  X, Wand2, MousePointerClick, Code2, List, Play, Pause, RotateCcw, Database, Check, Radio,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth/useAuth"
-import { tourControl } from "@/lib/tourBus"
+import { tourControl, useTourStartRequest } from "@/lib/tourBus"
 import { prewarmHighlighter } from "@/lib/code-xray"
 import { useXrayPanel } from "@/components/xray/XrayPanelContext"
 import { CODE_MAP } from "@/components/xray/codeMap"
-import { CodeXrayButton } from "@/components/xray/CodeInspect"
 import { STEPS, CHAPTERS, type Chapter } from "@/components/tour/steps"
 import { AskFeedback } from "@/components/tour/slots"
 
@@ -34,11 +33,18 @@ import { AskFeedback } from "@/components/tour/slots"
 const SEEN_KEY = "xray-tour-choice"
 const DEMO_PASSWORD = "demo123456"
 const MANAGER = "manager@demo.local"
-const HEADER = 64
+// Space kept clear at the top: nothing on desktop (the sidebar layout has no
+// top bar), the sticky lime bar on a phone.
+const headerH = () => (window.innerWidth >= 900 ? 8 : 60)
+/** Right edge of the sidebar, when it's on screen (the rail sits beside it). */
+const sideRight = () => {
+  const r = document.querySelector("[data-shell-side]")?.getBoundingClientRect()
+  return r && r.width > 0 ? r.right : 0
+}
 const PAD = 10 // spotlight padding around the target
 const RAIL_X = 14
 const RAIL_W = 368
-const RAIL_MIN_VW = 1100 // below this the card is a bottom sheet
+const RAIL_MIN_VW = 1280 // below this the card is a bottom sheet (sidebar + rail + page must fit)
 const SHEET_VH = 0.44
 
 // Pacing — unhurried, so a visitor can follow every move.
@@ -79,7 +85,7 @@ async function scrollSettled(alive: () => boolean, max = 1800) {
   }
 }
 
-const inFixed = (el: HTMLElement) => !!el.closest('[data-slot="sheet-content"], header')
+const inFixed = (el: HTMLElement) => !!el.closest('[data-slot="sheet-content"], [data-shell-side], [data-tour="xray-button"]')
 const railMode = () => window.innerWidth >= RAIL_MIN_VW
 
 /** Bring the target into the free part of the screen (beside the rail, or above the sheet). */
@@ -87,7 +93,7 @@ function scrollIntoFree(el: HTMLElement) {
   if (inFixed(el)) { el.scrollIntoView({ block: "nearest", behavior: "smooth" }); return }
   const r = el.getBoundingClientRect()
   const vh = window.innerHeight
-  const top0 = HEADER + 18
+  const top0 = headerH() + 18
   const bottom = railMode() ? vh - 18 : vh * (1 - SHEET_VH) - 14
   const room = bottom - top0
   const want = r.height < room - 16 ? top0 + (room - r.height) / 2 : top0
@@ -236,13 +242,13 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
         }
       }
 
-      // 3 · the rail sits below the header AND the demo banner while it's on screen
+      // 3 · the rail sits beside the sidebar, full height
       const card = cardRef.current
       const isRail = vw >= RAIL_MIN_VW
       if (card && isRail) {
-        const banner = document.querySelector(sel("demo-banner"))?.getBoundingClientRect()
-        const top = Math.max(HEADER, banner && banner.bottom > 0 ? banner.bottom : 0) + 12
+        const top = headerH() + 12
         card.style.top = `${top}px`
+        card.style.left = `${sideRight() + RAIL_X}px`
         card.style.maxHeight = `${vh - top - 14}px`
       }
 
@@ -255,7 +261,7 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
         st.link = lerp(st.link, show && st.dim > 0.5 ? 1 : 0, k(0.12))
         svg.style.opacity = st.link.toFixed(3)
         if (show && c && h) {
-          const ty = Math.min(Math.max(h.y + Math.min(h.h / 2, 60), HEADER + 16), vh - 16)
+          const ty = Math.min(Math.max(h.y + Math.min(h.h / 2, 60), headerH() + 16), vh - 16)
           const sy = Math.min(Math.max(ty, c.top + 28), c.bottom - 28)
           const x0 = c.right + 2, x1 = h.x - 3
           const bend = Math.min(90, (x1 - x0) / 2)
@@ -366,7 +372,7 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
           if (a.spot) st.sel = sel(a.spot)
           setCaption(a.say)
           const tr = t.getBoundingClientRect()
-          if (!inFixed(t) && (tr.top < HEADER + 10 || tr.bottom > window.innerHeight - 20)) {
+          if (!inFixed(t) && (tr.top < headerH() + 10 || tr.bottom > window.innerHeight - 20)) {
             t.scrollIntoView({ block: "center", behavior: "smooth" })
             await scrollSettled(alive)
           }
@@ -387,8 +393,8 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
           if (el) {
             const r = el.getBoundingClientRect()
             // Off screen — or grown past the fold by what the action opened.
-            const grown = r.bottom > window.innerHeight - 10 && r.top > HEADER + 40
-            if (r.bottom < HEADER + 40 || r.top > window.innerHeight - 80 || grown) { scrollIntoFree(el); await scrollSettled(alive) }
+            const grown = r.bottom > window.innerHeight - 10 && r.top > headerH() + 40
+            if (r.bottom < headerH() + 40 || r.top > window.innerHeight - 80 || grown) { scrollIntoFree(el); await scrollSettled(alive) }
           }
         }
         await sleep(450)
@@ -467,20 +473,11 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
   const inChapter = chapterSteps.findIndex((s) => s.id === cs.id) + 1
   const target = cs.code ? CODE_MAP[cs.code] : null
 
+  // The launch buttons live in the sidebar (AppShell) and ask over the bus.
+  useTourStartRequest(() => { if (!running) start() })
+
   return (
     <>
-      {/* Launch dock: the tour + the X-RAY CODE inspector, stacked in the corner
-          (narrow, so it stays clear of the page content). */}
-      {!running && (
-        <div className="fixed bottom-5 left-4 z-50 flex flex-col items-start gap-2">
-          <CodeXrayButton />
-          <button onClick={start}
-            className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-accent-foreground shadow-soft transition hover:brightness-110">
-            <ScanLine className="size-3.5" strokeWidth={2.25} /> Take the tour
-          </button>
-        </div>
-      )}
-
       {/* First-visit choice — guided agent vs explore yourself */}
       <AnimatePresence>
         {choice === "pending" && !running && (
@@ -562,7 +559,7 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
           onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}
           className={cn("fixed z-[60] flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_24px_70px_-20px_rgba(0,0,0,0.9)] ring-1 ring-accent/25",
             rail ? "" : "inset-x-2 bottom-2")}
-          style={rail ? { left: RAIL_X, width: RAIL_W, top: HEADER + 12 } : { maxHeight: `${SHEET_VH * 100}vh` }}>
+          style={rail ? { left: sideRight() + RAIL_X, width: RAIL_W, top: headerH() + 12 } : { maxHeight: `${SHEET_VH * 100}vh` }}>
 
           {/* Header: chapter, chapter list, auto, close */}
           <div className="relative flex items-center gap-2 px-4 pt-3.5">
@@ -715,3 +712,4 @@ function ChapterMenu({ current, onPick }: { current: Chapter; onPick: (c: Chapte
     </div>
   )
 }
+

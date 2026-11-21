@@ -8,27 +8,27 @@ import type { Slice, WfStep } from "@/lib/data/aggregate"
 
 // ── Palette ────────────────────────────────────────────────────────────────
 // One meaning per colour, everywhere (concrete hex — SVG fills don't resolve CSS
-// vars). Income / Costs / NOI / Cash are a validated categorical set for the
-// dark card surface (OKLCH L 0.48–0.67, chroma ≥ 0.1, adjacent CVD ΔE ≥ 9).
-// Totals in a bridge are neutral slate; only a DECREASE uses red.
-const INCOME = "#23ac74"
-const COST = "#847ce2"
-const NOI = "#c28700"
-const CASH = "#00a6c2"
-const TOTAL = "#78889b"
-const DOWN = "#da534f"
+// vars), from the brand (design/app-shell.html): income emerald, costs teal,
+// NOI lime (the one bright line), cash gold. Totals in a bridge are muted
+// sea-green; only a DECREASE uses red. Validated on the #0B2423 card surface.
+const INCOME = "#7FE3B6"
+const COST = "#5DCFDA"
+const NOI = "#A3E635"
+const CASH = "#E8C55A"
+const TOTAL = "#5F8580"
+const DOWN = "#F06A5D"
 const UP = INCOME
-const RAMP = ["#68d7a1", "#53c48e", "#3db07c", "#239d6a", "#008b59", "#007948"] // magnitude, big → small
-const GRID = "rgba(255,255,255,0.06)"
-const AXIS = "rgba(255,255,255,0.45)"
-const INK = "rgba(255,255,255,0.86)"
-const SURFACE = "#16171b"
+const RAMP = ["#A3E635", "#8ADB78", "#7FE3B6", "#5DBF96", "#3E8F6E", "#2C6B58"] // magnitude, big → small
+const GRID = "#1D4340"
+const AXIS = "#5F8580"
+const INK = "rgba(228,242,236,0.88)"
+const SURFACE = "#0B2423"
 
 export const COLORS = { income: INCOME, cost: COST, noi: NOI, cash: CASH, total: TOTAL, down: DOWN }
 /** Aging risk scale — not due → 90+ days past due. */
-export const BUCKET_COLORS = ["#4fc99a", "#d6b53f", "#e0843e", "#e5584d", "#b03a62"]
+export const BUCKET_COLORS = ["#7FE3B6", "#E8C55A", "#EE9A52", "#F06A5D", "#C04A6E"]
 /** Journal document types. */
-export const DOC_COLORS: Record<string, string> = { SI: INCOME, PI: COST, BS: CASH, GJ: NOI, OB: TOTAL, UP: "#a3adb9" }
+export const DOC_COLORS: Record<string, string> = { SI: INCOME, PI: COST, BS: CASH, GJ: NOI, OB: TOTAL, UP: "#86A9A1" }
 
 // Chart-internal animations are OFF: recharts/nivo animate in JavaScript, every
 // frame, for every chart — on a page with several charts a filter change meant
@@ -55,10 +55,10 @@ const Y_W = 62
 export function ChartCard({ title, hint, tour, children, className }: { title: string; hint?: string; tour?: string; children: ReactNode; className?: string }) {
   return (
     // `tour` = the anchor the guided tour + X-RAY CODE inspector point at.
-    <div data-tour={tour} className={`rounded-[1.5rem] bg-card p-5 shadow-soft ring-1 ring-border md:p-6 ${className ?? ""}`}>
-      <div className="mb-4 flex items-baseline justify-between gap-3">
-        <h3 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">{title}</h3>
-        {hint && <span className="text-right font-mono text-[10px] uppercase tracking-widest text-muted-foreground/70">{hint}</span>}
+    <div data-tour={tour} className={`min-w-0 rounded-xl border border-border bg-card p-4 md:p-5 ${className ?? ""}`}>
+      <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h3 className="font-display text-[19px] font-bold uppercase leading-tight tracking-[0.01em] text-foreground">{title}</h3>
+        {hint && <span className="text-[13px] text-muted-foreground">{hint}</span>}
       </div>
       {children}
     </div>
@@ -91,13 +91,13 @@ function DarkTooltip({ active, payload, label, fmt = (v) => eur.format(v) }: {
   const rows = (payload ?? []).filter((p) => p.value != null)
   if (!active || !rows.length) return null
   return (
-    <div className="rounded-xl bg-[#14151a] px-3 py-2 font-mono text-xs shadow-soft ring-1 ring-white/15">
-      {label && <div className="mb-1 text-white/55">{label}</div>}
+    <div className="rounded-xl bg-[#04100F] px-3 py-2 font-mono text-xs shadow-soft ring-1 ring-line-hi">
+      {label && <div className="mb-1 text-muted-foreground">{label}</div>}
       {rows.map((p) => (
         <div key={p.name} className="flex items-center gap-2 tabular-nums">
           <span className="size-2 rounded-full" style={{ background: p.color ?? p.stroke }} />
-          <span className="text-white/60">{p.name}</span>
-          <span className="ml-auto pl-3 text-white/90">{fmt(Number(p.value))}</span>
+          <span className="text-muted-foreground">{p.name}</span>
+          <span className="ml-auto pl-3 text-foreground">{fmt(Number(p.value))}</span>
         </div>
       ))}
     </div>
@@ -143,9 +143,9 @@ function WfTooltip({ active, payload }: { active?: boolean; payload?: { payload:
   const d = payload[0].payload
   const v = Math.round(d.val) === 0 ? 0 : d.val // never "-€0"
   return (
-    <div className="rounded-xl bg-[#14151a] px-3 py-2 font-mono text-xs shadow-soft ring-1 ring-white/15">
-      <span className="text-white/60">{d.name}: </span>
-      <span className="tabular-nums text-white/90">{d.total ? eur.format(v) : `${v > 0 ? "+" : ""}${eur.format(v)}`}</span>
+    <div className="rounded-xl bg-[#04100F] px-3 py-2 font-mono text-xs shadow-soft ring-1 ring-line-hi">
+      <span className="text-muted-foreground">{d.name}: </span>
+      <span className="tabular-nums text-foreground">{d.total ? eur.format(v) : `${v > 0 ? "+" : ""}${eur.format(v)}`}</span>
     </div>
   )
 }
@@ -193,7 +193,7 @@ export function Waterfall({ steps, height = 300 }: { steps: WfStep[]; height?: n
           <CartesianGrid stroke={GRID} vertical={false} />
           <XAxis dataKey="name" interval={0} tick={<WrapTick />} height={38} tickLine={false} axisLine={{ stroke: GRID }} />
           <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={eurShort} width={Y_W} />
-          <Tooltip content={<WfTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+          <Tooltip content={<WfTooltip />} cursor={{ fill: "rgba(163,230,53,0.05)" }} />
           <Bar dataKey="base" stackId="w" fill="transparent" isAnimationActive={false} />
           <Bar dataKey="bar" stackId="w" radius={[4, 4, 0, 0]} minPointSize={2} isAnimationActive={ANIM}>
             {data.map((d, i) => <Cell key={i} fill={d.color} />)}
@@ -267,11 +267,11 @@ export function ExpenseTreemap({ data, height = 300 }: { data: Slice[]; height?:
           return [`${node.id} · ${pct}`, String(node.id), pct].find((t) => t.length * 6.9 <= room) ?? ""
         }}
         orientLabel
-        labelTextColor="#0b1410"
+        labelTextColor="#061716"
         animate={ANIM}
         theme={{
           labels: { text: { fontFamily: "JetBrains Mono", fontSize: 11, fontWeight: 600 } },
-          tooltip: { container: { background: "#14151a", color: "#fff", fontFamily: "JetBrains Mono", fontSize: 12, borderRadius: 10 } },
+          tooltip: { container: { background: "#04100F", color: "#E4F2EC", fontFamily: "JetBrains Mono", fontSize: 12, borderRadius: 10 } },
         }}
       />
     </div>
@@ -290,7 +290,7 @@ export function RankBars({ data, fmt = eurShort, color = RAMP[2], labelWidth = 1
         <CartesianGrid stroke={GRID} horizontal={false} />
         <XAxis type="number" tick={TICK} tickLine={false} axisLine={false} tickFormatter={fmt} />
         <YAxis type="category" dataKey="name" width={labelWidth} tick={TICK} tickLine={false} axisLine={false} interval={0} />
-        <Tooltip content={<DarkTooltip fmt={fmt} />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+        <Tooltip content={<DarkTooltip fmt={fmt} />} cursor={{ fill: "rgba(163,230,53,0.05)" }} />
         <Bar dataKey="value" name="Value" radius={[0, 4, 4, 0]} barSize={18} fill={color} isAnimationActive={ANIM}>
           <LabelList dataKey="value" position="right" formatter={(v) => fmt(Number(v))} style={LABEL} />
         </Bar>
@@ -333,8 +333,8 @@ export function VarianceBars({ data }: { data: { name: string; value: number }[]
           <XAxis type="number" tick={TICK} tickLine={false} axisLine={false} tickFormatter={eurShort}
             domain={[ticks[0], ticks[ticks.length - 1]]} ticks={ticks} />
           <YAxis type="category" dataKey="name" width={150} tick={TICK} tickLine={false} axisLine={false} interval={0} />
-          <ReferenceLine x={0} stroke="rgba(255,255,255,0.3)" />
-          <Tooltip content={<DarkTooltip fmt={signed} />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+          <ReferenceLine x={0} stroke="#2C5C57" />
+          <Tooltip content={<DarkTooltip fmt={signed} />} cursor={{ fill: "rgba(163,230,53,0.05)" }} />
           <Bar dataKey="value" name="vs budget" radius={4} barSize={16} isAnimationActive={ANIM}>
             {data.map((d, i) => <Cell key={i} fill={d.value >= 0 ? UP : DOWN} />)}
             <LabelList dataKey="value" content={EndLabel} />
@@ -357,7 +357,7 @@ export function ExpiryBars({ data }: { data: { name: string; value: number; shar
         <CartesianGrid stroke={GRID} vertical={false} />
         <XAxis dataKey="name" tick={TICK} tickLine={false} axisLine={{ stroke: GRID }} />
         <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={eurShort} width={Y_W} />
-        <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+        <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(163,230,53,0.05)" }} />
         <Bar dataKey="value" name="Rent p.a. expiring" radius={[4, 4, 0, 0]} isAnimationActive={ANIM}>
           {rows.map((_, i) => <Cell key={i} fill={i === 0 ? NOI : RAMP[3]} />)}
           <LabelList dataKey="lab" position="top" style={{ ...LABEL, fontSize: 10.5 }} />
@@ -376,7 +376,7 @@ export function AgingStacked({ data, buckets }: { data: Record<string, string | 
           <CartesianGrid stroke={GRID} vertical={false} />
           <XAxis dataKey="name" interval={0} tick={<WrapTick />} height={38} tickLine={false} axisLine={{ stroke: GRID }} />
           <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={eurShort} width={Y_W} />
-          <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+          <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(163,230,53,0.05)" }} />
           {buckets.map((b, i) => (
             <Bar key={b} dataKey={b} name={b} stackId="age" fill={BUCKET_COLORS[i]} stroke={SURFACE} strokeWidth={1}
               radius={i === buckets.length - 1 ? [4, 4, 0, 0] : undefined} isAnimationActive={ANIM} />
@@ -397,7 +397,7 @@ export function SettlementBars({ data, paidLabel }: { data: { month: string; onT
           <CartesianGrid stroke={GRID} vertical={false} />
           <XAxis dataKey="month" tick={TICK} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={16} />
           <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={eurShort} width={Y_W} />
-          <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+          <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(163,230,53,0.05)" }} />
           <Bar dataKey="onTime" name={`${paidLabel} on time`} stackId="s" fill={INCOME} stroke={SURFACE} strokeWidth={1} isAnimationActive={ANIM} />
           <Bar dataKey="late" name={`${paidLabel} late`} stackId="s" fill={NOI} stroke={SURFACE} strokeWidth={1} isAnimationActive={ANIM} />
           <Bar dataKey="open" name="Still open" stackId="s" fill={DOWN} stroke={SURFACE} strokeWidth={1} radius={[4, 4, 0, 0]} isAnimationActive={ANIM} />
@@ -477,7 +477,7 @@ export function VolumeStacked({ data, types }: { data: Record<string, number | s
           <CartesianGrid stroke={GRID} vertical={false} />
           <XAxis dataKey="month" tick={TICK} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={16} />
           <YAxis tick={TICK} tickLine={false} axisLine={false} width={44} allowDecimals={false} />
-          <Tooltip content={<DarkTooltip fmt={(v) => `${Math.round(v)} docs`} />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+          <Tooltip content={<DarkTooltip fmt={(v) => `${Math.round(v)} docs`} />} cursor={{ fill: "rgba(163,230,53,0.05)" }} />
           {present.map((t, i) => (
             <Bar key={t.key} dataKey={t.key} name={t.label} stackId="v" fill={DOC_COLORS[t.key] ?? TOTAL} stroke={SURFACE} strokeWidth={1}
               radius={i === present.length - 1 ? [3, 3, 0, 0] : undefined} isAnimationActive={ANIM} />

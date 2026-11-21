@@ -63,7 +63,8 @@ export function Journal() {
 
   return (
     <div className="relative">
-      <PageIntro eyebrow="General ledger" title="Journal">
+      <PageIntro eyebrow="General ledger" title="Journal"
+        actions={<EntitySelect sheet value={entityId} onChange={setEntityId} names={names} />}>
         Every posting, grouped by the document it came from — rent invoices, supplier bills, bank statement items,
         journal vouchers — and the proof the books hold: total debits equal total credits.
       </PageIntro>
@@ -72,9 +73,8 @@ export function Journal() {
           render at once; the counts and the chart fill in when they arrive. */}
       {summary && !summary.length && !(rows?.length) ? <EmptyNote title="The journal is empty" hint="Approve and load a batch on the Ingest page." />
         : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div data-tour="jr-filters" className="flex flex-wrap items-center gap-3">
-            <EntitySelect value={entityId} onChange={setEntityId} names={names} />
             <FilterLabel label="Month">
               <SimpleSelect aria-label="Month" value={period} onValueChange={setPeriod}
                 options={[{ value: "all", label: `All (${months.length} mo.)` }, ...[...months].reverse().map((m) => ({ value: `${m}-01`, label: mLong(m) }))]} />
@@ -100,7 +100,7 @@ export function Journal() {
           {isLoading ? <LoadingNote label="counting documents…" />
             : error ? <ErrorNote message={error.message} />
             : (<>
-          <div data-tour="jr-kpis" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div data-tour="jr-kpis" className="grid grid-cols-2 gap-2.5 sm:gap-4 @min-[860px]:grid-cols-4">
             <KpiTile i={0} label="Documents" value={docs} format={(n) => num.format(n)} hint={period === "all" ? "all months" : mLong(mk(period))} />
             <KpiTile i={1} label="Journal lines" value={lines} format={(n) => num.format(n)} hint={`${(lines / (docs || 1)).toFixed(1)} lines per document`} />
             <KpiTile i={2} label="Posted (debit side)" value={debit} format={(n) => money(n)} hint="sum of all debits" />
@@ -111,7 +111,7 @@ export function Journal() {
           <TieOut tour="jr-proof" label="Debits = credits" left={debit} right={credit} leftLabel="total debits" rightLabel="total credits" />
           </>)}
 
-          <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+          <div className="grid gap-5 @min-[700px]:grid-cols-[1.4fr_1fr]">
             <ChartCard tour="jr-volume" title="Documents posted per month" hint="by type">
               {summary ? <VolumeStacked data={volume} types={DOC_TYPES} /> : <LoadingNote label="loading…" />}
             </ChartCard>

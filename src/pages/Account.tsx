@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { motion } from "motion/react"
+import { PageIntro } from "@/components/report/Kit"
 import { Check, ShieldCheck, KeyRound, Smartphone } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
@@ -37,18 +37,12 @@ export function Account() {
 
   return (
     <div className="relative">
-      <motion.header
-        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: "easeOut" }}
-        className="pb-10">
-        <span className="font-mono text-xs font-semibold uppercase tracking-widest text-accent">Account</span>
-        <h1 className="mt-3 text-5xl font-semibold tracking-tight md:text-6xl lg:text-7xl">Settings</h1>
-        <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
-          Switch your role to watch how the app behaves — viewers only read reports,
-          managers run the ingest &amp; approval pipeline. Changes apply instantly across the app.
-        </p>
-      </motion.header>
+      <PageIntro eyebrow="Account" title="Settings">
+        Your profile, password and two-factor sign-in — and a role switch to watch how the app behaves:
+        viewers only read reports, managers run the ingest and approval pipeline.
+      </PageIntro>
 
-      <section className="max-w-2xl rounded-[1.5rem] bg-card p-6 shadow-soft ring-1 ring-border md:p-7">
+      <section className="max-w-2xl rounded-xl bg-card p-6 shadow-soft ring-1 ring-border md:p-7">
         <div className="flex items-center gap-2">
           <ShieldCheck className="size-4 text-accent" />
           <h2 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Your role</h2>
@@ -110,20 +104,13 @@ export function Account() {
 function DemoAccountNotice({ role }: { role: string | null }) {
   return (
     <div className="relative">
-      <motion.header
-        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: "easeOut" }}
-        className="pb-10">
-        <span className="font-mono text-xs font-semibold uppercase tracking-widest text-accent">Account</span>
-        <h1 className="mt-3 text-5xl font-semibold tracking-tight md:text-6xl lg:text-7xl">Settings</h1>
-        <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
-          You're signed in to a <span className="text-foreground">shared demo account</span>
-          {role ? <> (<span className="font-mono uppercase">{role}</span>)</> : null}. It's
-          read-only so everyone exploring sees the same clean state — role switching, password,
-          2FA and sandboxes are turned off here, and the database enforces that too.
-        </p>
-      </motion.header>
+      <PageIntro eyebrow="Account" title="Settings">
+        You're signed in to a <span className="text-foreground">shared demo account</span>
+        {role ? <> ({role})</> : null}. It's read-only so everyone exploring sees the same clean state —
+        role switching, password, two-factor and sandboxes are off here, and the database enforces that too.
+      </PageIntro>
 
-      <section className="max-w-2xl rounded-[1.5rem] bg-card p-6 shadow-soft ring-1 ring-border md:p-7">
+      <section className="max-w-2xl rounded-xl bg-card p-6 shadow-soft ring-1 ring-border md:p-7">
         <div className="flex items-center gap-2">
           <ShieldCheck className="size-4 text-accent" />
           <h2 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Want the full account?</h2>
@@ -168,7 +155,7 @@ function TwoFactor() {
   }
 
   return (
-    <section className="mt-8 max-w-2xl rounded-[1.5rem] bg-card p-6 shadow-soft ring-1 ring-border md:p-7">
+    <section className="mt-8 max-w-2xl rounded-xl bg-card p-6 shadow-soft ring-1 ring-border md:p-7">
       <div className="flex items-center gap-2">
         <Smartphone className="size-4 text-accent" />
         <h2 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Two-factor authentication</h2>
@@ -232,7 +219,7 @@ function ChangePassword() {
   }
 
   return (
-    <section className="mt-8 max-w-2xl rounded-[1.5rem] bg-card p-6 shadow-soft ring-1 ring-border md:p-7">
+    <section className="mt-8 max-w-2xl rounded-xl bg-card p-6 shadow-soft ring-1 ring-border md:p-7">
       <div className="flex items-center gap-2">
         <KeyRound className="size-4 text-accent" />
         <h2 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Change password</h2>

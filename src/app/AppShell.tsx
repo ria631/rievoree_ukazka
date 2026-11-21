@@ -1,99 +1,41 @@
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { Link, Navigate, Outlet, useNavigate, useRouterState } from "@tanstack/react-router"
-import { ChevronDown, Menu, ScanLine } from "lucide-react"
+import { Menu, ScanLine } from "lucide-react"
+import { NAV, RANK, type NavItem } from "./nav"
 import { XRayPanel } from "@/components/xray/XRayPanel"
 import { XrayPanelProvider } from "@/components/xray/XrayPanelContext"
 import { CodeOverlay } from "@/components/xray/CodeOverlay"
-import { InspectLayer } from "@/components/xray/CodeInspect"
+import { CodeXrayButton, InspectLayer } from "@/components/xray/CodeInspect"
 import { Tour } from "@/components/Tour"
-import { OrbsBackground } from "@/components/OrbsBackground"
 import { PaperBackground, PaperGrain } from "@/components/PaperBackground"
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { BrandLink } from "@/components/BrandMark"
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useAuth } from "@/lib/auth/useAuth"
 import { supabase } from "@/lib/supabase"
+import { requestTourStart } from "@/lib/tourBus"
 import { cn } from "@/lib/utils"
 
-const navLinkBase = "whitespace-nowrap rounded-full px-3 py-2 font-mono text-xs uppercase tracking-widest transition-colors"
-// Compact variant for the 11-item signed-in product nav, so the whole row fits
-// the bar without forcing a horizontal page scroll.
-const navLinkCompact = "whitespace-nowrap rounded-full px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wide transition-colors"
-const navLinkActive = "bg-accent/12 text-accent"
-const navLinkIdle = "text-muted-foreground hover:bg-secondary hover:text-foreground"
-
 const DEMO_EMAIL = "demo@demo.local"
+const DEMO_PASSWORD = "demo123456"
 
-// Full product nav — only for a real signed-in account (not the demo tour).
-// `roles` (when present) restricts a link to those roles; absent = everyone.
-const MANAGER_ROLES = ["manager", "admin", "super_admin"]
-const ADMIN_ROLES = ["admin", "super_admin"]
-const NAV = [
-  { to: "/dashboard", label: "Dashboard" },
-  { to: "/pl", label: "P&L" },
-  { to: "/rent-roll", label: "Rent roll" },
-  { to: "/receivables", label: "AR / AP" },
-  { to: "/budget-flow", label: "Budget flow" },
-  { to: "/forecast", label: "Forecast" },
-  { to: "/journal", label: "Journal" },
-  { to: "/ingest", label: "Ingest" },
-  { to: "/connectors", label: "Connectors", roles: MANAGER_ROLES },
-  { to: "/users", label: "Users", roles: ADMIN_ROLES },
-  { to: "/account", label: "Account" },
-] as const
-
-// The nav a given role may see (Connectors → managers+, Users → admins). A demo
-// identity has no account of its own to manage, so it never gets "Account".
-function navFor(role: string | null, demo = false) {
-  return NAV.filter((item) =>
-    (!("roles" in item) || (item.roles as readonly string[]).includes(role ?? "")) && !(demo && item.to === "/account"))
-}
-
-// Demo "tour" nav — read-only analytics only. NO Ingest / Users / Account.
-const SHOWCASE = [
-  { to: "/dashboard", label: "Overview" },
-  { to: "/pl", label: "P&L" },
-  { to: "/rent-roll", label: "Rent roll" },
-  { to: "/receivables", label: "AR / AP" },
-  { to: "/budget-flow", label: "Budget flow" },
-  { to: "/forecast", label: "Forecast" },
-  { to: "/journal", label: "Journal" },
-] as const
-
-// Routes the demo tour must not reach (write / account features → sign in first).
+// Routes the read-only viewer tour must not reach (write / account features).
 const DEMO_BLOCKED = new Set(["/ingest", "/users", "/connectors", "/account"])
-
-const PUBLIC = new Set(["/", "/login", "/register", "/about", "/reset-password"])
 const PAPER_ROUTES = new Set(["/", "/login", "/register", "/about", "/reset-password"])
+
+/** Is the session a shared demo identity? Any *@demo.local account is. */
+function isDemoEmail(email: string | undefined) {
+  return (email ?? "").toLowerCase().endsWith("@demo.local")
+}
 
 export function AppShell() {
   const { session, role, active, loading } = useAuth()
-  const navigate = useNavigate()
   const path = useRouterState({ select: (s) => s.location.pathname })
   const onPaper = PAPER_ROUTES.has(path)
-  const scrolled = useScrolled()
-  // ANY *@demo.local account is a demo identity (the "Explore the demo" viewer,
-  // and the viewer@/manager@/admin@ role accounts the tour signs in as). The UI
-  // frames all of them as "exploring the demo as <role> · read-only" — never as a
-  // real login — because every write is blocked server-side. isExploreTour is the
-  // lean read-only viewer tour (demo@) specifically.
-  const isDemo = !!session && (session.user.email ?? "").toLowerCase().endsWith("@demo.local")
-  const isExploreTour = !!session && session.user.email === DEMO_EMAIL
-
-  async function exploreDemo() {
-    const { error } = await supabase.auth.signInWithPassword({ email: DEMO_EMAIL, password: "demo123456" })
-    if (!error) navigate({ to: "/dashboard" })
-  }
-  async function exitDemo() {
-    // scope local: the demo accounts are shared — a global sign-out would end
-    // every visitor's session on them, not just this tab's.
-    await supabase.auth.signOut({ scope: "local" })
-    navigate({ to: "/" })
-  }
 
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <span className="inline-flex items-center gap-2.5 rounded-full bg-card px-5 py-3 font-mono text-xs uppercase tracking-widest text-muted-foreground shadow-soft ring-1 ring-border">
+        <span className="inline-flex items-center gap-2.5 rounded-full bg-card px-5 py-3 font-mono text-xs uppercase tracking-widest text-muted-foreground ring-1 ring-border">
           <span className="size-1.5 animate-pulse rounded-full bg-accent" /> loading…
         </span>
       </div>
@@ -101,151 +43,225 @@ export function AppShell() {
   }
 
   // Guard: anon on a protected route → login.
-  if (!session && !PUBLIC.has(path)) {
+  if (!session && !onPaper) {
     return <Navigate to="/login" search={{ redirect: path }} />
   }
+  const isDemo = !!session && isDemoEmail(session.user.email)
   // Guard: a deactivated account sees nothing but a notice (RLS also cuts all
   // data server-side; this is the human-facing half).
   if (session && !isDemo && active === false) {
     return <DeactivatedScreen email={session.user.email ?? ""} />
   }
-  // Guard: the lean "explore demo" viewer tour cannot reach write/account routes
-  // — explain, don't bounce silently. Role-demos (manager@/admin@) MAY reach them
-  // (read-only; the DB blocks their writes), so the tour can show Ingest.
-  if (isExploreTour && DEMO_BLOCKED.has(path)) {
-    return <DemoBlockedScreen path={path} />
-  }
-
-  // A truly registered account (full chrome: Sign out, acting-as).
-  const realUser = !!session && !isDemo
-  // Who sees the full product nav: real users, and role-demos (so manager@ sees
-  // Ingest/Connectors). The lean SHOWCASE nav is only the read-only viewer tour.
-  const showProductNav = realUser || (isDemo && !isExploreTour)
-
-  // The product nav has up to 11 items, so its bar needs more room and a higher
-  // "collapse to menu" breakpoint than the lean tour/anon navs.
-  const headerMax = showProductNav || isExploreTour ? "max-w-7xl" : "max-w-6xl"
 
   return (
     // XrayPanelProvider: the X-ray panel's open/tab state is shared so the
-    // guided tour can drive it. overflow-x-clip: a hard guarantee the page
-    // never scrolls sideways (clip doesn't create a scroll container, so the
-    // sticky header still works).
+    // guided tour can drive it.
     <XrayPanelProvider>
-    <div className={cn("flex min-h-screen flex-col overflow-x-clip", onPaper && "paper")}>
-      {onPaper ? <PaperBackground /> : <OrbsBackground subtle />}
-
-      <header className={onPaper
-        // Solid lime block (same paper + grain as the page) so content scrolling
-        // underneath never shows through the logo/menu. Looks identical at the top.
-        ? cn("sticky top-0 z-40 bg-[#A3E635] transition-shadow", scrolled && "shadow-[0_1px_0_oklch(0.2_0.035_150/0.14)]")
-        : "sticky top-0 z-40 border-b border-border bg-background/75 shadow-soft backdrop-blur-lg"}>
-        {onPaper && <PaperGrain />}
-        <div className={cn("relative mx-auto flex h-16 items-center justify-between gap-4 px-6", headerMax)}>
-          <Link to="/" className="shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight">
-            X-RAY<span className={onPaper ? "text-accent" : "bg-gradient-to-r from-accent to-signal bg-clip-text text-transparent"}>/</span>
-          </Link>
-
-          {showProductNav ? (
-            <nav data-tour="main-nav" className="hidden items-center gap-0.5 xl:flex">
-              {navFor(role, isDemo).map((item) => (
-                <Link key={item.to} to={item.to} data-tour={`nav-${item.to.slice(1)}`} className={navLinkCompact}
-                  activeProps={{ className: navLinkActive }} inactiveProps={{ className: navLinkIdle }}>
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          ) : isExploreTour ? (
-            <nav data-tour="main-nav" className="hidden items-center gap-0.5 lg:flex">
-              {SHOWCASE.map((item) => (
-                <Link key={item.to} to={item.to} data-tour={`nav-${item.to.slice(1)}`} className={navLinkCompact}
-                  activeProps={{ className: navLinkActive }} inactiveProps={{ className: navLinkIdle }}>
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          ) : (
-            <nav className="hidden items-center gap-1 md:flex">
-              <button onClick={exploreDemo} className={`${navLinkBase} ${navLinkIdle}`}>Demo</button>
-              <Link to="/about" className={navLinkBase}
-                activeProps={{ className: navLinkActive }} inactiveProps={{ className: navLinkIdle }}>O nás</Link>
-              <Link to="/login" className={`${navLinkBase} ${navLinkIdle}`}>Prihlásiť</Link>
-            </nav>
-          )}
-
-          <div className="flex items-center gap-2.5">
-            {/* The live X-ray panel belongs to the app; the landing has its own
-                "x-ray the page" window, and an empty calls panel there looked broken. */}
-            {!onPaper && <XRayPanel />}
-            {realUser && <div className="hidden xl:block"><ActingAs label={role ?? session.user.email ?? "signed in"} /></div>}
-            {isDemo && (
-              <div className={cn("hidden shrink-0 items-center gap-2 whitespace-nowrap", showProductNav ? "xl:flex" : "lg:flex")}>
-                <DemoRoleSwitch role={role} email={session.user.email ?? ""} />
-                {/* The bar is tight with the report nav; the demo banner right
-                    below carries the "Create account" CTA, so the header skips it. */}
-                <button onClick={exitDemo} className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground">Exit</button>
-              </div>
-            )}
-            <div className={realUser ? "xl:hidden" : isDemo && showProductNav ? "xl:hidden" : isDemo ? "lg:hidden" : "md:hidden"}>
-              <MobileNav mode={realUser ? "user" : isDemo ? "demo" : "anon"}
-                navItems={isExploreTour ? SHOWCASE : navFor(role, isDemo)}
-                identity={isDemo ? `${role ?? "demo"} · demo` : (role ?? session?.user.email ?? "signed in")}
-                email={session?.user.email ?? ""}
-                onDemo={exploreDemo} onExitDemo={exitDemo} />
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Demo banner — makes the read-only state unmistakable + nudges sign-up. */}
-      {isDemo && !onPaper && (
-        <div data-tour="demo-banner" className="border-b border-accent/20 bg-accent/[0.07]">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-2 px-6 py-2.5 text-sm">
-            <span className="font-medium text-foreground">
-              You're exploring the demo{role ? <> as <span className="uppercase">{role}</span></> : null} — read-only.
-            </span>
-            <span className="text-muted-foreground">Create an account to upload your own data and use the write tools.</span>
-            <span className="ml-auto flex items-center gap-2">
-              <Link to="/register" className="rounded-full bg-accent px-4 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">Create account</Link>
-              <Link to="/login" className="rounded-full border border-border px-4 py-1.5 font-mono text-[10px] uppercase tracking-widest text-foreground transition hover:border-accent">Sign in</Link>
-            </span>
-          </div>
-        </div>
-      )}
-
-      <main className={onPaper ? "relative w-full flex-1" : "relative mx-auto w-full max-w-6xl flex-1 px-6 py-16"}>
-        <Outlet />
-      </main>
-
-      <footer className="border-t border-border">
-        <div className="mx-auto flex max-w-6xl items-center gap-2.5 px-6 py-8">
-          <span className={`size-1.5 rounded-full ${onPaper ? "bg-foreground" : "bg-signal"}`} />
-          <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Portfolio demo — fake data only</p>
-        </div>
-      </footer>
-
-      {/* Guided tour — only inside the app (not the public paper pages). It
-          auto-offers once to the read-only demo visitor, who is the one most
-          likely to miss the machinery. */}
-      {session && !onPaper && <Tour autoOffer={isExploreTour} />}
-
-      {/* X-RAY CODE inspect mode + the full-screen IDE it (and the tour) opens. */}
-      {session && !onPaper && <InspectLayer />}
+      {onPaper ? <PaperLayout path={path} /> : <AppLayout path={path} role={role} email={session?.user.email ?? ""} isDemo={isDemo} />}
       <CodeOverlay />
-    </div>
     </XrayPanelProvider>
   )
 }
 
-function useScrolled() {
-  const [scrolled, setScrolled] = useState(false)
-  useEffect(() => {
-    const on = () => setScrolled(window.scrollY > 8)
-    on()
-    window.addEventListener("scroll", on, { passive: true })
-    return () => window.removeEventListener("scroll", on)
-  }, [])
-  return scrolled
+/* ───────────────────────── the public pages: one lime sheet ───────────────────────── */
+
+function PaperLayout({ path }: { path: string }) {
+  // The landing brings its own bar (lime over the paper, dark over the
+  // machinery) and its own footer.
+  if (path === "/") return <div className="paper"><Outlet /></div>
+  return (
+    <div className="paper paper-page flex min-h-screen flex-col overflow-x-clip">
+      <PaperBackground />
+      <header className="sticky top-0 z-40 bg-paper">
+        <PaperGrain />
+        <div className="relative mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
+          <BrandLink />
+          <span className="flex-1" />
+          <nav className="flex items-center gap-1 text-[15px] font-medium">
+            <ExploreDemoButton className="rounded-md px-3 py-2 opacity-75 transition hover:opacity-100" label="Demo" />
+            <Link to="/about" className="hidden rounded-md px-3 py-2 opacity-75 transition hover:opacity-100 sm:block" activeProps={{ className: "opacity-100" }}>About</Link>
+            <Link to="/login" className="rounded-md px-3 py-2 opacity-75 transition hover:opacity-100" activeProps={{ className: "opacity-100" }}>Sign in</Link>
+          </nav>
+        </div>
+      </header>
+      <main className="relative w-full flex-1"><Outlet /></main>
+      <footer className="border-t border-border">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-6 text-sm text-muted-foreground sm:px-6">
+          <span className="font-semibold text-foreground">Mariia Chernenko</span>
+          <a href="https://github.com/ria631/rievoree_ukazka" target="_blank" rel="noreferrer" className="hover:text-foreground">GitHub</a>
+          <span className="ml-auto font-mono text-xs">Portfolio demo · fake data only</span>
+        </div>
+      </footer>
+    </div>
+  )
+}
+
+/** Sign in as the shared read-only viewer and open the dashboard. */
+export function useExploreDemo() {
+  const navigate = useNavigate()
+  const [busy, setBusy] = useState(false)
+  async function explore() {
+    setBusy(true)
+    const { error } = await supabase.auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_PASSWORD })
+    setBusy(false)
+    if (!error) navigate({ to: "/dashboard" })
+  }
+  return { busy, explore }
+}
+
+function ExploreDemoButton({ className, label }: { className?: string; label: string }) {
+  const { busy, explore } = useExploreDemo()
+  return <button onClick={() => void explore()} disabled={busy} className={className}>{busy ? "Opening…" : label}</button>
+}
+
+/* ───────────────────────── the product: sidebar + torn sheet ───────────────────────── */
+
+function AppLayout({ path, role, email, isDemo }: { path: string; role: string | null; email: string; isDemo: boolean }) {
+  const isExploreTour = email === DEMO_EMAIL
+  const [menuOpen, setMenuOpen] = useState(false)
+  // The lean read-only viewer tour can't reach write/account routes — explain,
+  // don't bounce silently. Role demos (manager@/admin@) MAY reach them (the DB
+  // blocks their writes), so the tour can show Ingest.
+  const blocked = isExploreTour && DEMO_BLOCKED.has(path)
+  const side = <SidebarBody role={role} email={email} isDemo={isDemo} isExploreTour={isExploreTour} onNavigate={() => setMenuOpen(false)} />
+
+  return (
+    <div className="min-h-screen min-[900px]:grid min-[900px]:grid-cols-[var(--side-w)_minmax(0,1fr)]">
+      {/* Phone / tablet: a lime bar, the sidebar slides in from the left. */}
+      <div className="sticky top-0 z-40 flex items-center gap-3 bg-paper px-4 py-2.5 text-ink min-[900px]:hidden">
+        <BrandLink className="text-xl" />
+        <span className="flex-1" />
+        <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+          <SheetTrigger asChild>
+            <button aria-label="Open menu" className="grid size-10 place-items-center rounded-md hover:bg-ink/10">
+              <Menu className="size-[22px]" strokeWidth={2.2} />
+            </button>
+          </SheetTrigger>
+          <SheetContent side="left" aria-describedby={undefined} showCloseButton={false} data-mobile-menu
+            className="w-[min(300px,86vw)] gap-0 border-r border-border bg-side px-3.5 py-[18px]">
+            <SheetTitle className="sr-only">Menu</SheetTitle>
+            {side}
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      <aside data-shell-side aria-label="Main"
+        className="sticky top-0 hidden h-svh flex-col border-r border-border bg-side px-3.5 py-[18px] min-[900px]:flex">
+        {side}
+      </aside>
+
+      <main className="app-main @container relative min-w-0 px-4 pb-32 min-[900px]:px-9">
+        {blocked ? <DemoBlockedScreen path={path} /> : <Outlet />}
+      </main>
+
+      <XRayPanel />
+      {/* Guided tour — auto-offers once to the read-only demo visitor, who is
+          the one most likely to miss the machinery. */}
+      <Tour autoOffer={isExploreTour} />
+      {/* X-RAY CODE inspect mode + the full-screen IDE it (and the tour) opens. */}
+      <InspectLayer />
+    </div>
+  )
+}
+
+function SidebarBody({ role, email, isDemo, isExploreTour, onNavigate }: {
+  role: string | null; email: string; isDemo: boolean; isExploreTour: boolean; onNavigate: () => void
+}) {
+  const rank = RANK[role ?? "viewer"] ?? 0
+  return (
+    <>
+      <BrandLink to="/dashboard" onClick={onNavigate} className="px-2 pb-[22px] pt-0.5 [@media(max-height:940px)]:pb-4" />
+      <nav data-tour="main-nav" aria-label="Pages" className="-mx-1 flex min-h-0 flex-col gap-0.5 overflow-y-auto px-1">
+        {NAV.map(({ group, items }, gi) => {
+          // A demo identity has no account of its own to manage.
+          const shown = items.filter((it) => !(isDemo && it.to === "/account"))
+          if (!shown.length) return null
+          return (
+            <div key={group} className="flex flex-col gap-0.5">
+              <div className={cn("mx-2.5 mb-1.5 text-xs text-cold", gi ? "mt-4 [@media(max-height:940px)]:mt-2.5" : "mt-0")}>{group}</div>
+              {shown.map((it) => {
+                const need = it.min ? RANK[it.min] : 0
+                // The viewer tour can't open hands-on pages; show what role would.
+                const lockedBy = rank < need ? it.min : isExploreTour && it.hands ? (it.min ?? "manager") : null
+                return lockedBy
+                  ? <LockedLink key={it.to} item={it} lockedBy={lockedBy} />
+                  : <NavLink key={it.to} item={it} onNavigate={onNavigate} />
+              })}
+            </div>
+          )
+        })}
+      </nav>
+
+      <div className="mt-auto pt-4">
+        <GuideButtons onPick={onNavigate} />
+        <div className="border-t border-border pt-4">
+          {isDemo ? <DemoRoleSwitch role={role} email={email} /> : <SignedIn role={role} email={email} />}
+        </div>
+      </div>
+    </>
+  )
+}
+
+/** The guided tour + the X-RAY CODE inspector — the two ways into the machinery
+ *  besides the X-ray pill. */
+function GuideButtons({ onPick }: { onPick: () => void }) {
+  return (
+    <div className="mb-4 grid gap-1.5">
+      <button onClick={() => { onPick(); requestTourStart() }}
+        className="inline-flex items-center justify-center gap-2 rounded-md bg-accent px-3 py-2 font-mono text-[11.5px] font-bold uppercase tracking-wider text-accent-foreground transition hover:brightness-110">
+        <ScanLine className="size-3.5" strokeWidth={2.25} /> Take the tour
+      </button>
+      <span onClick={onPick} className="contents">
+        <CodeXrayButton className="justify-center rounded-md px-3 py-2 text-[11.5px] tracking-wider" />
+      </span>
+    </div>
+  )
+}
+
+const linkBase = "group flex items-center gap-3 rounded-[7px] px-2.5 py-[9px] text-[15px] font-medium transition-colors [@media(max-height:940px)]:py-[6px]"
+
+function NavLink({ item, onNavigate }: { item: NavItem; onNavigate: () => void }) {
+  const Icon = item.icon
+  return (
+    <Link to={item.to} onClick={onNavigate} data-tour={`nav-${item.to.slice(1)}`}
+      className={linkBase}
+      activeProps={{ className: "bg-card text-foreground shadow-[inset_3px_0_0_var(--accent)] [&_svg]:text-accent", "aria-current": "page" }}
+      inactiveProps={{ className: "text-muted-foreground hover:bg-card hover:text-foreground" }}>
+      <Icon className="size-[18px] shrink-0" strokeWidth={1.7} />
+      {item.label}
+    </Link>
+  )
+}
+
+function LockedLink({ item, lockedBy }: { item: NavItem; lockedBy: string }) {
+  const Icon = item.icon
+  return (
+    <span aria-disabled="true" data-tour={`nav-${item.to.slice(1)}`}
+      title={`Needs the ${lockedBy} role — switch below to see it`}
+      className={cn(linkBase, "cursor-not-allowed text-muted-foreground opacity-50")}>
+      <Icon className="size-[18px] shrink-0" strokeWidth={1.7} />
+      {item.label}
+      <span className="ml-auto font-mono text-[10.5px] text-cold">{lockedBy}+</span>
+    </span>
+  )
+}
+
+function SignedIn({ role, email }: { role: string | null; email: string }) {
+  return (
+    <div className="px-1">
+      <div className="text-xs text-cold">Signed in as</div>
+      <div className="mt-1 truncate text-sm font-medium" title={email}>{email}</div>
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-card px-2.5 py-1 font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground ring-1 ring-border">
+          <span className="size-1.5 rounded-full bg-signal" />{(role ?? "viewer").replace("_", " ")}
+        </span>
+        <button onClick={() => void supabase.auth.signOut()}
+          className="rounded-md px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted-foreground transition hover:bg-secondary hover:text-foreground">
+          Sign out
+        </button>
+      </div>
+    </div>
+  )
 }
 
 // Demo identities a visitor can switch between. All are DB-locked read-only;
@@ -253,146 +269,79 @@ function useScrolled() {
 // Users page. The demo admin is never platform staff (migration 43): it sees the
 // four sample companies as a member, nobody else's data.
 const DEMO_ROLES = [
-  { email: DEMO_EMAIL, label: "Viewer", hint: "reads reports only" },
-  { email: "manager@demo.local", label: "Manager", hint: "+ upload, review, connectors" },
-  { email: "admin@demo.local", label: "Admin", hint: "+ users & roles" },
+  { email: DEMO_EMAIL, label: "Viewer", note: "Viewers read reports only." },
+  { email: "manager@demo.local", label: "Manager", note: "Managers can also upload, review and connect sheets." },
+  { email: "admin@demo.local", label: "Admin", note: "Admins can also manage users and roles." },
 ] as const
 
-/** Switch the app's session to another shared demo identity (both read-only). */
+/** Switch the app's session to another shared demo identity (all read-only). */
 function useDemoSwitch(email: string) {
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState<string | null>(null)
   const navigate = useNavigate()
   const path = useRouterState({ select: (s) => s.location.pathname })
   async function pick(target: string) {
-    if (target === email) return
-    setBusy(true)
-    await supabase.auth.signInWithPassword({ email: target, password: "demo123456" })
-    setBusy(false)
+    if (target === email || busy) return
+    setBusy(target)
+    await supabase.auth.signInWithPassword({ email: target, password: DEMO_PASSWORD })
+    setBusy(null)
     // The read-only viewer tour can't open write pages — land on the dashboard.
     if (target === DEMO_EMAIL && DEMO_BLOCKED.has(path)) navigate({ to: "/dashboard" })
   }
   return { busy, pick }
 }
 
-/** The "<role> · demo" chip — click it to switch demo identity. The guided tour
- *  clicks it too (data-tour anchors), so a visitor SEES the role change happen. */
-function DemoRoleSwitch({ role, email }: { role: string | null; email: string }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const { busy, pick: switchTo } = useDemoSwitch(email)
-
-  useEffect(() => {
-    if (!open) return
-    const off = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false) }
-    window.addEventListener("mousedown", off)
-    return () => window.removeEventListener("mousedown", off)
-  }, [open])
-
-  function pick(target: string) {
-    setOpen(false)
-    void switchTo(target)
-  }
-
+/** "Acting as" — the segmented demo role switch at the foot of the sidebar. The
+ *  guided tour clicks it too (data-tour anchors), so a visitor SEES the role
+ *  change happen. */
+function DemoRoleSwitch({ email }: { role: string | null; email: string }) {
+  const { busy, pick } = useDemoSwitch(email)
+  const current = DEMO_ROLES.find((r) => r.email === email) ?? DEMO_ROLES[0]
   return (
-    <div ref={ref} className="relative">
-      <button data-tour="role-switch" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open}
-        className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-secondary px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground ring-1 ring-border transition hover:text-foreground hover:ring-accent/50">
-        <ScanLine className="size-3" strokeWidth={2.25} /> {busy ? "switching…" : `${role ?? "demo"} · demo`}
-        <ChevronDown className="size-3 opacity-60" />
-      </button>
-      {open && (
-        <div role="menu" data-tour="role-menu" className="absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-xl bg-card p-1 shadow-soft ring-1 ring-border">
-          <p className="px-3 pb-1 pt-2 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">View the demo as</p>
-          {DEMO_ROLES.map((r) => (
-            <button key={r.email} role="menuitem" data-tour={`role-${r.label.toLowerCase()}`} onClick={() => pick(r.email)}
-              className={cn("flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-secondary",
-                r.email === email && "bg-accent/10")}>
-              <span className="font-mono text-xs uppercase tracking-wider">{r.label}</span>
-              <span className="text-[10px] text-muted-foreground">{r.hint}</span>
+    <div data-tour="role-switch">
+      <div className="mx-1 mb-2 text-xs text-cold">Acting as</div>
+      <div role="group" aria-label="Acting as" data-tour="role-menu"
+        className="grid grid-cols-3 gap-[3px] rounded-lg border border-border p-[3px]">
+        {DEMO_ROLES.map((r) => {
+          const on = r.email === email
+          return (
+            <button key={r.email} aria-pressed={on} data-tour={`role-${r.label.toLowerCase()}`} disabled={!!busy}
+              onClick={() => void pick(r.email)}
+              className={cn("rounded-md py-[7px] text-[13px] font-semibold transition-colors disabled:cursor-wait",
+                on ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground",
+                busy === r.email && "animate-pulse")}>
+              {r.label}
             </button>
-          ))}
-        </div>
-      )}
+          )
+        })}
+      </div>
+      <p data-tour="demo-banner" className="mx-1 mt-2.5 text-[12.5px] leading-snug text-muted-foreground">
+        <b className="font-semibold text-foreground">Read-only demo.</b> {current.note}
+      </p>
+      <div className="mx-1 mt-3 flex items-center gap-2">
+        <Link to="/register" className="rounded-md bg-accent px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-accent-foreground transition hover:brightness-110">
+          Create account
+        </Link>
+        <ExitDemo />
+      </div>
     </div>
   )
 }
 
-function MobileNav({ mode, navItems, identity, email, onDemo, onExitDemo }: { mode: "user" | "demo" | "anon"; navItems: readonly { to: string; label: string }[]; identity: string; email: string; onDemo: () => void; onExitDemo: () => void }) {
-  const [open, setOpen] = useState(false)
-  const demoSwitch = useDemoSwitch(email)
+function ExitDemo() {
+  const navigate = useNavigate()
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Open menu" className="rounded-full">
-          <Menu className="size-5" />
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="right" aria-describedby={undefined} className="w-72 gap-0">
-        <SheetHeader>
-          <SheetTitle className="text-lg">
-            X-RAY<span className="bg-gradient-to-r from-accent to-signal bg-clip-text text-transparent">/</span>
-          </SheetTitle>
-        </SheetHeader>
-        <nav className="flex flex-1 flex-col gap-1 px-3 py-2">
-          {mode === "user" && navItems.map((item) => (
-            <Link key={item.to} to={item.to} onClick={() => setOpen(false)}
-              className="rounded-xl px-4 py-3 font-mono text-sm uppercase tracking-widest transition-colors"
-              activeProps={{ className: navLinkActive }} inactiveProps={{ className: navLinkIdle }}>
-              {item.label}
-            </Link>
-          ))}
-          {mode === "demo" && (
-            <>
-              {navItems.map((item) => (
-                <Link key={item.to} to={item.to} onClick={() => setOpen(false)}
-                  className="rounded-xl px-4 py-3 font-mono text-sm uppercase tracking-widest transition-colors"
-                  activeProps={{ className: navLinkActive }} inactiveProps={{ className: navLinkIdle }}>
-                  {item.label}
-                </Link>
-              ))}
-              <Link to="/register" onClick={() => setOpen(false)} className={`rounded-xl px-4 py-3 font-mono text-sm uppercase tracking-widest ${navLinkIdle}`}>Create account</Link>
-              <Link to="/login" onClick={() => setOpen(false)} className={`rounded-xl px-4 py-3 font-mono text-sm uppercase tracking-widest ${navLinkIdle}`}>Sign in</Link>
-            </>
-          )}
-          {mode === "anon" && (
-            <>
-              <button onClick={() => { setOpen(false); onDemo() }} className={`rounded-xl px-4 py-3 text-left font-mono text-sm uppercase tracking-widest ${navLinkIdle}`}>Demo</button>
-              <Link to="/about" onClick={() => setOpen(false)} className={`rounded-xl px-4 py-3 font-mono text-sm uppercase tracking-widest ${navLinkIdle}`}>O nás</Link>
-              <Link to="/login" onClick={() => setOpen(false)} className={`rounded-xl px-4 py-3 font-mono text-sm uppercase tracking-widest ${navLinkIdle}`}>Prihlásiť</Link>
-            </>
-          )}
-        </nav>
-        {mode === "user" && (
-          <div className="mt-auto flex items-center justify-between gap-2 border-t border-border px-4 py-4">
-            <span className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-muted-foreground">
-              <span className="size-1.5 rounded-full bg-signal" /> {identity}
-            </span>
-            <Button variant="ghost" size="xs" className="font-mono text-[10px] uppercase tracking-wider"
-              onClick={() => { setOpen(false); void supabase.auth.signOut() }}>Sign out</Button>
-          </div>
-        )}
-        {mode === "demo" && (
-          <div className="mt-auto border-t border-border px-4 py-4">
-            <p className="mb-2 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">View the demo as</p>
-            <div className="mb-3 grid gap-1">
-              {DEMO_ROLES.map((r) => (
-                <button key={r.email} disabled={demoSwitch.busy}
-                  onClick={() => { setOpen(false); void demoSwitch.pick(r.email) }}
-                  className={cn("flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-left ring-1 ring-border transition hover:bg-secondary disabled:opacity-50",
-                    r.email === email && "bg-accent/10 ring-accent/30")}>
-                  <span className="font-mono text-xs uppercase tracking-wider">{r.label}</span>
-                  <span className="text-[10px] text-muted-foreground">{r.hint}</span>
-                </button>
-              ))}
-            </div>
-            <Button variant="ghost" size="xs" className="font-mono text-[10px] uppercase tracking-wider"
-              onClick={() => { setOpen(false); onExitDemo() }}>Exit demo</Button>
-          </div>
-        )}
-      </SheetContent>
-    </Sheet>
+    <button onClick={async () => {
+      // scope local: the demo accounts are shared — a global sign-out would end
+      // every visitor's session on them, not just this tab's.
+      await supabase.auth.signOut({ scope: "local" })
+      navigate({ to: "/" })
+    }} className="rounded-md px-2 py-1.5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground transition hover:bg-secondary hover:text-foreground">
+      Exit
+    </button>
   )
 }
+
+/* ───────────────────────── notices ───────────────────────── */
 
 // The demo tour is read-only; write/account routes need a real account. Shown
 // instead of a silent redirect so the visitor knows why and what to do next.
@@ -400,42 +349,41 @@ function DemoBlockedScreen({ path }: { path: string }) {
   const feature = path.replace("/", "") || "that page"
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center gap-5 px-6 text-center">
-      <span className="grid size-12 place-items-center rounded-2xl bg-accent/15 text-accent ring-1 ring-accent/30">
+      <span className="grid size-12 place-items-center rounded-xl bg-accent/15 text-accent ring-1 ring-accent/30">
         <ScanLine className="size-6" />
       </span>
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">That's a hands-on page</h1>
+        <h1 className="font-display text-3xl font-extrabold uppercase">That's a hands-on page</h1>
         <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-          You're in the read-only demo, so <span className="font-mono text-foreground">{feature}</span> (where
-          you'd upload, approve or manage) is off. Create a free account to get a private sandbox and try it for real —
-          or keep exploring the read-only reports.
+          You're the read-only viewer, so <span className="font-mono text-foreground">{feature}</span> (where
+          you'd upload, approve or manage) is off. Switch to <b className="text-foreground">Manager</b> in the
+          sidebar to look around it, or create a free account to try it for real.
         </p>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row">
-        <Link to="/register" className="rounded-full bg-accent px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
+        <Link to="/register" className="rounded-md bg-accent px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
           Create account
         </Link>
-        <Link to="/dashboard" className="rounded-full border border-border px-6 py-3 font-mono text-xs uppercase tracking-widest text-foreground transition hover:border-accent">
-          Back to the demo
+        <Link to="/dashboard" className="rounded-md border border-line-hi px-6 py-3 font-mono text-xs uppercase tracking-widest text-foreground transition hover:border-signal">
+          Back to the reports
         </Link>
       </div>
     </div>
   )
 }
 
-// Friendly 404 for a signed-in user who hits an unknown route (reported: a bare
-// "Not Found" with no way back).
+// Friendly 404 for a signed-in user who hits an unknown route.
 function NotFoundScreen() {
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center gap-5 px-6 text-center">
-      <span className="font-mono text-6xl font-bold text-accent">404</span>
+      <span className="font-display text-7xl font-extrabold text-accent">404</span>
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Page not found</h1>
+        <h1 className="font-display text-3xl font-extrabold uppercase">Page not found</h1>
         <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
           That route doesn't exist. Head back to the dashboard.
         </p>
       </div>
-      <Link to="/dashboard" className="rounded-full bg-accent px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
+      <Link to="/dashboard" className="rounded-md bg-accent px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
         Go to dashboard
       </Link>
     </div>
@@ -447,31 +395,20 @@ export { NotFoundScreen }
 function DeactivatedScreen({ email }: { email: string }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-5 px-6 text-center">
-      <span className="grid size-12 place-items-center rounded-2xl bg-destructive/15 text-destructive ring-1 ring-destructive/30">
+      <span className="grid size-12 place-items-center rounded-xl bg-destructive/15 text-destructive ring-1 ring-destructive/30">
         <ScanLine className="size-6" />
       </span>
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Account deactivated</h1>
+        <h1 className="font-display text-3xl font-extrabold uppercase">Account deactivated</h1>
         <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
           Access for <span className="text-foreground">{email}</span> has been turned off by an
           administrator. Contact your admin if you think this is a mistake.
         </p>
       </div>
-      <Button variant="outline" className="font-mono text-xs uppercase tracking-wider"
-        onClick={() => void supabase.auth.signOut()}>Sign out</Button>
-    </div>
-  )
-}
-
-function ActingAs({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-1.5 rounded-full bg-card py-1 pr-1 pl-3 ring-1 ring-border">
-      <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-        <span className="size-1.5 rounded-full bg-signal" />
-        {label}
-      </span>
-      <Button variant="ghost" size="xs" className="rounded-full font-mono text-[10px] uppercase tracking-wider"
-        onClick={() => void supabase.auth.signOut()}>Sign out</Button>
+      <button onClick={() => void supabase.auth.signOut()}
+        className="rounded-md border border-line-hi px-5 py-2.5 font-mono text-xs uppercase tracking-wider transition hover:border-signal">
+        Sign out
+      </button>
     </div>
   )
 }

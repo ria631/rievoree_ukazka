@@ -390,18 +390,17 @@ export const STEPS: Step[] = [
   {
     id: "role", chapter: "Upload data", route: "/journal", target: "role-switch", code: "role-switch",
     title: "Switching you to a Manager",
-    body: "A Viewer only reads reports. A Manager can also upload data, review it and approve it. In the demo you switch here — I'll click it for you.",
+    body: "A Viewer only reads reports. A Manager can also upload data, review it and approve it. In the demo you switch at the foot of the sidebar — I'll click it for you.",
     money: "Who may put a number into the books is a control in itself (segregation of duties).",
     tech: "Both demo identities are locked read-only in the database: a trigger refuses their writes, whatever the screen shows.",
     actions: [
-      { to: "role-switch", say: "Opening the role menu…", demoOnly: true, wait: 700 },
       { to: "role-manager", spot: "role-menu", say: "Choosing Manager…", demoOnly: true, awaitIdentity: "manager", wait: 1200 },
     ],
   },
   {
     id: "nav", chapter: "Upload data", as: "manager", route: "/dashboard", target: "main-nav",
     title: "New pages appeared",
-    body: "As a Manager the menu now has Ingest (upload data) and Connectors (automatic import) — and the reports show the two buildings this Manager looks after. Let's open Ingest.",
+    body: "As a Manager, Ingest (upload data) and Connectors (automatic import) unlock in the sidebar — and the reports show the two buildings this Manager looks after. Let's open Ingest.",
     actions: [{ to: "nav-ingest", say: "Opening Ingest…", wait: 1200 }],
   },
   {

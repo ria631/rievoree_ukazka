@@ -1,13 +1,12 @@
 import { useMemo } from "react"
 import { motion } from "motion/react"
-import { cn } from "@/lib/utils"
 import { useReport } from "@/lib/data/useReport"
 import { useRentRollData } from "@/lib/data/useRentRoll"
 import { monthlySeries, kpiOf, lastN, opexByAccount, noiByEntity } from "@/lib/data/aggregate"
 import { buildRentRoll, rollKpis, occupancySeries } from "@/lib/data/rentroll"
 import { addMonths, lastClosed, mLabel, mLong, monthEnd, monthRange } from "@/lib/data/period"
 import { ChartCard, NoiTrend, ExpenseTreemap, RankBars, COLORS, eurShort } from "@/components/charts/FinancialCharts"
-import { PageIntro, KpiTile, EntitySelect, useEntityScope, eur, pct } from "@/components/report/Kit"
+import { PageIntro, KpiTile, RatioTile, EntitySelect, useEntityScope, eur, pct } from "@/components/report/Kit"
 import { LoadingNote, ErrorNote, EmptyNote } from "@/components/StateNote"
 
 /**
@@ -44,30 +43,33 @@ export function Dashboard() {
   const dscr = debtService > 0 ? noiLtm / debtService : 0
   const ltv = roll12?.valuation ? (loan / roll12.valuation) * 100 : 0
 
+  const margin = revLtm ? noiLtm / revLtm : 0
+  const walt = roll12?.k.walt ?? 0
+  const scopeLabel = entityId === "all" ? `all ${names.size} companies` : (names.get(entityId) ?? "one company").replace(/ s\.r\.o\.$/, "")
+
   const trend = useMemo(() => series.map((p) => ({ month: mLabel(p.month), revenue: p.revenue, opex: p.opex, noi: p.noi })), [series])
   const byBuilding = useMemo(() => noiByEntity(scoped, new Map([...names].map(([k, v]) => [k, v.replace(/ s\.r\.o\.$/, "")])), ltm), [scoped, names, ltm])
   const costs = useMemo(() => opexByAccount(scoped, ltm), [scoped, ltm])
 
   return (
     <div className="relative">
-      <PageIntro eyebrow="Portfolio overview" title="Dashboard">
-        Four buildings, one view: what they earn, how full they are, how much cash is in the bank
-        — and whether the lender would be comfortable. {last && <>Books closed to <span className="text-foreground">{mLong(last)}</span>.</>}
+      <PageIntro eyebrow="Overview" title="Dashboard"
+        status={last ? <>Books closed to {mLong(last)}</> : undefined}
+        actions={<div data-tour="dash-filter"><EntitySelect sheet value={entityId} onChange={setEntityId} names={names} /></div>}>
+        How the portfolio did last month — what it earns, how full it is, how much cash is in the bank —
+        and whether the lender would be comfortable. Showing <span className="text-foreground">{scopeLabel}</span>.
       </PageIntro>
 
       {isLoading ? <LoadingNote label="loading portfolio…" />
         : error ? <ErrorNote message={error.message} />
         : !last ? <EmptyNote title="No report data for your entities" hint="Once a batch is approved and loaded, figures appear here." />
         : (
-        <div className="space-y-8">
-          <div data-tour="dash-top" className="space-y-6">
-            <div data-tour="dash-filter" className="flex w-fit items-center gap-3">
-              <EntitySelect value={entityId} onChange={setEntityId} names={names} />
-            </div>
-            <div data-tour="dash-kpis" className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
-              <KpiTile i={0} label="Revenue · last month" value={revenue.value} format={eur.format} delta={revenue.delta}
+        <div className="space-y-4">
+          <div data-tour="dash-top">
+            <div data-tour="dash-kpis" className="grid grid-cols-2 gap-2.5 sm:gap-4 @min-[860px]:grid-cols-4">
+              <KpiTile i={0} label="Revenue, last month" value={revenue.value} format={eur.format} delta={revenue.delta}
                 spark={revenue.spark} color={COLORS.income} hint="rent + service charge + parking" />
-              <KpiTile i={1} label="NOI · last month" value={noi.value} format={eur.format} delta={noi.delta}
+              <KpiTile i={1} label="NOI, last month" value={noi.value} format={eur.format} delta={noi.delta}
                 spark={noi.spark} color={COLORS.noi} hint={`${pct(revenue.value ? (noi.value / revenue.value) * 100 : 0)} of revenue kept`} />
               <KpiTile i={2} label="Occupancy" value={roll12?.k.occupancyPct ?? 0} format={(n) => pct(n)}
                 spark={roll12?.spark} color={COLORS.cash} hint={roll12 ? `${Math.round(roll12.k.vacantArea).toLocaleString("en-IE")} m² vacant` : "by area"} />
@@ -76,20 +78,24 @@ export function Dashboard() {
             </div>
           </div>
 
-          <div data-tour="dash-ratios" className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
-            <RatioTile label="NOI margin · 12 mo" value={pct(revLtm ? (noiLtm / revLtm) * 100 : 0)} hint="NOI ÷ revenue" good={noiLtm / (revLtm || 1) >= 0.65} />
-            <RatioTile label="WALT" value={`${(roll12?.k.walt ?? 0).toFixed(1)} yrs`} hint="rent-weighted lease term left" good={(roll12?.k.walt ?? 0) >= 3} />
-            <RatioTile label="DSCR · 12 mo" value={`${dscr.toFixed(2)}×`} hint="NOI ÷ (interest + principal) · covenant 1.20×" good={dscr >= 1.2} />
-            <RatioTile label="LTV" value={pct(ltv)} hint={`loan ${eurShort(loan)} ÷ value ${eurShort(roll12?.valuation ?? 0)}`} good={ltv > 0 && ltv <= 60} />
+          <div data-tour="dash-ratios" className="grid grid-cols-2 gap-2.5 sm:gap-4 @min-[860px]:grid-cols-4">
+            <RatioTile label="NOI margin, 12 months" value={pct(margin * 100)} hint="NOI ÷ revenue, target 65%"
+              good={margin >= 0.65} fill={margin} mark={0.65} />
+            <RatioTile label="WALT" value={`${walt.toFixed(1)} yrs`} hint="rent-weighted lease term left, target 3"
+              good={walt >= 3} fill={walt / 6} mark={0.5} />
+            <RatioTile label="DSCR, 12 months" value={`${dscr.toFixed(2)}×`} hint="NOI ÷ debt service, covenant 1.20×"
+              good={dscr >= 1.2} verdict={dscr >= 1.2 ? "above covenant" : "below covenant"} fill={dscr / 2} mark={0.6} />
+            <RatioTile label="LTV" value={pct(ltv)} hint={`loan ${eurShort(loan)} ÷ value ${eurShort(roll12?.valuation ?? 0)}, limit 60%`}
+              good={ltv > 0 && ltv <= 55} verdict={ltv > 60 ? "over limit" : ltv > 55 ? "watch" : "healthy"} fill={ltv / 100} mark={0.6} />
           </div>
 
           <motion.div initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-40px" }} transition={{ duration: 0.45 }}>
-            <ChartCard tour="dash-noi" title="Revenue, operating costs & NOI" hint={`${series.length} months`}>
+            <ChartCard tour="dash-noi" title="Revenue, operating costs and NOI" hint={`${series.length} months`}>
               <NoiTrend data={trend} />
             </ChartCard>
           </motion.div>
 
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid gap-4 @min-[700px]:grid-cols-2">
             <motion.div initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-40px" }} transition={{ duration: 0.45 }}>
               <ChartCard tour="dash-buildings" title="NOI by building" hint="last 12 months">
                 <RankBars data={byBuilding} color={COLORS.noi} labelWidth={170} height={260} />
@@ -103,17 +109,6 @@ export function Dashboard() {
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-/** A compact ratio tile — value + one-line meaning, accent when healthy. */
-function RatioTile({ label, value, hint, good }: { label: string; value: string; hint: string; good: boolean }) {
-  return (
-    <div data-live={`${label} ${value}`} className="rounded-2xl bg-card p-5 shadow-soft ring-1 ring-border">
-      <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{label}</span>
-      <div className={cn("mt-2 text-2xl font-semibold tabular-nums lg:text-3xl", good ? "text-accent" : "text-foreground")}>{value}</div>
-      <div className="mt-1 font-mono text-[10px] leading-snug text-muted-foreground/80">{hint}</div>
     </div>
   )
 }

@@ -45,7 +45,8 @@ export function Pl() {
 
   return (
     <div className="relative">
-      <PageIntro eyebrow="Income statement" title="P&L">
+      <PageIntro eyebrow="Income statement" title="P&L"
+        actions={<EntitySelect sheet value={entityId} onChange={setEntityId} names={names} />}>
         Revenue, the costs of running the buildings, and what is left: <span className="text-foreground">net operating
         income</span> — then depreciation and interest down to profit before tax. Every line against its budget.
       </PageIntro>
@@ -54,15 +55,14 @@ export function Pl() {
         : error ? <ErrorNote message={error.message} />
         : !last ? <EmptyNote title="No report data for your entities" hint="Approve and load a batch on the Ingest page." />
         : (
-        <div className="space-y-5">
+        <div className="space-y-4">
           <div data-tour="pl-filters" className="flex flex-wrap items-center gap-3">
-            <EntitySelect value={entityId} onChange={setEntityId} names={names} />
             <FilterLabel label="Period">
               <SimpleSelect aria-label="Period filter" value={scope} onValueChange={setScope} options={scopeOptions(last, first)} />
             </FilterLabel>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid gap-5 @min-[700px]:grid-cols-2">
             <ChartCard tour="pl-bridge" title="From revenue to profit" hint={scopeLabel(scope, last)}>
               <Waterfall steps={bridge} />
             </ChartCard>
@@ -72,7 +72,7 @@ export function Pl() {
             </ChartCard>
           </div>
 
-          <div data-tour="pl-table" className="overflow-x-auto rounded-[1.5rem] bg-card shadow-soft ring-1 ring-border">
+          <div data-tour="pl-table" className="overflow-x-auto rounded-xl bg-card shadow-soft ring-1 ring-border">
             <div className="min-w-[720px]">
               <div className={cn(ROW, "border-b border-border py-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground")}>
                 <span>Line · {scopeLabel(scope, last)}</span>

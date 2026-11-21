@@ -1,296 +1,382 @@
-import { useState } from "react"
-import { Link, useNavigate } from "@tanstack/react-router"
-import { motion } from "motion/react"
-import { supabase } from "@/lib/supabase"
-import { XrayScan } from "@/components/XrayScan"
-import { PageTear } from "@/components/PageTear"
-import { useXray } from "@/components/XrayContext"
-import { CountUp } from "@/components/CountUp"
-import { Showcase } from "@/components/Showcase"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Link } from "@tanstack/react-router"
+import { useExploreDemo } from "@/app/AppShell"
+import { FILES, SRC, hl, lines } from "./landing/repoSource"
+import type { LandingEls } from "./landing/tear"
+import "./landing/landing.css"
 
-// Real project links. CV_URL stays empty until a real URL is provided — the
-// footer hides the CV link rather than pointing at a placeholder.
 const GITHUB_URL = "https://github.com/ria631/rievoree_ukazka"
-const CV_URL = ""
 
-const STACK = ["React 19", "TypeScript", "Vite", "Tailwind v4", "TanStack", "recharts", "Supabase", "Postgres", "Edge / Deno", "Docker", "pg_cron", "pg_net", "RLS"]
-const ARCH = [
-  { layer: "Browser", detail: "React 19 reaches Postgres through one instrumented fetch — the seam the X-ray panel taps.", tag: "instrumentedFetch.ts" },
-  { layer: "Edge / Deno", detail: "Validated ingest and review notifications run as Deno edge functions.", tag: "ingest-submit · notify-review" },
-  { layer: "Postgres", detail: "Row-level security, trigger chains, scheduled refresh and HTTP callbacks all live in the database.", tag: "RLS · pg_cron · pg_net" },
-  { layer: "Docker worker", detail: "A containerised Deno service drains the ingest queue with atomic, skip-locked claims.", tag: "for update skip locked" },
-]
-const TABS = [
-  { k: "Calls", d: "Every Supabase call, timed at the fetch seam.", line: "GET report_account_monthly · 200 · 41 ms" },
-  { k: "Pipeline", d: "A realtime timeline of each ingest job and trigger as it fires.", line: "queued → processing → loaded · batch #1184" },
-  { k: "RLS", d: "The same query, run as three identities — different rows each time.", line: "admin 4 entities · manager 2 · viewer 1" },
-]
+// Seeded demo totals (supabase/seed.sql): real figures from the sandbox, not
+// invented statistics.
+const STATS = [
+  ["€3.06M", "processed, total debit"],
+  ["936", "account-months"],
+  ["4", "companies, RLS-scoped"],
+  ["18", "monthly periods"],
+] as const
 
-const SUBLINE =
-  "A financial reporting engine: messy spreadsheets in, validated and anomaly-screened reports out. Built backend-first — row-level security, a real ETL pipeline and scheduled jobs — and you can watch every layer work."
-
-// Big hero numbers — REAL figures from the demo dataset (seeded sandbox). No
-// invented statistics: if it isn't a real figure, it isn't here.
-const STATS: { value: number; label: string; format?: (n: number) => string; accent?: boolean }[] = [
-  { value: 3_058_957, format: (n) => `€${(n / 1e6).toFixed(2)}M`, label: "processed · total debit", accent: true },
-  { value: 936, label: "account-months" },
-  { value: 4, label: "entities · RLS-scoped" },
-  { value: 18, label: "monthly periods" },
-]
-
+/**
+ * The landing — one sheet of lime paper, torn open in real time (WebGL) on the
+ * repo's own source. Scrolling dives through the hole into the machinery: the
+ * app taken apart layer by layer, the row-level-security demo, the parts list
+ * and the tests CI runs — then back onto the paper to open the demo.
+ */
 export function Landing() {
-  const navigate = useNavigate()
-  const [exploring, setExploring] = useState(false)
-  const [email, setEmail] = useState("")
-  const [sent, setSent] = useState(false)
+  const { busy, explore } = useExploreDemo()
+  const root = useRef<HTMLDivElement>(null)
+  const r = {
+    hero: useRef<HTMLElement>(null), stage: useRef<HTMLDivElement>(null), canvas: useRef<HTMLCanvasElement>(null),
+    anchor: useRef<HTMLDivElement>(null), txt: useRef<HTMLDivElement>(null), stats: useRef<HTMLDivElement>(null),
+    inCopy: useRef<HTMLDivElement>(null), hint: useRef<HTMLSpanElement>(null), bar: useRef<HTMLElement>(null),
+    close: useRef<HTMLElement>(null), canvas2: useRef<HTMLCanvasElement>(null), anchor2: useRef<HTMLDivElement>(null),
+    hint2: useRef<HTMLSpanElement>(null),
+  }
+  const exploreRef = useRef(explore)
+  exploreRef.current = explore
 
-  // #region xray
-  async function exploreDemo() {
-    setExploring(true)
-    const { error } = await supabase.auth.signInWithPassword({ email: "demo@demo.local", password: "demo123456" })
-    if (error) { setExploring(false); return }
-    navigate({ to: "/dashboard" })
-  }
-  // #endregion
-  async function submitEmail(e: React.FormEvent) {
-    e.preventDefault()
-    if (!email) return
-    await supabase.from("leads").insert({ email, source: "landing" })
-    setSent(true); setEmail("")
-  }
+  // The torn sheets load after first paint (three.js is its own chunk); without
+  // WebGL the page stays a flat lime sheet with a dark window — still whole.
+  useEffect(() => {
+    let dispose: (() => void) | undefined
+    let cancelled = false
+    import("./landing/tear").then(({ mountLanding }) => {
+      if (cancelled) return
+      const els = Object.fromEntries(Object.entries(r).map(([k, ref]) => [k, ref.current])) as unknown as LandingEls
+      if (Object.values(els).some((el) => !el)) return
+      try { dispose = mountLanding(els, () => void exploreRef.current()) }
+      catch { root.current?.classList.add("nogl") }
+    }).catch(() => root.current?.classList.add("nogl"))
+    return () => { cancelled = true; dispose?.() }
+  }, []) // mount once: the refs are stable for the page's lifetime
+
+  const demoBtn = (cls: string) => (
+    <button className={`btn ${cls}`} onClick={() => void explore()} disabled={busy}>{busy ? "Opening…" : "Explore the demo"}</button>
+  )
 
   return (
-    <div>
-      <XrayScan>
-      {/* 1 — Hero: bold dark editorial. Oversized square headline + pitch + CTAs
-          anchored LEFT; RIGHT holds a fixed, quietly pulsing rip in the freed
-          space, exposing the real machinery. Big REAL numbers sit below. */}
-      <section className="overflow-x-clip px-6 pb-20 pt-14 md:px-12 md:pt-20 lg:px-16">
-        <div className="mx-auto max-w-[2400px]">
-          {/* Split hero — headline + pitch + CTA LEFT; a torn hole in the paper
-              RIGHT, filling the freed space and exposing the dark machinery. */}
-          <div className="grid items-center gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-8">
-            {/* No max-width cap here — the oversized "MACHINERY" headline must use
-                the full left column so it never wraps mid-word. The pitch, CTAs and
-                note below carry their own narrower caps for readability. */}
-            <div className="min-w-0">
-              {/* #region xray */}
-              <h1 className="display uppercase text-foreground">
-                <span className="block overflow-hidden pb-[0.06em]">
-                  <motion.span className="block text-[clamp(1.25rem,3.2vw,2.75rem)]" initial={{ y: "120%" }} animate={{ y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.05, ease: [0.22, 0.7, 0.2, 1] }}>
-                    See the
-                  </motion.span>
-                </span>
-                <span className="block overflow-hidden pb-[0.04em]">
-                  {/* Per-letter reveal — each glyph slides up on load (masked by the
-                      overflow-hidden line). reducedMotion="user" disables it. */}
-                  <span className="stencil ignite block text-[clamp(2.25rem,7.5vw,9rem)] leading-[0.85] text-accent" aria-label="Machinery">
-                    {"Machinery".split("").map((ch, i) => (
-                      <motion.span key={i} className="inline-block" aria-hidden initial={{ y: "120%" }} animate={{ y: 0 }}
-                        transition={{ duration: 0.7, delay: 0.18 + i * 0.045, ease: [0.22, 0.7, 0.2, 1] }}>
-                        {ch}
-                      </motion.span>
-                    ))}
-                  </span>
-                </span>
-                <span className="block overflow-hidden pb-[0.08em]">
-                  <motion.span className="block text-[clamp(1.4rem,4.5vw,4rem)]" initial={{ y: "120%" }} animate={{ y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.34, ease: [0.22, 0.7, 0.2, 1] }}>
-                    of your finance
-                  </motion.span>
-                </span>
-              </h1>
-              {/* #endregion */}
-
-              <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.5 }}
-                className="mt-4 max-w-xl text-lg leading-relaxed text-muted-foreground">
-                {SUBLINE}
-              </motion.p>
-
-              <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7, duration: 0.5 }}
-                className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <button onClick={exploreDemo} disabled={exploring}
-                  className="rounded-md bg-accent px-8 py-4 font-mono text-sm font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110 disabled:opacity-60">
-                  {exploring ? "Entering…" : "Explore the demo"}
-                </button>
-                <Link to="/register"
-                  className="rounded-md border border-border px-8 py-4 text-center font-mono text-sm font-bold uppercase tracking-widest text-foreground transition hover:border-accent hover:text-accent">
-                  Sign up
-                </Link>
-              </motion.div>
-
-              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }}
-                className="mt-5 max-w-md font-mono text-xs leading-relaxed text-muted-foreground">
-                <span className="text-signal">Read-only sandbox</span> — nothing you do is saved. The dark window beside this breathes live source — an RLS policy, the report view, the worker beneath. <span className="text-foreground">Click it to x-ray the page.</span>
-              </motion.p>
-            </div>
-
-            {/* RIGHT — the paper torn open at the page's right edge; the dark
-                machinery glows through. Negative right margin cancels the section
-                padding so the tear bleeds to the viewport edge (anchored, not a
-                floating square). The whole hole is CLICKABLE → full-page X-ray. */}
-            <motion.div className="min-w-0 -mr-6 md:-mr-12 lg:-mr-16" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.4, ease: "easeOut" }}>
-              <PageTear />
-            </motion.div>
-          </div>
-
-          {/* Big real numbers — the demo dataset, count-up on load. */}
-          <div className="mt-16 grid grid-cols-2 border-t border-border md:mt-24 md:grid-cols-4">
-            {STATS.map((s, i) => (
-              <motion.div key={s.label}
-                initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.5 + i * 0.1 }}
-                className="border-b border-border py-7 pr-4 md:border-b-0 md:border-l md:px-8 md:first:border-l-0 md:first:pl-0">
-                <div className={`display text-5xl md:text-6xl lg:text-7xl ${s.accent ? "text-accent glow-accent" : "text-foreground"}`}>
-                  <CountUp value={s.value} format={s.format} delay={0.5 + i * 0.1} />
-                </div>
-                <div className="mt-2 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">{s.label}</div>
-              </motion.div>
-            ))}
-          </div>
+    <div ref={root} className="lp">
+      <header ref={r.bar} className="bar">
+        <div className="wrap">
+          <Link to="/" className="brand" aria-label="X-Ray home"><img src="/xray-mark.svg" alt="" />X-Ray</Link>
+          <nav aria-label="Sections">
+            <a href="#layers">Layers</a>
+            <a href="#rls">Who sees what</a>
+            <a href="#parts">Parts and tests</a>
+          </nav>
+          <span className="spacer" />
+          <Link to="/login" className="signin">Sign in</Link>
+          {demoBtn("btn-ink")}
         </div>
-      </section>
+      </header>
 
-      <div className="mx-auto max-w-[2400px] space-y-28 px-6 py-24 md:space-y-36 md:px-12 md:py-28 lg:px-16">
-        {/* 2 — What it does: product-screenshot timeline (Showcase) */}
-        <Showcase />
-
-        {/* 3 — Architecture: a request, assembled down the stack on scroll */}
-        <section>
-          <SectionHead eyebrow="Architecture" title="Follow one request down the stack."
-            intro="Four layers, each doing real work. Scroll to assemble them — then x-ray any page in the demo to watch a request actually cross them." />
-          <div className="mt-12">
-            {ARCH.map((a, i) => (
-              <motion.div key={a.layer}
-                initial={{ opacity: 0, y: 26 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }}
-                transition={{ duration: 0.5, delay: i * 0.1, ease: "easeOut" }}>
-                <div className="group flex flex-col gap-4 rounded-[1.5rem] border border-border p-6 transition-colors hover:border-foreground/45 hover:bg-foreground/[0.04] lg:flex-row lg:items-center lg:gap-8 lg:p-7">
-                  <div className="flex items-center gap-4 lg:w-64 lg:shrink-0">
-                    <span className="font-mono text-sm text-foreground/55 transition-transform group-hover:scale-125">{String(i + 1).padStart(2, "0")}</span>
-                    <span className="text-lg font-semibold lg:text-xl">{a.layer}</span>
-                  </div>
-                  <p className="flex-1 text-sm leading-relaxed text-muted-foreground">{a.detail}</p>
-                  <span className="shrink-0 self-start rounded-full border border-border px-3 py-1.5 font-mono text-xs text-foreground/70 transition-colors group-hover:border-foreground/45 lg:self-auto">{a.tag}</span>
+      <main id="top">
+        <section ref={r.hero} className="hero" aria-label="Introduction">
+          <div ref={r.stage} className="hero-stage">
+            <canvas ref={r.canvas} id="gl" aria-hidden="true" />
+            <div className="wrap hero-copy">
+              <div ref={r.txt} className="txt">
+                <h1 aria-label="See the machinery of your finance">
+                  <span className="lp-mask"><span className="l1">See the</span></span>
+                  <span className="lp-mask"><span className="l2">
+                    {"Machinery".split("").map((c, i) => <span key={i} aria-hidden="true" style={{ animationDelay: `${0.15 + i * 0.045}s` }}>{c}</span>)}
+                  </span></span>
+                  <span className="lp-mask"><span className="l3">of your finance</span></span>
+                </h1>
+                <p className="lede">A financial reporting engine: messy spreadsheets in, validated and anomaly-screened reports out. Built backend-first, with row-level security, a real ETL pipeline and scheduled jobs, and you can watch every layer work.</p>
+                <div className="ctas">
+                  {demoBtn("btn-ink")}
+                  <a className="btn btn-ghost" href={GITHUB_URL} target="_blank" rel="noreferrer">Read the source</a>
                 </div>
-                {i < ARCH.length - 1 && (
-                  <div className="ml-9 flex h-9 items-center lg:ml-[2.1rem]">
-                    <span className="h-full w-px bg-border" />
-                    <span className="-ml-[3px] size-1.5 self-end rounded-full bg-accent/60" />
-                  </div>
-                )}
-              </motion.div>
-            ))}
+                <p className="note">The page is torn open on the <b>real source</b> beneath it: an RLS policy, the report view, the worker's queue claim. Move around it, then click the hole or scroll to go in.</p>
+              </div>
+              <div ref={r.anchor} className="anchor" aria-hidden="true" />
+            </div>
+            <div ref={r.stats} className="stats" aria-label="Demo dataset">
+              <div className="wrap">
+                {STATS.map(([v, l]) => <div key={l} className="stat"><div className="v">{v}</div><div className="l">{l}</div></div>)}
+              </div>
+            </div>
+            <span ref={r.hint} className="dive-hint">click to go in</span>
+            <div ref={r.inCopy} className="in-copy" aria-hidden="true">
+              <div><h2>You're in<br />the machinery</h2><p>Every layer from here down is real code from the repo.</p></div>
+            </div>
           </div>
-          <div className="mt-10 flex flex-wrap justify-center gap-2">
-            {STACK.map((s) => (
-              <span key={s} className="rounded-full border border-border px-3 py-1.5 font-mono text-xs text-foreground/75 transition-colors hover:border-foreground hover:bg-foreground hover:text-background">{s}</span>
-            ))}
+        </section>
+
+        <div className="machinery">
+          <Exploded />
+
+          <div className="wrap">
+            <WhoSeesWhat />
+            <PartsAndTests />
           </div>
-        </section>
 
-        {/* 4 — X-ray panel teaser (dark console band) */}
-        <section>
-          <SectionHead eyebrow="X-ray panel" title="The backend runs in the open."
-            intro="Every page in the demo carries a live console — the same seam, three lenses on what just ran." />
-          {/* A clean dark console panel (green-tinted), the machinery shown plainly
-              against the lime page — no ragged edge. */}
-          <Reveal className="mt-12">
-            <div className="dark overflow-hidden rounded-[1.75rem] border border-accent/20 bg-[oklch(0.18_0.03_158)] text-foreground shadow-[0_30px_70px_-30px_oklch(0.15_0.05_158)]">
-              <div className="flex items-center gap-2 border-b border-accent/15 px-7 py-4 font-mono text-xs text-muted-foreground">
-                <span className="size-2 animate-pulse rounded-full bg-accent" /> X-ray panel · live on every page in the demo
+          <section ref={r.close} className="close" id="open" aria-label="Open the demo">
+            <canvas ref={r.canvas2} id="gl2" aria-hidden="true" />
+            <span ref={r.hint2} className="dive-hint" style={{ position: "absolute" }}>open the demo</span>
+            <div className="wrap close-in">
+              <div className="copy">
+                <h2>Now tear into the real one</h2>
+                <p>The demo account is read-only, so nothing you do is saved. Open any page, then open the X-ray panel to see the calls and policies behind it.</p>
+                <div className="ctas">
+                  {demoBtn("btn-ink")}
+                  <a className="btn btn-ghost" href={GITHUB_URL} target="_blank" rel="noreferrer">Read the source</a>
+                </div>
+                <dl className="facts">
+                  <div><dt>Sign-in</dt><dd>none, the demo user is shared</dd></div>
+                  <div><dt>Roles to try</dt><dd>viewer, manager, admin</dd></div>
+                  <div><dt>Resets</dt><dd>every hour</dd></div>
+                </dl>
               </div>
-              <div className="grid divide-y divide-white/5 md:grid-cols-3 md:divide-x md:divide-y-0">
-                {TABS.map((t) => (
-                  <div key={t.k} className="p-7 transition-colors hover:bg-white/[0.03]">
-                    <div className="font-mono text-xs font-semibold uppercase tracking-wider text-accent">{t.k}</div>
-                    <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{t.d}</p>
-                    <div className="mt-5 truncate rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 font-mono text-[11px] text-foreground/70">{t.line}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="border-t border-white/5 px-7 py-6">
-                <PanelXrayButton />
-              </div>
+              <div ref={r.anchor2} className="anchor" aria-hidden="true" />
+              <footer>
+                <span className="me">Mariia Chernenko</span>
+                <a href={GITHUB_URL} target="_blank" rel="noreferrer">GitHub</a>
+                <Link to="/about">About the project</Link>
+                <span className="r">Fake data only</span>
+              </footer>
             </div>
-          </Reveal>
-        </section>
-
-        {/* 5 — Closing CTA + optional email */}
-        <section className="grid gap-12 lg:grid-cols-[1.15fr_1fr] lg:items-center lg:gap-20">
-          <Reveal>
-            <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">Open it. It's a read-only sandbox.</h2>
-            <p className="mt-4 max-w-xl text-base leading-relaxed text-muted-foreground">
-              Sign in as the demo user and click around — nothing you do is saved. Every page shows its own machinery as you go.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button onClick={exploreDemo} disabled={exploring} className="rounded-full bg-accent px-8 py-4 text-base font-semibold text-accent-foreground shadow-soft transition hover:scale-[1.03] disabled:opacity-60">
-                {exploring ? "Entering…" : "Explore the demo"}
-              </button>
-              <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="rounded-full border border-border px-8 py-4 text-center text-base font-semibold text-foreground transition hover:border-foreground/55 hover:bg-foreground/[0.04]">
-                Read the source ↗
-              </a>
-            </div>
-          </Reveal>
-
-          <Reveal>
-            <div className="rounded-[1.75rem] border border-border p-8">
-              <h3 className="text-xl font-semibold">Keep me posted <span className="text-muted-foreground">(optional)</span></h3>
-              {sent ? (
-                <p className="mt-3 font-medium text-foreground">Thanks — noted.</p>
-              ) : (
-                <form onSubmit={submitEmail} className="mt-4 flex flex-col gap-3 sm:flex-row">
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com"
-                    className="flex-1 rounded-full border border-border bg-foreground/[0.04] px-5 py-3 text-sm text-foreground placeholder:text-foreground/40 outline-none transition focus:border-foreground/60" />
-                  <button type="submit" className="rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-background transition hover:scale-[1.03]">Notify me</button>
-                </form>
-              )}
-              <p className="mt-3 text-xs text-muted-foreground">No account, no spam — just an email if you want updates.</p>
-            </div>
-          </Reveal>
-        </section>
-
-        {/* 6 — Footer */}
-        <Reveal className="flex flex-wrap items-center gap-6 border-t border-border pt-10 text-sm">
-          <span className="font-medium text-foreground">Mariia Chernenko</span>
-          <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="font-medium text-muted-foreground hover:text-accent">GitHub ↗</a>
-          {CV_URL && <a href={CV_URL} target="_blank" rel="noreferrer" className="font-medium text-muted-foreground hover:text-accent">CV / Portfolio ↗</a>}
-          <span className="ml-auto font-mono text-xs text-muted-foreground">Fake data only</span>
-        </Reveal>
-      </div>
-      </XrayScan>
+          </section>
+        </div>
+      </main>
     </div>
   )
 }
 
-/** Fires the full-page X-ray editor (the in-place VS Code reveal of this page's
- *  own source). Lives here, inside <XrayScan>, so it reads the shared toggle —
- *  it's the entry point the deleted hero "X-ray this page" button used to be. */
-function PanelXrayButton() {
-  const { toggle } = useXray()
+/* ───────────────────────── one app, four layers ───────────────────────── */
+
+const LAYERS = [
+  {
+    k: "Layer 1 of 4", name: "Browser", sub: "React 19, TypeScript", file: FILES.fetch,
+    what: "You drop a spreadsheet on the Ingest page. Every request leaves through one wrapped fetch, which times it and feeds the X-ray panel.",
+    code: lines(SRC.fetch, "const startedAt", 6),
+    ink: <><div className="mini-row" style={{ top: 62, width: 120 }} /><div className="mini-row" style={{ top: 86, right: "auto", width: 130, opacity: 0.6 }} /><div className="mini-row" style={{ top: 216 }} /><div className="mini-row" style={{ top: 240, opacity: 0.6 }} /><div className="ink" style={{ right: 14, top: 62, textAlign: "right" }}>{"Ingest\nfacility-costs.csv"}</div></>,
+  },
+  {
+    k: "Layer 2 of 4", name: "Edge function", sub: "Deno, Supabase Edge", file: FILES.edge,
+    what: "A Deno function on the edge checks that you may upload for this company — through the same row-level security — before it hands out a signed upload URL.",
+    code: SRC.edge.split("\n").filter((l) => !/^\s*(if \(entityErr|log\(|return json\(500)/.test(l)).filter((l, i, a) => !(l.trim() === "}" && a[i - 1]?.trim() === "}")).join("\n"),
+    ink: <><div className="ink" style={{ left: 14, top: 60 }}>{"Deno.serve(async (req) => {\n  …\n})"}</div><div className="ink" style={{ right: 14, bottom: 14, textAlign: "right" }}>{"ingest-submit\nnotify-review\nconnector-webhook\nadmin-users"}</div></>,
+  },
+  {
+    k: "Layer 3 of 4", name: "Postgres", sub: "row-level security", file: FILES.rls,
+    what: "The database filters every row by who's asking. Your batch can only land in the companies you belong to.",
+    code: lines(SRC.rls, "create policy", 6),
+    ink: <><div className="ink" style={{ left: 14, top: 60 }}>{"entities_select\njournal_entries\ningest_queue  deny all"}</div><div className="ink" style={{ right: 14, bottom: 14, textAlign: "right" }}>{"pg_cron  refresh-report-mv\npg_net   connector fetch"}</div></>,
+  },
+  {
+    k: "Layer 4 of 4", name: "Worker", sub: "Deno in Docker", file: FILES.worker,
+    what: "A worker claims the job without ever colliding with another worker, validates the rows, flags outliers by z-score and loads the batch. Once a minute pg_cron refreshes the report.",
+    code: lines(SRC.worker, "order by run_after", 6),
+    ink: <><div className="ink" style={{ left: 14, top: 60 }}>{"queue\n#1184 pending\n#1183 processing\n#1182 loaded"}</div><div className="ink" style={{ right: 14, bottom: 14, textAlign: "right" }}>{"z-score screen\ndelete-and-reload"}</div></>,
+  },
+]
+
+/** The torn-hole outline used by the CSS holes (seeded, so it never changes). */
+function tornPath(seed: number, base = 78, jag = 1) {
+  let s = seed
+  const r = () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646
+  const N = 64, ph = [r() * 6.28, r() * 6.28, r() * 6.28], pts: string[] = []
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * Math.PI * 2
+    let rad = base + 7 * Math.sin(a * 3 + ph[0]) + 4 * Math.sin(a * 7 + ph[1]) + 2.5 * Math.sin(a * 13 + ph[2])
+    rad += (r() - 0.5) * 9 * jag * (i % 2 ? 1 : 0.4)
+    pts.push(`${(100 + Math.cos(a) * rad).toFixed(1)} ${(100 + Math.sin(a) * rad * 0.94).toFixed(1)}`)
+  }
+  return `M${pts.join(" L")} Z`
+}
+const HOLE = tornPath(7)
+const FIBRE = tornPath(7, 82.5, 1.6)
+const HOLE_MASK = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><path d='${HOLE}' fill='black'/></svg>`)}")`
+
+function Rim({ id }: { id: string }) {
   return (
-    <button onClick={toggle}
-      className="rounded-full bg-accent px-7 py-3.5 text-sm font-semibold text-accent-foreground transition hover:scale-[1.03]">
-      X-ray this page →
-    </button>
+    <svg className="rimp" viewBox="0 0 200 200" aria-hidden="true">
+      <defs>
+        <clipPath id={`c${id}`}><path d={HOLE} /></clipPath>
+        <filter id={`b${id}`} x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3" /></filter>
+      </defs>
+      <g clipPath={`url(#c${id})`}><path d={HOLE} fill="none" stroke="#010605" strokeWidth="12" filter={`url(#b${id})`} opacity=".85" /></g>
+      <path d={FIBRE} fill="none" stroke="#9FD7C2" strokeWidth="2.4" strokeLinejoin="round" opacity=".7" vectorEffect="non-scaling-stroke" />
+      <path d={HOLE} fill="none" stroke="#CFEFE2" strokeWidth="1.4" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+    </svg>
   )
 }
 
-function Reveal({ className, children }: { className?: string; children: React.ReactNode }) {
+/** Scroll takes the app apart: four plates spread, a cube (one upload) falls
+ *  through them, and each plate shows the code that handles it. Positions are
+ *  written straight to the DOM from the scroll handler — no re-render per frame. */
+function Exploded() {
+  const sec = useRef<HTMLElement>(null)
+  const plates = useRef<(HTMLDivElement | null)[]>([])
+  const cube = useRef<HTMLDivElement>(null)
+  const [active, setActive] = useState(-1)
+
+  useEffect(() => {
+    const clamp = (v: number, a = 0, b = 1) => Math.max(a, Math.min(b, v))
+    const smooth = (a: number, b: number, v: number) => { const t = clamp((v - a) / (b - a)); return t * t * (3 - 2 * t) }
+    let last = -2
+    const run = () => {
+      const el = sec.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      const p = clamp(-rect.top / (rect.height - innerHeight))
+      const spread = smooth(0, 0.3, p), gap = 10 + spread * (innerWidth < 980 ? 92 : 128), mid = ((LAYERS.length - 1) * gap) / 2
+      const zs = LAYERS.map((_, i) => (LAYERS.length - 1 - i) * gap - mid)
+      plates.current.forEach((pl, i) => { if (pl) pl.style.transform = `translateZ(${zs[i]}px)` })
+      const fall = smooth(0.3, 0.94, p), zTop = zs[0] + 110, z = zTop + (zs[zs.length - 1] - zTop) * fall
+      if (cube.current) {
+        cube.current.style.transform = `translateZ(${(z + 14).toFixed(1)}px) rotateZ(${fall * 360}deg)`
+        cube.current.style.opacity = p < 0.24 ? "0" : "1"
+      }
+      let a = -1
+      if (p >= 0.3) { a = 0; zs.forEach((zz, i) => { if (z <= zz + 40) a = i }) }
+      if (a !== last) { last = a; setActive(a) }
+    }
+    addEventListener("scroll", run, { passive: true })
+    addEventListener("resize", run)
+    run()
+    return () => { removeEventListener("scroll", run); removeEventListener("resize", run) }
+  }, [])
+
+  const L = active >= 0 ? LAYERS[active] : null
+  const recess = useMemo(() => LAYERS.map((l) => hl(l.code)), [])
   return (
-    <motion.section className={className} initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-80px" }} transition={{ duration: 0.5, ease: "easeOut" }}>
-      {children}
-    </motion.section>
+    <section ref={sec} className="explode" id="layers" aria-label="The four layers of the app">
+      <div className="ex-sticky">
+        <div className="wrap ex-grid">
+          <div className="ex-insp" aria-live="polite">
+            <div className="step">{L ? L.k : "Assembled"}</div>
+            <h2>{L ? L.name : "One app, four layers"}</h2>
+            <p className="what">{L ? L.what : "Keep scrolling to take it apart. One upload falls through every layer, and each one shows the code that handles it."}</p>
+            <div className="file">{L?.file ?? ""}</div>
+            <pre dangerouslySetInnerHTML={{ __html: L ? recess[active] : '<span class="c">// scroll</span>' }} />
+            <div className="ex-pips">{LAYERS.map((_, i) => <span key={i} className={i <= active ? "on" : ""} />)}</div>
+          </div>
+          <div className="ex-stage" aria-hidden="true">
+            <div className="assembly" style={{ ["--hole" as string]: HOLE_MASK }}>
+              <div className="ex-floor" />
+              {LAYERS.map((l, i) => (
+                <div key={l.name} ref={(el) => { plates.current[i] = el }} className={`plate${i === active ? " on" : ""}`}>
+                  <div className="side"><pre className="recess" dangerouslySetInnerHTML={{ __html: recess[i] }} /></div>
+                  <div className="face"><div className="tag">{l.name}<small>{l.sub}</small></div>{l.ink}</div>
+                  <Rim id={`p${i}`} />
+                </div>
+              ))}
+              <div ref={cube} className="cube">{Array.from({ length: 6 }, (_, i) => <i key={i} />)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   )
 }
 
-function SectionHead({ eyebrow, title, intro }: { eyebrow: string; title: string; intro?: string }) {
+/* ───────────────────────── who sees what ───────────────────────── */
+
+// Entity names and memberships from supabase/seed.sql.
+const ENTS = ["Danube Office Park s.r.o.", "Riverside Retail Park s.r.o.", "Lindenhof Residences s.r.o.", "Westgate Logistics Hub s.r.o."]
+const ROLES = {
+  admin: { who: "admin@demo.local", see: [0, 1, 2, 3], line: 3, note: "An admin passes the first test, is_admin(), so every company comes back." },
+  manager: { who: "manager@demo.local", see: [0, 1], line: 4, note: "A manager isn't an admin, so only the companies in their membership list come back: the office and the retail park." },
+  viewer: { who: "viewer@demo.local", see: [0], line: 4, note: "A viewer was invited to one company, so one row comes back. The other three never leave the database." },
+} as const
+type RoleKey = keyof typeof ROLES
+
+function WhoSeesWhat() {
+  const [role, setRole] = useState<RoleKey>("admin")
+  const [shown, setShown] = useState<RoleKey>("admin")
+  const [scanKey, setScanKey] = useState(0)
+  const policy = useMemo(() => hl(SRC.rls.split("\n").slice(3).join("\n")).split("\n"), [])
+
+  function pick(k: RoleKey) {
+    setRole(k)
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { setShown(k); return }
+    setScanKey((n) => n + 1)
+    window.setTimeout(() => setShown(k), 420)
+  }
+  const R = ROLES[shown]
   return (
-    <Reveal>
-      <span className="font-mono text-xs font-semibold uppercase tracking-widest text-accent">{eyebrow}</span>
-      <h2 className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight md:text-4xl lg:text-[2.75rem] lg:leading-[1.05]">{title}</h2>
-      {intro && <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground">{intro}</p>}
-    </Reveal>
+    <section className="lp-block" id="rls">
+      <div className="sec-head">
+        <h2>Same query. Different rows.</h2>
+        <p>Who sees which company is decided inside Postgres, not in the frontend. Pick a person and the policy filters the table for them.</p>
+      </div>
+      <div className="rls">
+        <div className="rls-box">
+          <div className="seg" role="group" aria-label="Signed in as">
+            {(Object.keys(ROLES) as RoleKey[]).map((k) => (
+              <button key={k} aria-pressed={role === k} onClick={() => pick(k)}>{k}</button>
+            ))}
+          </div>
+          <div className="q">signed in as <b>{ROLES[role].who}</b><br /><b>select</b> name <b>from</b> public.entities</div>
+          <div className="rows">
+            {scanKey > 0 && <div key={scanKey} className="scan go" />}
+            {ENTS.map((n, i) => {
+              const ok = (R.see as readonly number[]).includes(i)
+              return (
+                <div key={n} className={`erow${ok ? "" : " out"}`}>
+                  <span className="ic" /><span className="nm">{n}</span><span className="why">{ok ? "returned" : "filtered by policy"}</span>
+                </div>
+              )
+            })}
+          </div>
+          <div className="count"><b>{R.see.length}</b><span>{R.see.length === 1 ? "row returned" : "rows returned"}</span></div>
+        </div>
+        <div className="pol">
+          <div className="fn">{FILES.rls}</div>
+          <pre>{policy.map((l, i) => <span key={i} className={`ln${i === R.line ? " hl" : ""}`} dangerouslySetInnerHTML={{ __html: l || " " }} />)}</pre>
+          <p>{R.note}</p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ───────────────────────── parts + tests ───────────────────────── */
+
+const BOM = [
+  ["React 19", "pages you click through", "src/pages/"],
+  ["X-ray panel", "calls, pipeline events and policies, live", "src/components/xray/"],
+  ["Postgres", "the ledger, with row-level security on every table", "supabase/migrations/"],
+  ["Edge functions", "uploads, review emails, signed webhooks, users", "supabase/functions/"],
+  ["ETL worker", "parse, validate, z-score, load", "worker/src/"],
+  ["pg_cron and pg_net", "scheduled refresh and spreadsheet fetch, inside the database", "…pg_cron_refresh_and_housekeeping.sql"],
+  ["Auth", "four roles, two-factor codes, invites, Google and GitHub sign-in", "src/lib/auth/"],
+] as const
+const TESTS = [
+  ["Companies can't see each other's data", "supabase/tests/security_isolation_test.sql"],
+  ["Outliers get flagged by z-score", "supabase/tests/detect_anomalies_test.sql"],
+  ["Raw rows become clean journal lines", "supabase/tests/transform_batch_test.sql"],
+  ["Reloading a batch doesn't double it", "supabase/tests/load_batch_test.sql"],
+  ["Linked spreadsheets sync by month", "supabase/tests/sheet_link_connector_test.sql"],
+  ["Demo users stay read-only", "supabase/tests/demo_staff_test.sql"],
+  ["New companies get balanced books and delete cleanly", "supabase/tests/account_lifecycle_test.sql"],
+  ["Spreadsheet formulas can't run on open", "worker/src/sanitize.test.ts"],
+] as const
+
+function PartsAndTests() {
+  return (
+    <section className="lp-block" id="parts">
+      <div className="sec-head">
+        <h2>Parts list and test bench</h2>
+        <p>What it's built from, where each part lives in the repo, and the tests CI runs on every push.</p>
+      </div>
+      <div className="two">
+        <div className="list">
+          <h3>Parts</h3>
+          {BOM.map(([a, b, c]) => (
+            <div key={a} className="li"><span className="mk" /><span className="t">{a} <span>{b}</span></span><a className="f" href={`${GITHUB_URL}/tree/main/${c.startsWith("…") ? "supabase/migrations" : c}`} target="_blank" rel="noreferrer">{c}</a></div>
+          ))}
+        </div>
+        <div className="list">
+          <h3>Tests</h3>
+          {TESTS.map(([a, c]) => (
+            <div key={a} className="li"><span className="lamp" /><span className="t">{a}</span><a className="f" href={`${GITHUB_URL}/blob/main/${c}`} target="_blank" rel="noreferrer">{c}</a></div>
+          ))}
+        </div>
+      </div>
+    </section>
   )
 }

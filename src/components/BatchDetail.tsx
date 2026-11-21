@@ -52,7 +52,7 @@ export function BatchDetail({
   }, [rows])
 
   return (
-    <div data-tour="batch-detail" className="mt-4 rounded-[1.5rem] border border-border bg-card p-6 shadow-soft">
+    <div data-tour="batch-detail" className="mt-4 rounded-xl border border-border bg-card p-6 shadow-soft">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="font-mono text-sm font-semibold">{fileName}</h3>

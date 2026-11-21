@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { motion } from "motion/react"
+import { PageIntro } from "@/components/report/Kit"
 import { Link } from "@tanstack/react-router"
 import {
   Cable, FileSpreadsheet, Webhook, Plus, RefreshCw, Play, Pause, Trash2, Pencil, Check, X,
@@ -51,17 +51,11 @@ export function Connectors() {
 
   return (
     <div className="relative">
-      <motion.header
-        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: "easeOut" }}
-        className="pb-10">
-        <span className="font-mono text-xs font-semibold uppercase tracking-widest text-accent">Connectors</span>
-        <h1 className="mt-3 text-5xl font-semibold tracking-tight md:text-6xl lg:text-7xl">Auto-ingest</h1>
-        <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-          Point the pipeline at a spreadsheet — a Google Sheet, or any public CSV link — and
-          the database reads it every hour. Or expose an HMAC-signed webhook. New rows flow
-          through the same validate → z-score → review path as a manual upload.
-        </p>
-      </motion.header>
+      <PageIntro eyebrow="Connectors" title="Auto-ingest">
+        Point the pipeline at a spreadsheet — a Google Sheet or any public CSV link — and the database
+        reads it every hour. Or expose an HMAC-signed webhook. New rows flow through the same
+        validate → z-score → review path as a manual upload.
+      </PageIntro>
 
       {!canManage(role) ? (
         <div className="rounded-2xl bg-card px-6 py-6 font-mono text-xs leading-relaxed text-muted-foreground shadow-soft ring-1 ring-border">
@@ -101,8 +95,8 @@ export function Connectors() {
 /** For visitors: how to hook up a real Google Sheet, and how it's built. */
 function HowItWorks() {
   return (
-    <section data-tour="connectors-how" className="mt-16 grid gap-4 lg:grid-cols-2">
-      <div className="rounded-[1.5rem] border border-accent/20 bg-accent/[0.05] p-6 md:p-7">
+    <section data-tour="connectors-how" className="mt-16 grid gap-4 @min-[700px]:grid-cols-2">
+      <div className="rounded-xl border border-accent/20 bg-accent/[0.05] p-6 md:p-7">
         <div className="flex items-center gap-2">
           <FileSpreadsheet className="size-4 text-accent" />
           <h3 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Connect your own Google Sheet</h3>
@@ -132,7 +126,7 @@ function HowItWorks() {
         </a>
       </div>
 
-      <div className="rounded-[1.5rem] bg-card p-6 shadow-soft ring-1 ring-border md:p-7">
+      <div className="rounded-xl bg-card p-6 shadow-soft ring-1 ring-border md:p-7">
         <div className="flex items-center gap-2">
           <Cable className="size-4 text-accent" />
           <h3 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">How this is built</h3>
@@ -192,7 +186,7 @@ function CreateConnector({ entities, readOnly }: { entities: { id: string; name:
   }
 
   return (
-    <section data-tour="connectors-add" className="rounded-[1.5rem] bg-card p-6 shadow-soft ring-1 ring-border md:p-7">
+    <section data-tour="connectors-add" className="rounded-xl bg-card p-6 shadow-soft ring-1 ring-border md:p-7">
       <div className="flex flex-wrap items-center gap-2">
         <Cable className="size-4 text-accent" />
         <h2 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Add a connector</h2>
@@ -203,7 +197,7 @@ function CreateConnector({ entities, readOnly }: { entities: { id: string; name:
         )}
       </div>
 
-      <form onSubmit={submit} className="mt-5 grid gap-4 md:grid-cols-4 md:items-end">
+      <form onSubmit={submit} className="mt-5 grid gap-4 @min-[600px]:grid-cols-4 md:items-end">
         <div className="space-y-1.5">
           <Label className="font-mono text-[10px] uppercase tracking-widest">Entity</Label>
           <SimpleSelect size="default" className="w-full" aria-label="Entity" placeholder="select…"

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { motion } from "motion/react"
+import { PageIntro } from "@/components/report/Kit"
 import {
   ShieldCheck, ShieldAlert, UserPlus, KeyRound, Smartphone, X, Trash2, Power,
 } from "lucide-react"
@@ -78,7 +78,7 @@ export function Users() {
         ) : (members.data?.length ?? 0) === 0 ? (
           <EmptyNote title="No users to show" hint="Invite a teammate above." />
         ) : (
-          <div className="overflow-hidden rounded-[1.5rem] bg-card shadow-soft ring-1 ring-border">
+          <div className="overflow-hidden rounded-xl bg-card shadow-soft ring-1 ring-border">
             <Table className="min-w-[760px]">
               <TableHeader className="bg-secondary/50">
                 <TableRow>
@@ -105,17 +105,10 @@ export function Users() {
 
 function PageHead() {
   return (
-    <motion.header
-      initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: "easeOut" }}
-      className="pb-10">
-      <span className="font-mono text-xs font-semibold uppercase tracking-widest text-accent">Admin</span>
-      <h1 className="mt-3 text-5xl font-semibold tracking-tight md:text-6xl lg:text-7xl">User management</h1>
-      <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-        Invite teammates by email, assign roles and entity access, reset passwords
-        and MFA. New users get an invitation link to set their own password — no
-        shared secrets. Every privileged change runs through an audited RPC.
-      </p>
-    </motion.header>
+    <PageIntro eyebrow="Users" title="User management">
+      Invite teammates by email, assign roles and company access, reset passwords and two-factor.
+      New users set their own password from an invitation link. Every privileged change runs through an audited RPC.
+    </PageIntro>
   )
 }
 
@@ -147,7 +140,7 @@ function InvitePanel({ isSuper }: { isSuper: boolean }) {
   }
 
   return (
-    <section className="rounded-[1.5rem] bg-card p-6 shadow-soft ring-1 ring-border md:p-7">
+    <section className="rounded-xl bg-card p-6 shadow-soft ring-1 ring-border md:p-7">
       <div className="flex items-center gap-2">
         <UserPlus className="size-4 text-accent" />
         <h2 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Invite a user</h2>
@@ -155,7 +148,7 @@ function InvitePanel({ isSuper }: { isSuper: boolean }) {
       <p className="mt-2 text-sm text-muted-foreground">
         They receive an email invitation and set their own password — nothing to hand over.
       </p>
-      <form onSubmit={submit} className="mt-5 grid gap-4 md:grid-cols-5 md:items-end">
+      <form onSubmit={submit} className="mt-5 grid gap-4 @min-[600px]:grid-cols-5 md:items-end">
         <div className="space-y-1.5 md:col-span-2">
           <Label className="font-mono text-[10px] uppercase tracking-widest">Email</Label>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="person@example.com" className={cn(inputClass, "w-full")} />

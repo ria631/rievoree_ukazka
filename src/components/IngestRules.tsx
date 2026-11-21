@@ -70,7 +70,7 @@ export function IngestRules({ entityId, entityName }: { entityId: string | undef
   if (!entityId) return null
 
   return (
-    <section className="mt-8 rounded-[1.5rem] bg-card p-6 shadow-soft ring-1 ring-border">
+    <section className="mt-8 rounded-xl bg-card p-6 shadow-soft ring-1 ring-border">
       <div className="flex flex-wrap items-center gap-2">
         <SlidersHorizontal className="size-4 text-accent" />
         <h2 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">

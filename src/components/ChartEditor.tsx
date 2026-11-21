@@ -38,7 +38,7 @@ export function ChartEditor({ entityId, entityName }: { entityId: string; entity
   const inputClass = "rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-accent/50"
 
   return (
-    <details className="mt-8 rounded-[1.5rem] bg-card p-6 shadow-soft ring-1 ring-border">
+    <details className="mt-8 rounded-xl bg-card p-6 shadow-soft ring-1 ring-border">
       <summary className="flex cursor-pointer select-none items-center gap-2">
         <Boxes className="size-4 text-accent" />
         <span className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
