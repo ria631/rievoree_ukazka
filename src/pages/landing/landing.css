@@ -48,6 +48,8 @@
 .lp .bar{position:fixed;inset:0 0 auto 0;z-index:60;color:var(--ink);border-bottom:1px solid transparent;transition:background .3s,color .3s,border-color .3s}
 .lp .bar.is-dark{background:color-mix(in srgb,var(--deep) 97%,transparent);color:var(--text);border-color:var(--line)}
 .lp .bar.is-dark .btn-ink{background:var(--lime);color:var(--ink)}
+.lp .bar.top-dark{color:var(--text)}
+.lp .bar.top-dark .btn-ink{background:var(--lime);color:var(--ink)}
 .lp .bar.is-paper,.lp .bar.is-scrolled{background:color-mix(in srgb,var(--paper) 97%,transparent);border-color:var(--rule)}
 .lp .bar .wrap{display:flex;align-items:center;gap:28px;height:64px}
 .lp .brand{display:flex;align-items:center;gap:10px;flex:none;white-space:nowrap;font-family:var(--f-disp);font-weight:800;font-size:var(--fs-h3);text-decoration:none;text-transform:uppercase}
@@ -58,9 +60,9 @@
 .lp .spacer{flex:1}
 @media (max-width:1023px){.lp .bar nav{display:none}}
 
-/* ---------- 1 · hero: one screen; the copy and the X-ray lens share it ---------- */
-/* paper grain: one small noise tile, rasterised once and repeated */
-.lp .hero,.lp .close{background:var(--grain) 0 0 / 220px 220px,var(--paper)}
+/* ---------- 1 · hero: one screen; the copy and the living code share it (code-hero.css) ---------- */
+/* paper grain for the closing sheet: one small noise tile, rasterised once */
+.lp .close{background:var(--grain) 0 0 / 220px 220px,var(--paper)}
 .lp .hero{position:relative;min-height:100svh;color:var(--ink);display:flex;align-items:center;padding:96px 0 48px}
 .lp .hero-grid{position:relative;z-index:2;width:100%;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);align-items:center;gap:clamp(24px,4vw,64px);pointer-events:none}
 .lp .hero .txt{pointer-events:auto;min-width:0}

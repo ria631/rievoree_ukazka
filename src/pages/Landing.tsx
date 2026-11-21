@@ -3,30 +3,32 @@ import { Link } from "@tanstack/react-router"
 import { useExploreDemo } from "@/app/AppShell"
 import { AUTHOR, EVIDENCE, TOP_TESTS, contactLinks, repoUrl } from "@/lib/author"
 import { FILES, SRC, hl } from "./landing/repoSource"
-import { XrayHero } from "./landing/XrayHero"
+import { CodeHero } from "./landing/CodeHero"
 import { TornHole } from "./landing/TornHole"
 import { Desk, SkeletonList } from "./landing/Desk"
 import "./landing/landing.css"
 
 /**
  * The landing — a portfolio first, a product second. Five screens, each with
- * one job: who built this and what it is (a report screen under an X-ray lens
- * — the product's idea in twelve seconds), the moment that proves it
+ * one job: who built this and what it is (a report screen assembling out of
+ * a rain of the repo's own code, then X-raying itself — the product's idea in
+ * fifteen seconds), the moment that proves it
  * (row-level security, live in the browser), how it works (a live desk, then
  * its skeleton), what it shows its author can do — with the tests as
  * evidence — and how to reach her or open the demo.
  *
- * Light on purpose: no WebGL, no canvas — HTML, SVG and CSS animations on
- * transform and opacity, each paused while off screen.
+ * Light on purpose: no WebGL. One 2D canvas for the code rain at ~30 fps,
+ * the rest HTML, SVG and CSS on transform and opacity — all paused off screen.
  */
 export function Landing() {
   const { busy, explore } = useExploreDemo()
   const bar = useRef<HTMLElement>(null)
   const hero = useRef<HTMLElement>(null)
   const close = useRef<HTMLElement>(null)
+  const copy = useRef<HTMLDivElement>(null)
 
-  // Header: backed with paper once the hero scrolls under it, dark over the
-  // machinery, paper again over the closing sheet. One check per frame at most.
+  // Header: light text over the dark hero, a dark backing once the page
+  // scrolls, paper over the closing sheet. One check per frame at most.
   useEffect(() => {
     let raf = 0
     const check = () => {
@@ -35,10 +37,10 @@ export function Landing() {
       const h = hero.current
       const c = close.current
       if (!b || !h || !c) return
-      const pastHero = h.getBoundingClientRect().bottom <= 64
       const onClose = c.getBoundingClientRect().top <= 64
-      b.classList.toggle("is-scrolled", window.scrollY > 8 && !pastHero)
-      b.classList.toggle("is-dark", pastHero && !onClose)
+      const scrolled = window.scrollY > 8 || h.getBoundingClientRect().top < -8
+      b.classList.toggle("top-dark", !scrolled && !onClose)
+      b.classList.toggle("is-dark", scrolled && !onClose)
       b.classList.toggle("is-paper", onClose)
     }
     const on = () => { if (!raf) raf = requestAnimationFrame(check) }
@@ -70,9 +72,9 @@ export function Landing() {
 
       <main id="top">
         {/* 1 · who, and what this is */}
-        <section ref={hero} className="hero" aria-label="Introduction">
+        <section ref={hero} className="hero dark" aria-label="Introduction">
           <div className="wrap hero-grid">
-            <div className="txt">
+            <div ref={copy} className="txt">
               <p className="kicker">Backend &amp; data engineer</p>
               <h1>
                 <span className="lp-mask"><span className="name">{AUTHOR.name.split(" ")[0]}</span></span>
@@ -92,7 +94,7 @@ export function Landing() {
                 <a href="#contact">Get in touch ↓</a>
               </p>
             </div>
-            <XrayHero />
+            <CodeHero host={hero} avoid={copy} />
           </div>
         </section>
 

@@ -1,0 +1,33 @@
+/* The hero on its dark recess: the code rain (a canvas codeRain.ts puts first
+   in the hero) and the screen that assembles out of it (CodeHero.tsx). */
+.lp .hero.dark{background:#04110F;color:var(--text)}
+.lp .cr-rain{position:absolute;inset:0;z-index:0;display:block;pointer-events:none}
+.lp .hero.dark::before{content:"";position:absolute;inset:0 0 auto 0;height:120px;z-index:1;pointer-events:none;background:linear-gradient(#04110F 30%,rgba(4,17,15,0))}
+.lp .hero.dark::after{content:"";position:absolute;inset:auto 0 0 0;height:120px;z-index:1;pointer-events:none;background:linear-gradient(to bottom,transparent,var(--deep))}
+.lp .hero.dark .kicker{color:var(--em)}
+.lp .hero.dark h1{color:var(--lime);text-shadow:0 0 24px rgba(163,230,53,.25)}
+.lp .hero.dark .lede{color:#C4D9D1}
+.lp .hero.dark .lede b{color:#fff}
+.lp .hero.dark .btn-ink{background:var(--lime);color:var(--ink)}
+.lp .hero.dark .btn-ink:hover{background:#B9F04F}
+.lp .hero.dark .btn-ghost{color:var(--text)}
+.lp .hero.dark .btn-ghost:hover{background:rgba(228,242,236,.08)}
+.lp .hero.dark .aside{color:var(--dim)}
+.lp .hero.dark .aside a{color:var(--lime)}
+
+.lp .cr{margin:0;display:flex;flex-direction:column;align-items:center;gap:14px;pointer-events:auto;min-width:0}
+.lp .cr-zone{position:relative;width:min(100%,560px);aspect-ratio:1}
+.lp .cr-zone canvas{display:block;border-radius:4px;transition:box-shadow .8s ease}
+.lp .cr-zone:is([data-phase="screen"],[data-phase="xray"],[data-phase="code"]) canvas{box-shadow:0 0 0 1px rgba(163,230,53,.14),0 30px 80px -30px rgba(0,0,0,.9),0 0 70px -20px rgba(163,230,53,.28)}
+.lp .cr-zone[data-phase="screen"] canvas{cursor:crosshair}
+.lp .cr-lens{position:absolute;left:0;top:0;border-radius:50%;pointer-events:none;opacity:0;transition:opacity .2s;
+  box-shadow:0 0 0 2px var(--lime),0 0 24px rgba(163,230,53,.6),inset 0 0 18px rgba(163,230,53,.25)}
+.lp .cr-lens.on{opacity:1}
+.lp .cr figcaption{display:flex;flex-direction:column;align-items:center;gap:2px;max-width:48ch;padding:8px 16px;border-radius:10px;background:rgba(4,17,15,.86);text-align:center;font-size:var(--fs-small);color:var(--dim)}
+.lp .cr-say{display:flex;align-items:center;justify-content:center;min-height:3.2em;color:var(--text)}
+.lp .cr-zone[data-phase="code"]~figcaption .cr-say,.lp .cr-zone[data-phase="xray"]~figcaption .cr-say{color:var(--lime)}
+@media not ((hover:hover) and (pointer:fine)){.lp .cr-hint{display:none}}
+@media (max-width:760px){
+  .lp .cr{margin-top:32px}
+  .lp .cr-zone{width:100%}
+}
