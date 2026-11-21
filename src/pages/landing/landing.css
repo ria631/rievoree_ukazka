@@ -45,7 +45,7 @@
 .lp .btn[disabled]{opacity:.6;cursor:wait}
 
 /* ---------- header: lime over the paper, dark over the machinery ---------- */
-.lp .bar{position:fixed;inset:0 0 auto 0;z-index:60;color:var(--ink);border-bottom:1px solid transparent;transition:background .3s,color .3s,border-color .3s}
+.lp .bar{position:fixed;inset:0 0 auto 0;z-index:60;color:var(--ink);border-bottom:1px solid transparent;transition:background-color .3s}
 .lp .bar.is-dark{background:var(--deep);color:var(--text);border-color:var(--line)}
 .lp .bar.is-dark .btn-ink{background:var(--lime);color:var(--ink)}
 .lp .bar.top-dark{color:var(--text)}
@@ -112,9 +112,12 @@
 .lp .erow.out{opacity:.45;background:repeating-linear-gradient(-45deg,transparent 0 8px,rgba(240,106,93,.08) 8px 16px)}
 .lp .erow.out .ic{background:transparent;border:1.5px solid var(--red);box-shadow:none}
 .lp .erow.out .why{color:var(--red)}
-.lp .scan{position:absolute;left:0;right:0;top:0;height:2px;background:var(--lime);box-shadow:0 0 22px 5px rgba(163,230,53,.5);opacity:0;pointer-events:none}
+/* the scan line: a full-height layer whose top edge glows, moved by transform
+   (moving `top` would re-lay out the box every frame) */
+.lp .scan{position:absolute;inset:0;opacity:0;pointer-events:none}
+.lp .scan::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:var(--lime);box-shadow:0 0 22px 5px rgba(163,230,53,.5)}
 .lp .scan.go{animation:lp-scan .8s cubic-bezier(.4,0,.2,1)}
-@keyframes lp-scan{0%{top:0;opacity:1}90%{opacity:1}100%{top:100%;opacity:0}}
+@keyframes lp-scan{0%{transform:translateY(0);opacity:1}90%{opacity:1}100%{transform:translateY(100%);opacity:0}}
 .lp .count{display:flex;align-items:baseline;gap:10px;padding:14px 18px;border-top:1px solid var(--line);color:var(--dim)}
 .lp .count b{font-family:var(--f-disp);font-size:var(--fs-h2);line-height:1;color:var(--text);font-weight:800}
 .lp .pol{border:1px solid var(--line);border-radius:12px;background:#04100F;padding:18px}
@@ -155,12 +158,11 @@
 .lp .flow[data-act="1"] .steps li:nth-child(1)::after,.lp .flow[data-act="2"] .steps li:nth-child(2)::after,
 .lp .flow[data-act="3"] .steps li:nth-child(3)::after,.lp .flow[data-act="4"] .steps li:nth-child(4)::after{opacity:1}
 /* act 5 (X-ray): every card shows its machinery line lit, the track glows */
-.lp .steps .tech{transition:color .45s}
 .lp .flow[data-act="5"] .steps li{border-color:var(--line-hi)}
 .lp .flow[data-act="5"] .steps .tech{color:var(--lime)}
 .lp .flow.play[data-act="5"] .track .token{opacity:0}
-.lp .track .line{transition:background-color .45s,box-shadow .45s}
-.lp .flow[data-act="5"] .track .line{background:var(--lime);box-shadow:0 0 12px rgba(163,230,53,.55)}
+.lp .track .line{transition:background-color .45s}
+.lp .flow[data-act="5"] .track .line{background:var(--lime)}
 .lp .steps li:hover{outline:1px solid var(--lime);outline-offset:-1px}
 .lp .steps .num{font-family:var(--f-disp);font-weight:800;font-size:var(--fs-h3);color:var(--lime)}
 .lp .steps h3{font-family:var(--f-disp);font-weight:800;text-transform:uppercase;font-size:var(--fs-h3);line-height:1.1}

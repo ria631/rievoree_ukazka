@@ -5,6 +5,7 @@ import { AUTHOR, EVIDENCE, TOP_TESTS, contactLinks, repoUrl } from "@/lib/author
 import { FILES, SRC, hl } from "./landing/repoSource"
 import { CodeHero } from "./landing/CodeHero"
 import { Desk, SkeletonList } from "./landing/Desk"
+import { watchInView } from "./landing/viewport"
 import "./landing/landing.css"
 
 /**
@@ -320,9 +321,9 @@ function useActLoop(ref: RefObject<HTMLDivElement | null>) {
       i = (i + 1) % plan.length
       wait((i ? plan[i][0] : CYCLE) - at)
     }
-    // The month runs only while the desk is on screen AND the page is still:
-    // while scrolling, the timer and every desk animation hold (.scrolling),
-    // so the scroll has the browser to itself.
+    // The month runs only while the desk is on screen AND the page is still.
+    // While scrolling only the act timer holds (in JS — no class on the flow,
+    // which would restyle the whole desk on every scroll start and stop).
     let scrolling = false
     let scrollT = 0
     const hold = () => { clearTimeout(timer); if (started) left = Math.max(0, left - (performance.now() - since)) }
@@ -331,23 +332,23 @@ function useActLoop(ref: RefObject<HTMLDivElement | null>) {
       if (started) wait(left)
       else { started = true; el.classList.add("play"); step() }
     }
-    const io = new IntersectionObserver(([e]) => {
+    // On screen = a quarter of the desk visible; from the scroll position, not
+    // an IntersectionObserver (see viewport.ts for why).
+    const desk = el.querySelector(".desk") ?? el
+    const unwatch = watchInView(desk, (v) => {
       const was = visible
-      visible = e.isIntersecting
+      visible = v
       el.classList.toggle("on", visible)
       if (visible && !was) go()
       else if (!visible && was && !pinned && !scrolling) hold()
-    }, { threshold: 0.25 })
-    // Watch the desk itself: the whole flow can be taller than the screen.
-    io.observe(el.querySelector(".desk") ?? el)
+    }, { amount: 0.25 })
     const onScroll = () => {
       if (!scrolling) {
         scrolling = true
-        el.classList.add("scrolling")
         if (visible && !pinned) hold()
       }
       clearTimeout(scrollT)
-      scrollT = window.setTimeout(() => { scrolling = false; el.classList.remove("scrolling"); go() }, 220)
+      scrollT = window.setTimeout(() => { scrolling = false; go() }, 220)
     }
     addEventListener("scroll", onScroll, { passive: true })
     ctl.current = {
@@ -371,7 +372,7 @@ function useActLoop(ref: RefObject<HTMLDivElement | null>) {
         if (visible) step()
       },
     }
-    return () => { io.disconnect(); clearTimeout(timer); clearTimeout(scrollT); removeEventListener("scroll", onScroll) }
+    return () => { unwatch(); clearTimeout(timer); clearTimeout(scrollT); removeEventListener("scroll", onScroll) }
   }, [ref])
   return ctl
 }

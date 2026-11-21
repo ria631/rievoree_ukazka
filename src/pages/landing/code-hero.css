@@ -19,8 +19,7 @@
 
 .lp .cr{margin:0;display:flex;flex-direction:column;align-items:center;gap:14px;pointer-events:auto;min-width:0}
 .lp .cr-zone{position:relative;width:min(100%,560px);aspect-ratio:1}
-.lp .cr-zone canvas{display:block;border-radius:4px;transition:box-shadow .8s ease}
-.lp .cr-zone[data-phase="code"] canvas{box-shadow:0 0 0 1px rgba(163,230,53,.14),0 30px 80px -30px rgba(0,0,0,.9),0 0 70px -20px rgba(163,230,53,.28)}
+.lp .cr-zone canvas{display:block;border-radius:4px}
 .lp .cr-zone[data-phase="money"] canvas{cursor:crosshair}
 .lp .cr-lens{position:absolute;left:0;top:0;border-radius:50%;pointer-events:none;opacity:0;transition:opacity .2s;
   box-shadow:0 0 0 2px var(--lime),0 0 24px rgba(163,230,53,.6),inset 0 0 18px rgba(163,230,53,.25)}
