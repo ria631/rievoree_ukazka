@@ -139,3 +139,20 @@ function rulesObj() {
     zscore: {},
   };
 }
+
+Deno.test("CSV: thousands and decimal separators are read, never multiplied", () => {
+  // Quoted, so the commas inside stay in one field.
+  const res = parseFile(
+    csv(
+      'Account,Date,Debit,Credit,Currency\n' +
+        '1000,2026-03-01,"14,820.40",0,EUR\n' + // thousands comma
+        '1000,2026-03-02,"1234,56",0,EUR\n' + // decimal comma
+        '1000,2026-03-03,"1.234,56",0,EUR\n' + // thousands dot + decimal comma
+        '1000,2026-03-04,"1 234,56",0,EUR\n' + // space-grouped
+        '1000,2026-03-05,"12,3,4",0,EUR\n', // nonsense → null, flagged by the DB
+    ),
+    "csv",
+    rules,
+  );
+  assertEquals(res.rows.map((r) => r.debit), [14820.4, 1234.56, 1234.56, 1234.56, null]);
+});

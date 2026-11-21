@@ -21,7 +21,11 @@
 // caller's JWT so RLS / auth.uid() apply, and a separate service-role client
 // for Storage I/O only.
 // ============================================================================
-import { createClient } from "jsr:@supabase/supabase-js@2"
+import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2"
+
+// Untyped schema (no generated types here): any client the factory returns fits.
+// deno-lint-ignore no-explicit-any
+type DbClient = SupabaseClient<any, any, any>
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!
@@ -67,7 +71,7 @@ function safeFileName(name: string): string {
 }
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", bytes)
+  const digest = await crypto.subtle.digest("SHA-256", bytes as Uint8Array<ArrayBuffer>)
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("")
@@ -159,8 +163,8 @@ Deno.serve(async (req) => {
 
 async function handleCreate(
   body: Record<string, unknown>,
-  userClient: ReturnType<typeof createClient>,
-  adminClient: ReturnType<typeof createClient>,
+  userClient: DbClient,
+  adminClient: DbClient,
   uid: string,
 ): Promise<Response> {
   const entityId = body.entity_id
@@ -209,8 +213,8 @@ async function handleCreate(
 
 async function handleFinalize(
   body: Record<string, unknown>,
-  userClient: ReturnType<typeof createClient>,
-  adminClient: ReturnType<typeof createClient>,
+  userClient: DbClient,
+  adminClient: DbClient,
   uid: string,
 ): Promise<Response> {
   const entityId = body.entity_id

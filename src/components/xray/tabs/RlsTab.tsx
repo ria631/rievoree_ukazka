@@ -113,7 +113,6 @@ export function RlsTab() {
       }
     })()
     return () => { alive = false }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rlsRunToken])
 
   async function runAs(role: Role, email: string) {

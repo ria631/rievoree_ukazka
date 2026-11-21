@@ -478,3 +478,11 @@ export const STEPS: Step[] = [
     render: () => <TourCloseSlot />,
   },
 ]
+
+/** The two-minute version: the dashboard, the X-ray, and one batch from upload
+ *  to report — for a visitor who wants the point, not every page. */
+const QUICK_IDS = ["welcome", "dash-top", "dash-ratios", "xray-open", "xray-calls", "xray-rls", "xray-code",
+  "role", "ingest-batches", "batch-rows", "pipeline", "close"]
+export const QUICK_STEPS = QUICK_IDS
+  .map((id) => STEPS.find((s) => s.id === id))
+  .filter((s): s is (typeof STEPS)[number] => !!s)

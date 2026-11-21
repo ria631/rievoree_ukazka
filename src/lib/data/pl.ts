@@ -41,7 +41,11 @@ export function scopeMonths(scope: string, last: string): Set<string> {
 }
 
 export function scopeLabel(scope: string, last: string): string {
-  return scopeOptions(last, "0000-01").find((o) => o.value === scope)?.label ?? (scope.startsWith("m:") ? mLong(scope.slice(2)) : scope)
+  if (scope === "ytd") return `YTD ${last.slice(0, 4)}`
+  if (scope === "ltm") return "Last 12 months"
+  if (scope.startsWith("fy:")) return `FY ${scope.slice(3)}`
+  if (scope.startsWith("m:")) return mLong(scope.slice(2))
+  return scope
 }
 
 interface Acc { name: string; cls: PlClass; actual: number; monthly: Map<string, number> }

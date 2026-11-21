@@ -66,7 +66,10 @@ export function buildCashModel(actual: CashActualRow[], plan: CashPlanRow[], yea
     const k = mk(r.period)
     if (k < `${year}-01`) { opening += r.net; continue }
     const i = idx.get(k)
-    if (i == null || r.flow === "opening") continue
+    if (i == null) continue
+    // An opening balance dated inside the year (books that start mid-year, or
+    // the generator's 24-month window) is still the cash the year starts with.
+    if (r.flow === "opening") { opening += r.net; continue }
     const arr = act.get(r.flow) ?? months.map(() => 0)
     arr[i] += r.net
     act.set(r.flow, arr)

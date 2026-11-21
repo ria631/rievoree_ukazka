@@ -3,9 +3,10 @@ import { Link } from "@tanstack/react-router"
 import { useExploreDemo } from "@/app/AppShell"
 import { FILES, SRC, hl, lines } from "./landing/repoSource"
 import type { LandingEls } from "./landing/tear"
+import { AUTHOR, EVIDENCE, contactLinks, repoUrl } from "@/lib/author"
 import "./landing/landing.css"
 
-const GITHUB_URL = "https://github.com/ria631/rievoree_ukazka"
+const GITHUB_URL = AUTHOR.repo
 
 // The demo books as the Journal page reports them (shared demo, all four
 // companies; it resets hourly to this state). Real figures, not invented ones —
@@ -26,13 +27,9 @@ const STATS = [
 export function Landing() {
   const { busy, explore } = useExploreDemo()
   const root = useRef<HTMLDivElement>(null)
-  const r = {
-    hero: useRef<HTMLElement>(null), stage: useRef<HTMLDivElement>(null), canvas: useRef<HTMLCanvasElement>(null),
-    anchor: useRef<HTMLDivElement>(null), txt: useRef<HTMLDivElement>(null), stats: useRef<HTMLDivElement>(null),
-    inCopy: useRef<HTMLDivElement>(null), hint: useRef<HTMLSpanElement>(null), bar: useRef<HTMLElement>(null),
-    close: useRef<HTMLElement>(null), canvas2: useRef<HTMLCanvasElement>(null), anchor2: useRef<HTMLDivElement>(null),
-    hint2: useRef<HTMLSpanElement>(null),
-  }
+  // The elements the WebGL scene drives, collected by callback refs.
+  const els = useRef<Partial<LandingEls>>({})
+  const bind = (k: keyof LandingEls) => (el: HTMLElement | null) => { els.current[k] = (el ?? undefined) as never }
   const exploreRef = useRef(explore)
   exploreRef.current = explore
 
@@ -43,13 +40,14 @@ export function Landing() {
     let cancelled = false
     import("./landing/tear").then(({ mountLanding }) => {
       if (cancelled) return
-      const els = Object.fromEntries(Object.entries(r).map(([k, ref]) => [k, ref.current])) as unknown as LandingEls
-      if (Object.values(els).some((el) => !el)) return
-      try { dispose = mountLanding(els, () => void exploreRef.current()) }
+      const all = els.current
+      const keys: (keyof LandingEls)[] = ["hero", "stage", "canvas", "anchor", "txt", "stats", "inCopy", "hint", "bar", "close", "canvas2", "anchor2", "hint2"]
+      if (keys.some((k) => !all[k])) return
+      try { dispose = mountLanding(all as LandingEls, () => void exploreRef.current()) }
       catch { root.current?.classList.add("nogl") }
     }).catch(() => root.current?.classList.add("nogl"))
     return () => { cancelled = true; dispose?.() }
-  }, []) // mount once: the refs are stable for the page's lifetime
+  }, [])
 
   const demoBtn = (cls: string) => (
     <button className={`btn ${cls}`} onClick={() => void explore()} disabled={busy}>{busy ? "Opening…" : "Explore the demo"}</button>
@@ -57,13 +55,14 @@ export function Landing() {
 
   return (
     <div ref={root} className="lp">
-      <header ref={r.bar} className="bar">
+      <header ref={bind("bar")} className="bar">
         <div className="wrap">
           <Link to="/" className="brand" aria-label="X-Ray home"><img src="/xray-mark.svg" alt="" />X-Ray</Link>
           <nav aria-label="Sections">
             <a href="#layers">Layers</a>
             <a href="#rls">Who sees what</a>
             <a href="#parts">Parts and tests</a>
+            <a href="#author">Who built it</a>
           </nav>
           <span className="spacer" />
           <Link to="/login" className="signin">Sign in</Link>
@@ -72,11 +71,11 @@ export function Landing() {
       </header>
 
       <main id="top">
-        <section ref={r.hero} className="hero" aria-label="Introduction">
-          <div ref={r.stage} className="hero-stage">
-            <canvas ref={r.canvas} id="gl" aria-hidden="true" />
+        <section ref={bind("hero")} className="hero" aria-label="Introduction">
+          <div ref={bind("stage")} className="hero-stage">
+            <canvas ref={bind("canvas")} id="gl" aria-hidden="true" />
             <div className="wrap hero-copy">
-              <div ref={r.txt} className="txt">
+              <div ref={bind("txt")} className="txt">
                 <h1 aria-label="See the machinery of your finance">
                   <span className="lp-mask"><span className="l1">See the</span></span>
                   <span className="lp-mask"><span className="l2">
@@ -89,17 +88,18 @@ export function Landing() {
                   {demoBtn("btn-ink")}
                   <a className="btn btn-ghost" href={GITHUB_URL} target="_blank" rel="noreferrer">Read the source</a>
                 </div>
+                <p className="byline">A portfolio project by <b>{AUTHOR.name}</b>, built end to end — database to browser.</p>
                 <p className="note">The page is torn open on the <b>real source</b> beneath it: an RLS policy, the report view, the worker's queue claim. Move around it, then click the hole or scroll to go in.</p>
               </div>
-              <div ref={r.anchor} className="anchor" aria-hidden="true" />
+              <div ref={bind("anchor")} className="anchor" aria-hidden="true" />
             </div>
-            <div ref={r.stats} className="stats" aria-label="Demo dataset">
+            <div ref={bind("stats")} className="stats" aria-label="Demo dataset">
               <div className="wrap">
                 {STATS.map(([v, l]) => <div key={l} className="stat"><div className="v">{v}</div><div className="l">{l}</div></div>)}
               </div>
             </div>
-            <span ref={r.hint} className="dive-hint">click to go in</span>
-            <div ref={r.inCopy} className="in-copy" aria-hidden="true">
+            <span ref={bind("hint")} className="dive-hint">click to go in</span>
+            <div ref={bind("inCopy")} className="in-copy" aria-hidden="true">
               <div><h2>You're in<br />the machinery</h2><p>Every layer from here down is real code from the repo.</p></div>
             </div>
           </div>
@@ -111,11 +111,12 @@ export function Landing() {
           <div className="wrap">
             <WhoSeesWhat />
             <PartsAndTests />
+            <BuiltBy />
           </div>
 
-          <section ref={r.close} className="close" id="open" aria-label="Open the demo">
-            <canvas ref={r.canvas2} id="gl2" aria-hidden="true" />
-            <span ref={r.hint2} className="dive-hint" style={{ position: "absolute" }}>open the demo</span>
+          <section ref={bind("close")} className="close" id="open" aria-label="Open the demo">
+            <canvas ref={bind("canvas2")} id="gl2" aria-hidden="true" />
+            <span ref={bind("hint2")} className="dive-hint" style={{ position: "absolute" }}>open the demo</span>
             <div className="wrap close-in">
               <div className="copy">
                 <h2>Now tear into the real one</h2>
@@ -130,7 +131,7 @@ export function Landing() {
                   <div><dt>Resets</dt><dd>every hour</dd></div>
                 </dl>
               </div>
-              <div ref={r.anchor2} className="anchor" aria-hidden="true" />
+              <div ref={bind("anchor2")} className="anchor" aria-hidden="true" />
               <footer>
                 <span className="me">Mariia Chernenko</span>
                 <a href={GITHUB_URL} target="_blank" rel="noreferrer">GitHub</a>
@@ -353,8 +354,10 @@ const TESTS = [
   ["Reloading a batch doesn't double it", "supabase/tests/load_batch_test.sql"],
   ["Linked spreadsheets sync by month", "supabase/tests/sheet_link_connector_test.sql"],
   ["Demo users stay read-only", "supabase/tests/demo_staff_test.sql"],
+  ["A demo account never sees a real one", "supabase/tests/demo_members_privacy_test.sql"],
   ["New companies get balanced books and delete cleanly", "supabase/tests/account_lifecycle_test.sql"],
   ["Spreadsheet formulas can't run on open", "worker/src/sanitize.test.ts"],
+  ["The dashboard's KPIs add up", "src/lib/data"],
 ] as const
 
 function PartsAndTests() {
@@ -368,14 +371,50 @@ function PartsAndTests() {
         <div className="list">
           <h3>Parts</h3>
           {BOM.map(([a, b, c]) => (
-            <div key={a} className="li"><span className="mk" /><span className="t">{a} <span>{b}</span></span><a className="f" href={`${GITHUB_URL}/tree/main/${c.startsWith("…") ? "supabase/migrations" : c}`} target="_blank" rel="noreferrer">{c}</a></div>
+            <div key={a} className="li"><span className="mk" /><span className="t">{a} <span>{b}</span></span><a className="f" href={repoUrl(c.startsWith("…") ? "supabase/migrations/20260610000006_pg_cron_refresh_and_housekeeping.sql" : c.replace(/\/$/, ""))} target="_blank" rel="noreferrer">{c}</a></div>
           ))}
         </div>
         <div className="list">
           <h3>Tests</h3>
           {TESTS.map(([a, c]) => (
-            <div key={a} className="li"><span className="lamp" /><span className="t">{a}</span><a className="f" href={`${GITHUB_URL}/blob/main/${c}`} target="_blank" rel="noreferrer">{c}</a></div>
+            <div key={a} className="li"><span className="lamp" /><span className="t">{a}</span><a className="f" href={repoUrl(c)} target="_blank" rel="noreferrer">{c}</a></div>
           ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ───────────────────────── who built it ───────────────────────── */
+
+function BuiltBy() {
+  return (
+    <section className="lp-block" id="author" aria-label="Who built it">
+      <div className="sec-head">
+        <h2>Built by {AUTHOR.name}</h2>
+        <p>One person, every layer: the data model and its security, the ETL and the anomaly screen, the scheduled jobs, the edge functions, the React app and the X-ray that shows them working. Each claim below links to the code that backs it.</p>
+      </div>
+      <div className="author">
+        <ul className="proof">
+          {EVIDENCE.map((e) => (
+            <li key={e.area}>
+              <span className="area">{e.area}</span>
+              <span className="claim">{e.claim}</span>
+              <span className="where">
+                {e.where.map((w) => <a key={w.path} href={repoUrl(w.path)} target="_blank" rel="noreferrer">{w.label}</a>)}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <div className="contact">
+          <h3>Work with me</h3>
+          <p>Reporting for groups of companies, data pipelines that hold up in an audit, and the backend underneath them.</p>
+          <div className="links">
+            {contactLinks().map((c) => (
+              <a key={c.href} className={`btn ${c.external ? "btn-line" : "btn-lime"}`} href={c.href}
+                {...(c.external ? { target: "_blank", rel: "noreferrer" } : {})}>{c.label}</a>
+            ))}
+          </div>
         </div>
       </div>
     </section>

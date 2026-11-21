@@ -88,7 +88,7 @@ export function Login() {
   )
 
   return (
-    <AuthShell title="Sign in">
+    <AuthShell title="Welcome back" subtitle="Sign in with your e-mail — or step into the demo as a role below.">
       <form onSubmit={(e) => { e.preventDefault(); void signIn(email, password) }} className="flex flex-col gap-3">
         <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required className={fieldClass} />
         <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required className={fieldClass} />

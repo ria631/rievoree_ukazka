@@ -233,3 +233,27 @@
 .lp .li a.f:hover{color:var(--em)}
 .lp .seg button{text-transform:capitalize}
 .lp .sec-head .replay{display:block;margin-top:10px;font-family:var(--f-code);font-size:12.5px;color:var(--dim);opacity:.85}
+
+/* byline under the hero CTAs (stays on phones, unlike the note) */
+.lp .hero .byline{margin-top:18px;font-family:var(--f-code);font-size:12.5px;color:var(--ink-soft)}
+.lp .hero .byline b{color:var(--ink);font-weight:700}
+/* who built it */
+.lp .author{display:grid;grid-template-columns:1.35fr .65fr;gap:40px;align-items:start}
+.lp .proof{list-style:none;margin:0;padding:0}
+.lp .proof li{display:grid;grid-template-columns:200px 1fr;gap:4px 20px;padding:16px 0;border-bottom:1px solid var(--line)}
+.lp .proof .area{font-family:var(--f-disp);font-weight:800;text-transform:uppercase;font-size:19px;line-height:1.2}
+.lp .proof .claim{color:var(--dim);font-size:15.5px}
+.lp .proof .where{grid-column:2;display:flex;flex-wrap:wrap;gap:6px 14px;font-family:var(--f-code);font-size:12px}
+.lp .proof .where a{color:var(--em);text-decoration:none}
+.lp .proof .where a:hover{text-decoration:underline}
+.lp .contact{position:sticky;top:96px;border:1px solid var(--line);border-radius:12px;background:var(--deep-2);padding:22px}
+.lp .contact h3{font-family:var(--f-disp);font-weight:800;text-transform:uppercase;font-size:28px;line-height:1}
+.lp .contact p{margin-top:10px;color:var(--dim);font-size:15px}
+.lp .contact .links{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.lp .contact .btn{min-height:44px;padding:0 18px;font-size:12px}
+@media (max-width:900px){
+  .lp .author{grid-template-columns:1fr;gap:28px}
+  .lp .proof li{grid-template-columns:1fr}
+  .lp .proof .where{grid-column:1}
+  .lp .contact{position:static}
+}

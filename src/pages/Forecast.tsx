@@ -158,11 +158,13 @@ export function Forecast() {
                     <div className="text-right">
                       {e.kind === "expiry"
                         ? <><div className="font-mono text-xs tabular-nums">{eurShort(e.rentPa)} p.a.</div><Chip tone="warn">{e.month <= last ? "ends" : "expires"} {mLabel(e.month)}</Chip></>
+                        : e.kind === "signed"
+                        ? <><div className="font-mono text-xs tabular-nums">{eurShort(e.rentPa)} p.a.</div><Chip tone="good">signed · starts {mLabel(e.month)}</Chip></>
                         : <Chip tone="muted">let after {drivers.voidMonths} mo</Chip>}
                     </div>
                   </div>
                 ))}
-                {!fc.events.length && <p className="px-5 py-10 text-center font-mono text-xs text-muted-foreground">No expiries or vacancies in the next 12 months.</p>}
+                {!fc.events.length && <p className="px-5 py-10 text-center font-mono text-xs text-muted-foreground">No expiries, vacancies or new leases in the next 12 months.</p>}
               </div>
               </div>
             </TableCard>

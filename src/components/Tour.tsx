@@ -11,7 +11,7 @@ import { tourControl, useTourStartRequest } from "@/lib/tourBus"
 import { prewarmHighlighter } from "@/lib/code-xray"
 import { useXrayPanel } from "@/components/xray/XrayPanelContext"
 import { CODE_MAP } from "@/components/xray/codeMap"
-import { STEPS, CHAPTERS, type Chapter } from "@/components/tour/steps"
+import { STEPS, QUICK_STEPS, CHAPTERS, type Chapter } from "@/components/tour/steps"
 import { AskFeedback } from "@/components/tour/slots"
 
 /**
@@ -139,10 +139,14 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
   const [auto, setAuto] = useState(false)
   const [hovering, setHovering] = useState(false)
   const [menu, setMenu] = useState(false)
+  // Which route through the demo: every page (≈55 steps) or the two-minute one.
+  const [track, setTrack] = useState<"full" | "quick">("full")
+  const steps = track === "quick" ? QUICK_STEPS : STEPS
+  const chapters = CHAPTERS.filter((c) => steps.some((s) => s.chapter === c))
 
   const email = session?.user.email ?? ""
   const isDemo = email.toLowerCase().endsWith("@demo.local")
-  const step = STEPS[i]
+  const step = steps[i]
   const ready = running && readyStep === i
 
   // Refs the async step runner and the frame loop read (they outlive renders).
@@ -304,7 +308,7 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
   // ── The step runner: identity → route → X-ray → find target → scroll → read → act.
   useEffect(() => {
     if (!running) return
-    const s = STEPS[i]
+    const s = steps[i]
     const id = ++runId.current
     const alive = () => runId.current === id && live$.current.running
     const st = stage.current
@@ -346,7 +350,7 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
           // Its subject isn't here (e.g. no batch is waiting for review): skip on.
           if (s.optional) {
             const n = i + dir.current
-            if (n >= 0 && n < STEPS.length) { window.clearTimeout(guard); setI(n); return }
+            if (n >= 0 && n < steps.length) { window.clearTimeout(guard); setI(n); return }
             st.wantDim = false
           } else st.sel = sel(s.target) // still loading: it lights up the moment it appears
         } else {
@@ -406,7 +410,7 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
     })()
     return () => window.clearTimeout(guard)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, i, replay])
+  }, [running, i, replay, steps])
 
   // Live figures, read straight off the page (data-live), refreshed as it reacts.
   useEffect(() => {
@@ -434,7 +438,7 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
     const extra = step.render || step.ask ? 9000 : 0
     return Math.min(30000, Math.max(9000, words * 330) + extra)
   })()
-  const last = i >= STEPS.length - 1
+  const last = i >= steps.length - 1
   const autoArmed = running && auto && !last
   const autoCounting = autoArmed && phase === "idle" && ready && !code
   const autoPaused = autoCounting && hovering
@@ -450,11 +454,11 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remaining, autoCounting, autoPaused])
 
-  function go(n: number) { const to = Math.max(0, Math.min(STEPS.length - 1, n)); dir.current = to >= i ? 1 : -1; setI(to) }
+  function go(n: number) { const to = Math.max(0, Math.min(steps.length - 1, n)); dir.current = to >= i ? 1 : -1; setI(to) }
   function next() { if (last) end(); else go(i + 1) }
   function back() { if (i > 0) go(i - 1) }
-  function start() {
-    remember(); setChoice("made"); setInspecting(false)
+  function start(t: "full" | "quick" = "full") {
+    remember(); setChoice("made"); setInspecting(false); setTrack(t)
     stage.current = freshStage()
     dir.current = 1
     setI(0); setReadyStep(-1); setReplay((r) => r + 1); setRunning(true)
@@ -462,19 +466,20 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
   function chooseSelf() { remember(); setChoice("made") }
   function end() {
     runId.current++
+    tourControl("entity", "all") // leave the reports as the visitor found them
     setRunning(false); setOpen(false); setReadyStep(-1)
     setCursor((p) => ({ ...p, on: false })); setAuto(false)
     stage.current = freshStage()
   }
 
   // The card shows the step it has switched to (see readyStep).
-  const cs = STEPS[readyStep >= 0 ? readyStep : i]
-  const chapterSteps = STEPS.filter((s) => s.chapter === cs.chapter)
+  const cs = steps[readyStep >= 0 ? readyStep : i]
+  const chapterSteps = steps.filter((s) => s.chapter === cs.chapter)
   const inChapter = chapterSteps.findIndex((s) => s.id === cs.id) + 1
   const target = cs.code ? CODE_MAP[cs.code] : null
 
-  // The launch buttons live in the sidebar (AppShell) and ask over the bus.
-  useTourStartRequest(() => { if (!running) start() })
+  // The sidebar's "Take the tour" asks over the bus; offer the routes again.
+  useTourStartRequest(() => { if (!running) setChoice("pending") })
 
   return (
     <>
@@ -484,17 +489,25 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-6 backdrop-blur-sm">
             <motion.div initial={{ opacity: 0, y: 20, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-              className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-soft ring-1 ring-border md:p-8">
+              className="w-full max-w-3xl rounded-2xl border border-border bg-card p-6 shadow-soft ring-1 ring-border md:p-8">
               <span className="font-mono text-xs font-semibold uppercase tracking-widest text-accent">Welcome to the demo</span>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight">How do you want to look around?</h2>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">It's read-only — nothing you do is saved.</p>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <button onClick={start}
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <button onClick={() => start("quick")}
                   className="flex flex-col items-start gap-2 rounded-xl border border-accent bg-accent/10 p-4 text-left transition hover:bg-accent/15">
                   <Wand2 className="size-5 text-accent" />
+                  <span className="font-semibold">The two-minute tour</span>
+                  <span className="text-xs leading-relaxed text-muted-foreground">
+                    The dashboard, the X-ray (calls, row-level security, code) and one upload from file to report.
+                  </span>
+                </button>
+                <button onClick={() => start("full")}
+                  className="flex flex-col items-start gap-2 rounded-xl border border-border p-4 text-left transition hover:border-accent/60 hover:bg-foreground/[0.03]">
+                  <Wand2 className="size-5 text-foreground" />
                   <span className="font-semibold">Show me everything</span>
                   <span className="text-xs leading-relaxed text-muted-foreground">
-                    I point at every chart and table, click things for you, and explain how each number is made and protected.
+                    Every page, chart and table — what each number means and how it's made and protected (about 15 minutes).
                   </span>
                 </button>
                 <button onClick={chooseSelf}
@@ -502,7 +515,7 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
                   <MousePointerClick className="size-5 text-foreground" />
                   <span className="font-semibold">I'll explore myself</span>
                   <span className="text-xs leading-relaxed text-muted-foreground">
-                    Click around freely. “X-ray code” (bottom-left) opens the real code of any chart you click.
+                    Click around freely. “X-ray code” in the sidebar opens the real code of any chart you click.
                   </span>
                 </button>
               </div>
@@ -577,10 +590,10 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
               </button>
               <button onClick={end} aria-label="End tour" className="rounded-full p-1.5 text-muted-foreground hover:text-foreground"><X className="size-3.5" /></button>
             </div>
-            {menu && <ChapterMenu current={cs.chapter} onPick={(c) => { setMenu(false); go(STEPS.findIndex((s) => s.chapter === c)) }} />}
+            {menu && <ChapterMenu steps={steps} chapters={chapters} current={cs.chapter} onPick={(c) => { setMenu(false); go(steps.findIndex((s) => s.chapter === c)) }} />}
           </div>
           <div className="mx-4 mt-2.5 h-1 overflow-hidden rounded-full bg-border">
-            <div className="h-full rounded-full bg-accent transition-[width] duration-500" style={{ width: `${((i + 1) / STEPS.length) * 100}%` }} />
+            <div className="h-full rounded-full bg-accent transition-[width] duration-500" style={{ width: `${((i + 1) / steps.length) * 100}%` }} />
           </div>
 
           {/* Body — scrolls on its own if long; never scrolls the page behind it. */}
@@ -608,8 +621,8 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
 
             {cs.chapter === "Welcome" && (
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {CHAPTERS.slice(1).map((c) => (
-                  <button key={c} onClick={() => go(STEPS.findIndex((s) => s.chapter === c))}
+                {chapters.slice(1).map((c) => (
+                  <button key={c} onClick={() => go(steps.findIndex((s) => s.chapter === c))}
                     className="rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground ring-1 ring-border transition hover:text-accent hover:ring-accent/60">
                     {c}
                   </button>
@@ -690,13 +703,15 @@ function AutoBar({ remaining, total, paused, waiting }: { remaining: number; tot
   )
 }
 
-function ChapterMenu({ current, onPick }: { current: Chapter; onPick: (c: Chapter) => void }) {
-  const at = CHAPTERS.indexOf(current)
+function ChapterMenu({ steps, chapters, current, onPick }: {
+  steps: typeof STEPS; chapters: Chapter[]; current: Chapter; onPick: (c: Chapter) => void
+}) {
+  const at = chapters.indexOf(current)
   return (
     <div className="absolute right-3 top-10 z-10 w-56 rounded-xl bg-card p-1.5 shadow-soft ring-1 ring-border">
       <p className="px-2.5 pb-1 pt-1.5 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">Jump to</p>
-      {CHAPTERS.map((c, k) => {
-        const n = STEPS.filter((s) => s.chapter === c).length
+      {chapters.map((c, k) => {
+        const n = steps.filter((s) => s.chapter === c).length
         return (
           <button key={c} onClick={() => onPick(c)}
             className={cn("flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition hover:bg-secondary",

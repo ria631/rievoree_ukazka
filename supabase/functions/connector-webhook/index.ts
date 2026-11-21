@@ -1,7 +1,7 @@
 // ============================================================================
 // Edge function: connector-webhook   (verify_jwt = false)
 //
-// The HMAC-signed inbound webhook from PLAN.md §7. A third party POSTs a CSV (or
+// The HMAC-signed inbound webhook. A third party POSTs a CSV (or
 // pre-typed rows) here; we verify an HMAC-SHA256 signature in CONSTANT TIME
 // against the connector's stored secret, then run the file through the REAL ETL
 // pipeline (ingest_connector_rows → transform + z-score → awaiting_review).
@@ -25,6 +25,31 @@ import {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 const COMPONENT = "connector-webhook"
+// A month of postings as CSV is a few hundred KB; anything far bigger is refused
+// before it's read, hashed or parsed — the signature can't be checked for free.
+const MAX_BODY_BYTES = 5 * 1024 * 1024
+
+/** The body as text, or null once it passes `max` bytes (Content-Length can lie
+ *  or be absent, so the stream itself is counted). */
+async function readCapped(req: Request, max: number): Promise<string | null> {
+  const declared = Number(req.headers.get("content-length") ?? "0")
+  if (declared > max) return null
+  if (!req.body) return ""
+  const reader = req.body.getReader()
+  const chunks: Uint8Array[] = []
+  let size = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    size += value.byteLength
+    if (size > max) { await reader.cancel(); return null }
+    chunks.push(value)
+  }
+  const all = new Uint8Array(size)
+  let at = 0
+  for (const c of chunks) { all.set(c, at); at += c.byteLength }
+  return new TextDecoder().decode(all)
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS })
@@ -38,7 +63,8 @@ Deno.serve(async (req) => {
   if (!signature) return json(401, { error: "missing x-signature header" })
 
   // Read the RAW body once — the signature is computed over these exact bytes.
-  const rawBody = await req.text()
+  const rawBody = await readCapped(req, MAX_BODY_BYTES)
+  if (rawBody === null) return json(413, { error: `body larger than ${MAX_BODY_BYTES / 1024 / 1024} MB` })
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },

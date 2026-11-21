@@ -40,7 +40,7 @@ export function Pl() {
   useTourControl("period", (v) => setScope(v === "@latest" ? `m:${last}` : v))
 
   function toggle(id: string) {
-    setCollapsed((cur) => { const n = new Set(cur); n.has(id) ? n.delete(id) : n.add(id); return n })
+    setCollapsed((cur) => { const n = new Set(cur); if (n.has(id)) n.delete(id); else n.add(id); return n })
   }
 
   return (

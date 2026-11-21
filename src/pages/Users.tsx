@@ -78,7 +78,7 @@ export function Users() {
         ) : (members.data?.length ?? 0) === 0 ? (
           <EmptyNote title="No users to show" hint="Invite a teammate above." />
         ) : (
-          <div className="overflow-hidden rounded-xl bg-card shadow-soft ring-1 ring-border">
+          <div className="overflow-x-auto rounded-xl bg-card shadow-soft ring-1 ring-border">
             <Table className="min-w-[760px]">
               <TableHeader className="bg-secondary/50">
                 <TableRow>
@@ -219,8 +219,8 @@ function MemberRow({ member: m, isSuper }: { member: OrgMember; isSuper: boolean
             <Badge className="rounded-full font-mono text-[10px] uppercase tracking-wider">{m.role}</Badge>
           )}
         </TableCell>
-        <TableCell className="font-mono text-[11px] text-muted-foreground">
-          {m.entities.length ? m.entities.map((e) => e.name).join(", ") : "—"}
+        <TableCell className="max-w-[18rem] whitespace-normal font-mono text-[11px] leading-snug text-muted-foreground">
+          {m.entities.length ? m.entities.map((e) => e.name.replace(/ s\.r\.o\.$/, "")).join(", ") : "—"}
         </TableCell>
         <TableCell>
           {m.mfa_verified

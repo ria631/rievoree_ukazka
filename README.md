@@ -28,7 +28,8 @@ Portfolio project by **Mariia Chernenko**. All data is fake, built from scratch.
 5. Switch to **Manager** in the sidebar → **Ingest**: a batch held by the z-score
    screen, and why ([`detect_anomalies`](supabase/tests/detect_anomalies_test.sql)).
 6. Skim [`supabase/migrations/`](supabase/migrations) and
-   [`supabase/tests/`](supabase/tests): 44 migrations, 92 pgTAP assertions.
+   [`supabase/tests/`](supabase/tests): 45 migrations, 98 pgTAP assertions —
+   plus 81 vitest tests for the reporting maths and 14 Deno tests for the parser.
 
 ## Architecture
 
@@ -89,11 +90,11 @@ the **Calls** and **Pipeline** tabs are live.
 | `src/` | React 19 + TypeScript frontend (Vite, Tailwind v4, shadcn/ui, TanStack Router/Query, recharts) |
 | `src/lib/xray/` | X-ray instrumentation: every Supabase request is timed at the fetch layer |
 | `supabase/migrations/` | Versioned SQL — schema, RLS policies, RPCs, grant hardening |
-| `supabase/tests/` | pgTAP: ETL transform, z-score, load, tenant isolation |
+| `supabase/tests/` | pgTAP: ETL transform, z-score, load, tenant isolation, demo lockdown and privacy |
 | `supabase/functions/` | Deno edge functions (ingest-submit, notify-review, connectors, admin-users) |
 | `worker/` | Deno ETL worker — used locally for XLSX; the hosted path parses CSV in-browser |
-| `docs/` | Design spec and plans, README images |
-| `design/` | HTML mockups of the brand (landing, app shell, mark) and the Claude-in-Chrome QA prompt |
+| `docs/` | [`OPERATIONS.md`](docs/OPERATIONS.md) (deploy, the shared demo, smoke tests), README images |
+| `design/` | HTML mockups of the brand: landing, app shell, the mark |
 
 ## Security model
 
@@ -117,6 +118,29 @@ the **Calls** and **Pipeline** tabs are live.
   and Supabase (`wasm-unsafe-eval` only for the code highlighter),
   `frame-ancestors 'none'`, `nosniff`, a strict referrer and permissions policy.
 
+## How it was built
+
+Designed and built by Mariia Chernenko between June and November 2026, with
+**Claude Code as a pair programmer** — most commits carry its `Co-Authored-By`
+trailer, and that's deliberate rather than hidden. The working method, visible
+in the history:
+
+- **Database first, tests with it.** Security-relevant changes ship with a
+  pgTAP test that fails without them (the demo-privacy test fails on the
+  previous `list_org_members`); CI runs them against a real Supabase stack.
+  The reporting maths has its own unit tests — writing them turned up four
+  real bugs (a decimal comma read as ×100, an opening balance dropped, signed
+  leases ignored by the forecast, days-to-pay biased low), all fixed.
+- **Review finds real bugs.** A privilege escalation (a self-registered admin
+  reaching other tenants) was caught in review and closed in
+  `20261013000001`, with a regression test; a later client-perspective review
+  found the demo admin could list real accounts — fixed in `20261121000001`.
+- **Honesty as an invariant.** Every figure in the app is a query result;
+  anything illustrative says so; the code the landing and the X-ray show is
+  read from the repo at build time, never retyped.
+- **Design as files.** The brand mockups the UI is built from live in
+  [`design/`](design).
+
 ## Getting started (local)
 
 Prerequisites: Node 20+, Docker, [Supabase CLI](https://supabase.com/docs/guides/local-development) (CI pins 3.2.0).
@@ -139,8 +163,10 @@ read-only — register a real account to try uploads and role switching.
 ## Tests
 
 ```bash
-supabase test db          # pgTAP (92): transform, z-score, load, tenant isolation, demo lockdown
-cd worker && deno test    # 13 tests: CSV/XLSX parser + CSV-injection sanitizer
+supabase test db          # pgTAP (98): transform, z-score, load, tenant isolation, demo lockdown
+cd worker && deno test    # 14 tests: CSV/XLSX parser + CSV-injection sanitizer
+npm test                  # 81 vitest tests: KPIs, rent roll, aging, cash, forecast, CSV
+npm run lint              # ESLint
 npm run build             # tsc -b (typecheck) + vite build
 bash scripts/check-migrations.sh   # migration-safety scanner (no fake-RLS)
 ```
