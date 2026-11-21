@@ -155,7 +155,8 @@ vec3 foldPos(vec3 p, out vec3 n, out float folded){
   n=vec3(aAxis*sin(a),cos(a)); folded=step(.0001,a);
   return vec3(rel*uScale+uCenter, up*uScale);
 }`
-const TIP_CUT = `(.15+.85*clamp(uProg*1.4,0.,1.))*uGrow`
+// 0 at uProg = 0 — a whole sheet — then the puncture grows into the hole.
+const TIP_CUT = `clamp(uProg*1.4,0.,1.)*uGrow`
 const FRAG_HEAD = /* glsl */ `varying float vEdge; varying float vTip; varying float vFold; varying vec2 vFlat;
 float h21(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}`
 const CUT = /* glsl */ `if(vTip<0.) discard;
@@ -197,7 +198,9 @@ interface Tear {
   light: (mx: number, my: number, t: number, op: number, hov: number) => void
   over: (clientX: number, clientY: number) => boolean
   /** Draw one frame at tear progress p (0 closed → 1 open). */
-  draw: (p: number) => void
+  draw: (p: number, zoom?: number) => void
+  /** Cheap frames while animating, full resolution for the frame that stays. */
+  quality: (full: boolean) => void
   dispose: () => void
 }
 
@@ -206,7 +209,7 @@ function createTear({ canvas, host, anchor, seed, size = 0.62, mobile, reduce }:
   canvas: HTMLCanvasElement; host: HTMLElement; anchor: HTMLElement; seed: number; size?: number; mobile: boolean; reduce: boolean
 }): Tear {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" })
-  renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 1.75))
+  renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 1.75)) // see T.quality
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.toneMapping = THREE.NoToneMapping
   renderer.shadowMap.enabled = true
@@ -325,6 +328,7 @@ function createTear({ canvas, host, anchor, seed, size = 0.62, mobile, reduce }:
     light: () => {},
     over: () => false,
     draw: () => {},
+    quality: () => {},
     dispose: () => {},
   }
   const worldAtZ0 = (px: number, py: number) => {
@@ -378,16 +382,23 @@ function createTear({ canvas, host, anchor, seed, size = 0.62, mobile, reduce }:
     return Math.hypot(clientX - hx, clientY - hy) < rpx * 0.9
   }
   let lastP = 0
-  T.draw = (p: number) => {
+  T.draw = (p: number, zoom = 1) => {
     if (disposed) return
     lastP = p
     U.uProg.value = p
     U.uGrow.value = 1
     U.uTime.value = 0
-    camera.position.set(0, 0, CAMZ)
+    camera.position.set(0, 0, CAMZ * zoom)
     camera.lookAt(0, 0, 0)
     T.light(0, 0, 0, p, 0)
     renderer.render(scene, camera)
+  }
+  const fullRatio = Math.min(devicePixelRatio, mobile ? 1.5 : 1.75)
+  T.quality = (full: boolean) => {
+    const r = full ? fullRatio : Math.min(1, fullRatio)
+    if (renderer.getPixelRatio() === r) return
+    renderer.setPixelRatio(r)
+    renderer.setSize(host.clientWidth, host.clientHeight, false)
   }
   T.dispose = () => {
     disposed = true
@@ -423,36 +434,42 @@ export interface LandingEls {
 }
 
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
-// Start the tear part-way: the first fifth is hairline cracks, which read as
-// noise at this size. Then about a second to fully open.
-const P0 = 0.22
-const OPEN_MS = 1100
+// The sheet first appears whole, rests a moment, then is punctured and torn
+// open; the camera eases in a touch as it goes.
+const HOLD_MS = 550
+const OPEN_MS = 1600
+const ZOOM_FROM = 1.04
 
 /**
- * Tear a sheet open once, then stop. Returns a cancel function.
- * Adaptive: if a frame takes too long to draw (a weak GPU), the animation is
- * skipped and the sheet is drawn open — one frame, not a second of stutter.
+ * Show a sheet whole, then tear it open once and stop. Returns a cancel function.
+ * Frames are drawn at a lower pixel ratio while the paper moves; the frame that
+ * stays is drawn at full resolution. If the GPU still can't keep up (three slow
+ * frames in a row), it jumps to the open sheet rather than stutter.
  */
 function openOnce(T: Tear, reduce: boolean, onFirstFrame: () => void): () => void {
-  if (reduce) { T.draw(1); onFirstFrame(); return () => {} }
-  let raf = 0
-  let t0 = 0
-  let frames = 0
+  if (reduce) { T.quality(true); T.draw(1); onFirstFrame(); return () => {} }
+  let raf = 0, timer = 0, t0 = 0, slow = 0
+  const finish = () => { T.quality(true); T.draw(1) }
   const step = (now: number) => {
-    if (!t0) { t0 = now; T.draw(P0); onFirstFrame() } // first frame may compile shaders: not timed
+    if (!t0) t0 = now
     const k = Math.min(1, (now - t0) / OPEN_MS)
+    const e = easeOut(k)
     const s0 = performance.now()
-    T.draw(P0 + (1 - P0) * easeOut(k))
-    const slow = ++frames > 1 && performance.now() - s0 > 45
-    if (slow) { T.draw(1); return }
+    T.draw(e, ZOOM_FROM + (1 - ZOOM_FROM) * e)
+    slow = performance.now() - s0 > 70 ? slow + 1 : 0
+    if (slow >= 3) { finish(); return }
     if (k < 1) raf = requestAnimationFrame(step)
+    else finish()
   }
-  raf = requestAnimationFrame(step)
-  return () => cancelAnimationFrame(raf)
+  T.quality(false)
+  T.draw(0, ZOOM_FROM)          // the whole sheet (this frame may compile shaders)
+  onFirstFrame()                // …which fades in over the flat lime
+  timer = window.setTimeout(() => { raf = requestAnimationFrame(step) }, HOLD_MS)
+  return () => { cancelAnimationFrame(raf); clearTimeout(timer) }
 }
 
 /**
- * Mount both tears, the hover hint and the header colour. Returns a disposer.
+ * Mount both tears and the hover hint. Returns a disposer.
  * Throws if WebGL is unavailable — the caller falls back to the flat page.
  */
 export function mountLanding(els: LandingEls, onOpenDemo: () => void): () => void {
@@ -473,7 +490,7 @@ export function mountLanding(els: LandingEls, onOpenDemo: () => void): () => voi
     if (!close && !closeFailed) {
       try {
         close = createTear({ canvas: els.canvas2, host: els.close, anchor: els.anchor2, seed: 77, size: 0.56, mobile, reduce })
-        close.draw(P0)
+        close.draw(0, ZOOM_FROM)
       } catch { closeFailed = true }
     }
     return close
@@ -482,7 +499,7 @@ export function mountLanding(els: LandingEls, onOpenDemo: () => void): () => voi
     if (typeof window.requestIdleCallback === "function") window.requestIdleCallback(cb, { timeout: 5000 })
     else setTimeout(cb, 1800)
   }
-  const warm = window.setTimeout(() => idle(() => { ensureClose() }), OPEN_MS + 600)
+  const warm = window.setTimeout(() => idle(() => { ensureClose() }), HOLD_MS + OPEN_MS + 600)
   cancels.push(() => clearTimeout(warm))
   const near = new IntersectionObserver((es) => { if (es[0].isIntersecting) ensureClose() }, { rootMargin: "0px 0px 100% 0px" })
   near.observe(els.close)
@@ -514,30 +531,20 @@ export function mountLanding(els: LandingEls, onOpenDemo: () => void): () => voi
   }
   const onCloseClick = () => { if (overClose) onOpenDemo() }
 
-  // Header: ink on the paper, light over the machinery.
-  const onScroll = () => {
-    const pastHero = els.hero.getBoundingClientRect().bottom <= 64
-    const onClose = els.close.getBoundingClientRect().top <= 64
-    els.bar.classList.toggle("is-dark", pastHero && !onClose)
-    els.bar.classList.toggle("is-paper", onClose)
-  }
-
   // Resize: re-lay the sheets out, redraw each once at its current state.
   let rt = 0
   const onResize = () => {
     clearTimeout(rt)
     rt = window.setTimeout(() => {
       hero.layout(); hero.draw(1)
-      if (close) { close.layout(); close.draw(closeOpened ? 1 : P0) }
+      if (close) { close.layout(); close.draw(closeOpened ? 1 : 0, closeOpened ? 1 : ZOOM_FROM) }
     }, 150)
   }
 
   addEventListener("pointermove", onMove, { passive: true })
-  addEventListener("scroll", onScroll, { passive: true })
   addEventListener("resize", onResize)
   els.stage.addEventListener("click", onHeroClick)
   els.canvas2.addEventListener("click", onCloseClick)
-  onScroll()
 
   return () => {
     cancels.forEach((c) => c())
@@ -545,7 +552,6 @@ export function mountLanding(els: LandingEls, onOpenDemo: () => void): () => voi
     io.disconnect()
     near.disconnect()
     removeEventListener("pointermove", onMove)
-    removeEventListener("scroll", onScroll)
     removeEventListener("resize", onResize)
     els.stage.removeEventListener("click", onHeroClick)
     els.canvas2.removeEventListener("click", onCloseClick)

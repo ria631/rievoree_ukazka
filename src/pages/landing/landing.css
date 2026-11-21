@@ -47,7 +47,7 @@
 .lp .bar{position:fixed;inset:0 0 auto 0;z-index:60;color:var(--ink);border-bottom:1px solid transparent;transition:background .3s,color .3s,border-color .3s}
 .lp .bar.is-dark{background:color-mix(in srgb,var(--deep) 90%,transparent);backdrop-filter:blur(10px);color:var(--text);border-color:var(--line)}
 .lp .bar.is-dark .btn-ink{background:var(--lime);color:var(--ink)}
-.lp .bar.is-paper{background:color-mix(in srgb,var(--paper) 94%,transparent);backdrop-filter:blur(8px);border-color:var(--rule)}
+.lp .bar.is-paper,.lp .bar.is-scrolled{background:color-mix(in srgb,var(--paper) 94%,transparent);backdrop-filter:blur(8px);border-color:var(--rule)}
 .lp .bar .wrap{display:flex;align-items:center;gap:28px;height:64px}
 .lp .brand{display:flex;align-items:center;gap:10px;flex:none;white-space:nowrap;font-family:var(--f-disp);font-weight:800;font-size:var(--fs-h3);text-decoration:none;text-transform:uppercase}
 .lp .brand img{width:28px;height:28px;border-radius:6px}
@@ -60,7 +60,7 @@
 /* ---------- 1 · hero: one screen; the copy and the hole share it ---------- */
 .lp .hero{position:relative;min-height:100svh;background:var(--paper);color:var(--ink);display:flex;align-items:center;padding:96px 0 48px}
 .lp .hero-stage{position:absolute;inset:0;overflow:hidden}
-.lp #gl,.lp #gl2{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .35s ease}
+.lp #gl,.lp #gl2{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .6s ease}
 .lp #gl.on,.lp #gl2.on{opacity:1}
 .lp .hero-grid{position:relative;z-index:2;width:100%;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);align-items:center;gap:clamp(24px,4vw,64px);pointer-events:none}
 .lp .hero .txt{pointer-events:auto;min-width:0}
@@ -134,15 +134,89 @@
 .lp .k{color:var(--lime)}.lp .s{color:var(--teal)}.lp .c{color:#5E9384}
 @media (max-width:900px){.lp .rls{grid-template-columns:1fr}}
 
-/* 3 · how it works — four plain steps, no scroll tricks */
-.lp .steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;counter-reset:none}
-.lp .steps li{position:relative;display:flex;flex-direction:column;gap:10px;padding:22px 20px;border:1px solid var(--line);border-radius:12px;background:var(--deep-2)}
-.lp .steps li:not(:last-child)::after{content:"";position:absolute;top:38px;right:-13px;width:10px;height:10px;border-top:2px solid var(--line-hi);border-right:2px solid var(--line-hi);transform:rotate(45deg);z-index:1}
+/* 3 · how it works — a document travels the four steps; each lights up and
+   plays its little scene. Pure CSS on a class the section adds once it's in
+   view; nothing runs before or after. */
+.lp .flow{position:relative;--T:1.25s}            /* time per step */
+.lp .track{position:relative;height:28px;margin:0 12.5% 14px}
+.lp .track .line{position:absolute;left:0;right:0;top:13px;height:2px;background:var(--line-hi);transform-origin:left;transform:scaleX(0)}
+.lp .track .token{position:absolute;top:2px;left:0;width:24px;height:24px;margin-left:-12px;border-radius:5px;background:var(--lime);box-shadow:0 0 18px rgba(163,230,53,.6);display:flex;flex-direction:column;justify-content:center;gap:3px;padding:0 5px;opacity:0}
+.lp .track .token i{display:block;height:2px;border-radius:1px;background:var(--ink)}
+.lp .track .token i:nth-child(2){width:70%}
+.lp .flow.play .track .line{animation:lp-draw calc(var(--T) * 3) cubic-bezier(.6,0,.4,1) forwards}
+.lp .flow.play .track .token{animation:lp-travel calc(var(--T) * 3.4) cubic-bezier(.65,0,.35,1) forwards}
+@keyframes lp-draw{to{transform:scaleX(1)}}
+@keyframes lp-travel{
+  0%{left:0;opacity:0} 6%{opacity:1}
+  22%{left:0} 34%{left:33.333%} 56%{left:33.333%} 68%{left:66.666%} 88%{left:66.666%} 100%{left:100%;opacity:1}
+}
+.lp .steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.lp .steps li{--d:calc(var(--i) * var(--T) * .85);position:relative;display:flex;flex-direction:column;gap:10px;padding:18px 20px 22px;border:1px solid var(--line);border-radius:12px;background:var(--deep-2);opacity:.55;transform:translateY(10px);transition:border-color .5s,box-shadow .5s}
+.lp .flow.play .steps li{animation:lp-step-on .6s ease var(--d) forwards}
+@keyframes lp-step-on{to{opacity:1;transform:none;border-color:var(--line-hi);box-shadow:0 0 0 1px rgba(163,230,53,.14),0 18px 40px -24px rgba(163,230,53,.35)}}
+.lp .steps li:hover{outline:1px solid var(--lime);outline-offset:-1px}
 .lp .steps .num{font-family:var(--f-disp);font-weight:800;font-size:var(--fs-h3);color:var(--lime)}
 .lp .steps h3{font-family:var(--f-disp);font-weight:800;text-transform:uppercase;font-size:var(--fs-h3);line-height:1.1}
 .lp .steps .plain{flex:1}
-@media (max-width:1023px){.lp .steps{grid-template-columns:repeat(2,minmax(0,1fr))}.lp .steps li::after{display:none}}
+
+/* the scenes */
+.lp .art{display:block;width:100%;height:auto;aspect-ratio:200/92;margin-bottom:4px;border-radius:8px;background:#071d1b;overflow:visible}
+.lp .art *{transform-box:fill-box}
+/* upload: rows drop into the sheet, the arrow nudges */
+.lp .art-upload .sheet{fill:#0E2B28;stroke:var(--line-hi)}
+.lp .art-upload .sheet-head{fill:var(--line-hi)}
+.lp .art-upload .row{fill:var(--em);opacity:0;transform:translateY(-8px)}
+.lp .art-upload .arrow{fill:none;stroke:var(--lime);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;opacity:.0}
+.lp .flow.play .art-upload .row{animation:lp-row-in .45s ease calc(var(--d) + .25s + var(--r) * .14s) forwards}
+.lp .flow.play .art-upload .arrow{animation:lp-nudge 1.1s ease calc(var(--d) + .1s) 2 forwards}
+@keyframes lp-row-in{to{opacity:.9;transform:none}}
+@keyframes lp-nudge{0%{opacity:0;transform:translateY(-6px)}40%{opacity:1;transform:translateY(4px)}100%{opacity:.8;transform:none}}
+/* check: a tick per row; the fourth is held, gold, for a person */
+.lp .art-check .bar{fill:#0E2B28;stroke:var(--line)}
+.lp .art-check .dot{fill:none;stroke:var(--line-hi);stroke-width:1.5}
+.lp .art-check .mark{fill:none;stroke:var(--em);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.lp .art-check .held .mark{stroke:var(--gold,#E8C55A)}
+.lp .flow.play .art-check .mark{animation:lp-fade-in .3s ease calc(var(--d) + .3s + var(--r) * .18s) forwards}
+.lp .flow.play .art-check .row .dot{animation:lp-dot-ok .3s ease calc(var(--d) + .3s + var(--r) * .18s) forwards}
+.lp .flow.play .art-check .held .dot{animation:lp-dot-held .9s ease calc(var(--d) + .3s + 3 * .18s) 3 alternate forwards}
+.lp .flow.play .art-check .held .bar{animation:lp-bar-held .4s ease calc(var(--d) + .3s + 3 * .18s) forwards}
+@keyframes lp-fade-in{to{opacity:1}}
+@keyframes lp-dot-ok{to{stroke:var(--em)}}
+@keyframes lp-dot-held{to{stroke:#E8C55A;fill:rgba(232,197,90,.18)}}
+@keyframes lp-bar-held{to{stroke:#E8C55A}}
+/* protect: the policy sweeps down; three rows dim behind locks */
+.lp .art-protect .box{fill:#0E2B28;stroke:var(--line)}
+.lp .art-protect text{font-family:var(--f-ui);font-size:9.5px;fill:var(--text)}
+.lp .art-protect .lock{fill:none;stroke:var(--red);stroke-width:1.4;opacity:0}
+.lp .art-protect .scan{fill:var(--lime);opacity:0;filter:drop-shadow(0 0 4px rgba(163,230,53,.8))}
+.lp .flow.play .art-protect .scan{animation:lp-sweep 1s cubic-bezier(.4,0,.2,1) calc(var(--d) + .25s) forwards}
+.lp .flow.play .art-protect .co:not(.keep){animation:lp-dim .4s ease calc(var(--d) + .45s + var(--r) * .16s) forwards}
+.lp .flow.play .art-protect .co .lock{animation:lp-fade-in .3s ease calc(var(--d) + .55s + var(--r) * .16s) forwards}
+.lp .flow.play .art-protect .keep .box{animation:lp-keep .5s ease calc(var(--d) + .5s) forwards}
+@keyframes lp-sweep{0%{opacity:1;transform:translateY(0)}90%{opacity:1}100%{opacity:0;transform:translateY(88px)}}
+@keyframes lp-dim{to{opacity:.35}}
+@keyframes lp-keep{to{stroke:var(--em);fill:rgba(127,227,182,.12)}}
+/* report: bars rise, the NOI line draws over them */
+.lp .art-report .axis{stroke:var(--line-hi);stroke-width:1.5}
+.lp .art-report .col{fill:var(--em);opacity:.85;transform-origin:50% 100%;transform:scaleY(0)}
+.lp .art-report .noi{fill:none;stroke:var(--lime);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1}
+.lp .flow.play .art-report .col{animation:lp-rise-y .55s cubic-bezier(.2,.75,.2,1) calc(var(--d) + .2s + var(--r) * .1s) forwards}
+.lp .flow.play .art-report .noi{animation:lp-line .9s ease calc(var(--d) + .8s) forwards}
+@keyframes lp-rise-y{to{transform:scaleY(1)}}
+@keyframes lp-line{to{stroke-dashoffset:0}}
+
+@media (max-width:1023px){
+  .lp .track{display:none}
+  .lp .steps{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .lp .steps li{--d:calc(var(--i) * .25s)}
+}
 @media (max-width:600px){.lp .steps{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){
+  .lp .steps li{opacity:1;transform:none}
+  .lp .track{display:none}
+  .lp .art-upload .row,.lp .art-check .mark,.lp .art-protect .lock{opacity:1;transform:none}
+  .lp .art-report .col{transform:none}.lp .art-report .noi{stroke-dashoffset:0}
+}
 
 /* 4 · what it shows — areas + the tests as evidence */
 .lp .skills{display:grid;grid-template-columns:1.45fr .55fr;gap:32px;align-items:start}

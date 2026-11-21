@@ -38,6 +38,23 @@ export function Landing() {
     return () => { cancelled = true; dispose?.() }
   }, []) // mount once: the refs are stable for the page's lifetime
 
+  // Header: backed with paper once the hero scrolls under it, dark over the
+  // machinery, paper again over the closing sheet. Works without WebGL too.
+  useEffect(() => {
+    const on = () => {
+      const { bar, hero, close } = els.current
+      if (!bar || !hero || !close) return
+      const pastHero = hero.getBoundingClientRect().bottom <= 64
+      const onClose = close.getBoundingClientRect().top <= 64
+      bar.classList.toggle("is-scrolled", window.scrollY > 8 && !pastHero)
+      bar.classList.toggle("is-dark", pastHero && !onClose)
+      bar.classList.toggle("is-paper", onClose)
+    }
+    on()
+    addEventListener("scroll", on, { passive: true })
+    return () => removeEventListener("scroll", on)
+  }, [])
+
   const demoBtn = (cls: string, label = "Open the live demo") => (
     <button className={`btn ${cls}`} onClick={() => void explore()} disabled={busy}>{busy ? "Opening…" : label}</button>
   )
@@ -230,24 +247,79 @@ const STEPS = [
   },
 ]
 
+/** Each step's little scene — plain SVG, animated by CSS once the step lights up. */
+function StepArt({ kind }: { kind: number }) {
+  if (kind === 0) return ( // a spreadsheet arrives, row by row
+    <svg viewBox="0 0 200 92" className="art art-upload" aria-hidden="true">
+      <rect x="54" y="6" width="92" height="80" rx="6" className="sheet" />
+      <rect x="54" y="6" width="92" height="14" rx="6" className="sheet-head" />
+      {[0, 1, 2, 3].map((r) => <rect key={r} x="64" y={28 + r * 13} width={r % 2 ? 58 : 72} height="6" rx="3" className="row" style={{ ["--r" as string]: r }} />)}
+      <path d="M170 30 v26 m-8 -8 l8 8 l8 -8" className="arrow" />
+    </svg>
+  )
+  if (kind === 1) return ( // each row ticked; one held for a person
+    <svg viewBox="0 0 200 92" className="art art-check" aria-hidden="true">
+      {[0, 1, 2, 3, 4].map((r) => (
+        <g key={r} className={r === 3 ? "row held" : "row"} style={{ ["--r" as string]: r }}>
+          <rect x="34" y={6 + r * 17} width="112" height="11" rx="3" className="bar" />
+          <circle cx="162" cy={11.5 + r * 17} r="6" className="dot" />
+          {r === 3 ? <path d={`M162 ${8 + r * 17} v4 m0 2.5 v.5`} className="mark" /> : <path d={`M159 ${11.5 + r * 17} l2.2 2.4 l4 -4.6`} className="mark" />}
+        </g>
+      ))}
+    </svg>
+  )
+  if (kind === 2) return ( // the policy sweeps; three companies stay hidden
+    <svg viewBox="0 0 200 92" className="art art-protect" aria-hidden="true">
+      {["Danube", "Riverside", "Lindenhof", "Westgate"].map((n, r) => (
+        <g key={n} className={r === 0 ? "co keep" : "co"} style={{ ["--r" as string]: r }}>
+          <rect x="30" y={6 + r * 21} width="140" height="16" rx="4" className="box" />
+          <text x="42" y={17.5 + r * 21}>{n}</text>
+          {r > 0 && <path d={`M150 ${11 + r * 21} h8 v7 h-8 z M151.5 ${11 + r * 21} v-2.5 a2.5 2.5 0 0 1 5 0 v2.5`} className="lock" />}
+        </g>
+      ))}
+      <rect x="26" y="0" width="148" height="2.5" rx="1.2" className="scan" />
+    </svg>
+  )
+  return ( // the report fills in: bars and the NOI line
+    <svg viewBox="0 0 200 92" className="art art-report" aria-hidden="true">
+      <path d="M28 84 H176" className="axis" />
+      {[38, 52, 46, 62, 70].map((h, r) => <rect key={r} x={40 + r * 26} y={84 - h} width="16" height={h} rx="2" className="col" style={{ ["--r" as string]: r }} />)}
+      <path d="M48 58 L74 46 L100 52 L126 36 L152 28" className="noi" pathLength={1} />
+    </svg>
+  )
+}
+
 function HowItWorks() {
+  const flow = useRef<HTMLDivElement>(null)
+  const [play, setPlay] = useState(false)
+  useEffect(() => {
+    const el = flow.current
+    if (!el) return
+    const io = new IntersectionObserver((es) => { if (es[0].isIntersecting) { setPlay(true); io.disconnect() } }, { threshold: 0.35 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
   return (
     <section className="sec" id="how">
       <div className="sec-head">
         <h2>How it works</h2>
         <p>From a spreadsheet to a report a CFO can trust, in four steps.</p>
       </div>
-      <ol className="steps">
-        {STEPS.map((s, i) => (
-          <li key={s.title}>
-            <span className="num">{String(i + 1).padStart(2, "0")}</span>
-            <h3>{s.title}</h3>
-            <p className="plain">{s.plain}</p>
-            <p className="tech">{s.tech}</p>
-            <a className="path" href={repoUrl(s.path)} target="_blank" rel="noreferrer">{s.label} ↗</a>
-          </li>
-        ))}
-      </ol>
+      <div ref={flow} className={`flow${play ? " play" : ""}`}>
+        <div className="track" aria-hidden="true"><span className="line" /><span className="token"><i /><i /><i /></span></div>
+        <ol className="steps">
+          {STEPS.map((s, i) => (
+            <li key={s.title} style={{ ["--i" as string]: i }}>
+              <StepArt kind={i} />
+              <span className="num">{String(i + 1).padStart(2, "0")}</span>
+              <h3>{s.title}</h3>
+              <p className="plain">{s.plain}</p>
+              <p className="tech">{s.tech}</p>
+              <a className="path" href={repoUrl(s.path)} target="_blank" rel="noreferrer">{s.label} ↗</a>
+            </li>
+          ))}
+        </ol>
+      </div>
     </section>
   )
 }
