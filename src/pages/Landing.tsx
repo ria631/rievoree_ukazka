@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react"
 import { Link } from "@tanstack/react-router"
 import { useExploreDemo } from "@/app/AppShell"
 import { AUTHOR, EVIDENCE, TOP_TESTS, contactLinks, repoUrl } from "@/lib/author"
 import { FILES, SRC, hl } from "./landing/repoSource"
 import type { LandingEls } from "./landing/tear"
+import { Desk } from "./landing/Desk"
 import "./landing/landing.css"
 
 /**
@@ -247,70 +248,90 @@ const STEPS = [
   },
 ]
 
-/** Each step's little scene — plain SVG, animated by CSS once the step lights up. */
-function StepArt({ kind }: { kind: number }) {
-  if (kind === 0) return ( // a spreadsheet arrives, row by row
-    <svg viewBox="0 0 200 92" className="art art-upload" aria-hidden="true">
-      <rect x="54" y="6" width="92" height="80" rx="6" className="sheet" />
-      <rect x="54" y="6" width="92" height="14" rx="6" className="sheet-head" />
-      {[0, 1, 2, 3].map((r) => <rect key={r} x="64" y={28 + r * 13} width={r % 2 ? 58 : 72} height="6" rx="3" className="row" style={{ ["--r" as string]: r }} />)}
-      <path d="M170 30 v26 m-8 -8 l8 8 l8 -8" className="arrow" />
-    </svg>
-  )
-  if (kind === 1) return ( // each row ticked; one held for a person
-    <svg viewBox="0 0 200 92" className="art art-check" aria-hidden="true">
-      {[0, 1, 2, 3, 4].map((r) => (
-        <g key={r} className={r === 3 ? "row held" : "row"} style={{ ["--r" as string]: r }}>
-          <rect x="34" y={6 + r * 17} width="112" height="11" rx="3" className="bar" />
-          <circle cx="162" cy={11.5 + r * 17} r="6" className="dot" />
-          {r === 3 ? <path d={`M162 ${8 + r * 17} v4 m0 2.5 v.5`} className="mark" /> : <path d={`M159 ${11.5 + r * 17} l2.2 2.4 l4 -4.6`} className="mark" />}
-        </g>
-      ))}
-    </svg>
-  )
-  if (kind === 2) return ( // the policy sweeps; three companies stay hidden
-    <svg viewBox="0 0 200 92" className="art art-protect" aria-hidden="true">
-      {["Danube", "Riverside", "Lindenhof", "Westgate"].map((n, r) => (
-        <g key={n} className={r === 0 ? "co keep" : "co"} style={{ ["--r" as string]: r }}>
-          <rect x="30" y={6 + r * 21} width="140" height="16" rx="4" className="box" />
-          <text x="42" y={17.5 + r * 21}>{n}</text>
-          {r > 0 && <path d={`M150 ${11 + r * 21} h8 v7 h-8 z M151.5 ${11 + r * 21} v-2.5 a2.5 2.5 0 0 1 5 0 v2.5`} className="lock" />}
-        </g>
-      ))}
-      <rect x="26" y="0" width="148" height="2.5" rx="1.2" className="scan" />
-    </svg>
-  )
-  return ( // the report fills in: bars and the NOI line
-    <svg viewBox="0 0 200 92" className="art art-report" aria-hidden="true">
-      <path d="M28 84 H176" className="axis" />
-      {[38, 52, 46, 62, 70].map((h, r) => <rect key={r} x={40 + r * 26} y={84 - h} width="16" height={h} rx="2" className="col" style={{ ["--r" as string]: r }} />)}
-      <path d="M48 58 L74 46 L100 52 L126 36 L152 28" className="noi" pathLength={1} />
-    </svg>
-  )
+/** What the desk is doing in each act — over the desk, or under it on phones. */
+const ACT_CAPTIONS = [
+  "Three companies send this month's spreadsheets",
+  "Every row is checked — one odd figure waits for a person",
+  "Each company's numbers stay private to its own people",
+  "The portfolio report rebuilds itself within a minute",
+]
+
+/**
+ * The month on a loop: act 1…4 (three seconds each, the report a little
+ * longer), a fade, again. Sets cumulative a1…a4 classes, `data-act` (which
+ * step card is lit, where the token sits) and `out` on the section's flow;
+ * CSS does the rest. Runs only while the flow is on screen and resumes where
+ * it paused. Reduced motion: the finished desk, no loop.
+ */
+function useActLoop(ref: RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      el.classList.add("play", "on", "a1", "a2", "a3", "a4")
+      return
+    }
+    const acts = (k: number) => {
+      for (let i = 1; i <= 4; i++) el.classList.toggle(`a${i}`, i <= k)
+      el.dataset.act = String(k)
+    }
+    const plan: [number, () => void][] = [
+      [0, () => { el.classList.remove("out"); acts(1) }],
+      [3000, () => acts(2)],
+      [6000, () => acts(3)],
+      [9000, () => acts(4)],
+      [12300, () => el.classList.add("out")],
+      [12800, () => acts(0)],
+    ]
+    const CYCLE = 12860 // a beat after the reset, so the next act's animations restart
+    let i = 0
+    let timer = 0
+    let left = 0
+    let since = 0
+    let started = false
+    const wait = (ms: number) => { left = ms; since = performance.now(); timer = window.setTimeout(step, ms) }
+    function step() {
+      const [at, run] = plan[i]
+      run()
+      i = (i + 1) % plan.length
+      wait((i ? plan[i][0] : CYCLE) - at)
+    }
+    const io = new IntersectionObserver(([e]) => {
+      clearTimeout(timer)
+      if (e.isIntersecting) {
+        el.classList.add("on")
+        if (started) wait(left)
+        else { started = true; el.classList.add("play"); step() }
+      } else {
+        el.classList.remove("on")
+        if (started) left = Math.max(0, left - (performance.now() - since))
+      }
+    }, { threshold: 0.25 })
+    io.observe(el)
+    return () => { io.disconnect(); clearTimeout(timer) }
+  }, [ref])
 }
 
 function HowItWorks() {
   const flow = useRef<HTMLDivElement>(null)
-  const [play, setPlay] = useState(false)
-  useEffect(() => {
-    const el = flow.current
-    if (!el) return
-    const io = new IntersectionObserver((es) => { if (es[0].isIntersecting) { setPlay(true); io.disconnect() } }, { threshold: 0.35 })
-    io.observe(el)
-    return () => io.disconnect()
-  }, [])
+  useActLoop(flow)
   return (
     <section className="sec" id="how">
       <div className="sec-head">
         <h2>How it works</h2>
         <p>From a spreadsheet to a report a CFO can trust, in four steps.</p>
       </div>
-      <div ref={flow} className={`flow${play ? " play" : ""}`}>
-        <div className="track" aria-hidden="true"><span className="line" /><span className="token"><i /><i /><i /></span></div>
+      <div ref={flow} className="flow">
+        <div className="desk-wrap">
+          <Desk />
+          <div className="dk-cap" aria-hidden="true">
+            {ACT_CAPTIONS.map((c, i) => <span key={c} className={`c${i + 1}`}><b>{i + 1}</b>{c}</span>)}
+          </div>
+        </div>
+        <div className="track" aria-hidden="true"><span className="line" /><span className="rail"><span className="token"><i /><i /><i /></span></span></div>
         <ol className="steps">
           {STEPS.map((s, i) => (
             <li key={s.title} style={{ ["--i" as string]: i }}>
-              <StepArt kind={i} />
               <span className="num">{String(i + 1).padStart(2, "0")}</span>
               <h3>{s.title}</h3>
               <p className="plain">{s.plain}</p>
