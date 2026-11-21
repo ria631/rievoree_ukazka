@@ -7,6 +7,7 @@ import { useBatchRows, useReprocessBatch, useRecheckBatch, type StagingRowView }
 import { useEntityAccounts, useUpsertAccounts, type Account } from "@/lib/data/useAccounts"
 import { ClassifyAccounts } from "@/components/ClassifyAccounts"
 import { LoadingNote, ErrorNote } from "@/components/StateNote"
+import { explainAnomaly } from "@/lib/data/anomaly"
 
 const eur = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 })
 
@@ -52,7 +53,7 @@ export function BatchDetail({
   }, [rows])
 
   return (
-    <div data-tour="batch-detail" className="mt-4 rounded-[1.5rem] border border-border bg-card p-6 shadow-soft">
+    <div data-tour="batch-detail" className="mt-4 rounded-xl border border-border bg-card p-6 shadow-soft">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="font-mono text-sm font-semibold">{fileName}</h3>
@@ -370,10 +371,14 @@ function RowStatus({ state, row }: { state: RowState; row: StagingRowView }) {
     )
   }
   if (state === "flagged") {
+    const why = explainAnomaly(row.anomaly_reason)
     return (
-      <span className="inline-flex items-start gap-1.5 text-cold">
+      <span className="inline-flex items-start gap-1.5 text-gold" title={row.anomaly_reason ?? undefined}>
         <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-        <span>{row.anomaly_reason ?? "anomaly vs history"}</span>
+        <span>
+          <span className="block">{why.plain}</span>
+          {why.stats && <span className="block text-[10px] text-muted-foreground">{why.stats}</span>}
+        </span>
       </span>
     )
   }

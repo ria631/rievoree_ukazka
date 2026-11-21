@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Migration 30 — User management (admin)
 --
--- The admin screen from PLAN.md §6. Two audiences, one page:
+-- The admin screen. Two audiences, one page:
 --
 --   * Platform admin / super_admin (own no sandbox → private.is_admin() = TRUE):
 --       global view of every user; assign global roles, activate/deactivate, and

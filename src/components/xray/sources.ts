@@ -9,6 +9,13 @@ import type { XrayLang } from "@/lib/code-xray"
  */
 type Loader = () => Promise<{ default: string }>
 
+// These three are already in the entry bundle (the landing shows them), so the
+// X-ray reuses that copy instead of asking for a separate lazy chunk.
+import identitySql from "../../../supabase/migrations/20260605000001_identity_and_tenancy.sql?raw"
+import reportSql from "../../../supabase/migrations/20260610000002_report_account_monthly.sql?raw"
+import instrumentedFetchSrc from "@/lib/xray/instrumentedFetch.ts?raw"
+const loaded = (src: string): Loader => () => Promise.resolve({ default: src })
+
 export const SOURCES: Record<string, Loader> = {
   // Pages
   "src/pages/Dashboard.tsx": () => import("@/pages/Dashboard.tsx?raw"),
@@ -50,14 +57,16 @@ export const SOURCES: Record<string, Loader> = {
   "src/lib/data/parseCsv.ts": () => import("@/lib/data/parseCsv.ts?raw"),
   "src/lib/data/useBatches.ts": () => import("@/lib/data/useBatches.ts?raw"),
   "src/lib/data/useConnectors.ts": () => import("@/lib/data/useConnectors.ts?raw"),
-  "src/lib/xray/instrumentedFetch.ts": () => import("@/lib/xray/instrumentedFetch.ts?raw"),
+  "src/lib/xray/instrumentedFetch.ts": loaded(instrumentedFetchSrc),
   "src/lib/xray/usePipelineEvents.ts": () => import("@/lib/xray/usePipelineEvents.ts?raw"),
   // Database (migrations) + edge functions
-  "supabase/migrations/20260605000001_identity_and_tenancy.sql": () => import("../../../supabase/migrations/20260605000001_identity_and_tenancy.sql?raw"),
+  "supabase/migrations/20260605000001_identity_and_tenancy.sql": loaded(identitySql),
   "supabase/migrations/20260605000003_journal.sql": () => import("../../../supabase/migrations/20260605000003_journal.sql?raw"),
+  "supabase/migrations/20260626000002_budgets.sql": () => import("../../../supabase/migrations/20260626000002_budgets.sql?raw"),
+  "supabase/migrations/20260626000003_invoices.sql": () => import("../../../supabase/migrations/20260626000003_invoices.sql?raw"),
   "supabase/migrations/20261015000001_real_estate_reporting.sql": () => import("../../../supabase/migrations/20261015000001_real_estate_reporting.sql?raw"),
   "supabase/migrations/20261016000001_journal_documents_mv.sql": () => import("../../../supabase/migrations/20261016000001_journal_documents_mv.sql?raw"),
-  "supabase/migrations/20260610000002_report_account_monthly.sql": () => import("../../../supabase/migrations/20260610000002_report_account_monthly.sql?raw"),
+  "supabase/migrations/20260610000002_report_account_monthly.sql": loaded(reportSql),
   "supabase/migrations/20260610000004_pipeline_events_and_refresh_queue.sql": () => import("../../../supabase/migrations/20260610000004_pipeline_events_and_refresh_queue.sql?raw"),
   "supabase/migrations/20260607000002_etl_transform.sql": () => import("../../../supabase/migrations/20260607000002_etl_transform.sql?raw"),
   "supabase/migrations/20260626000007_scoped_admin.sql": () => import("../../../supabase/migrations/20260626000007_scoped_admin.sql?raw"),

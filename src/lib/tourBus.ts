@@ -28,3 +28,18 @@ export function useTourControl(key: string, handler: (value: string) => void) {
     return () => window.removeEventListener(EVENT, on)
   }, [key])
 }
+
+/** Ask the guided tour to start (the sidebar's "Take the tour" button). */
+const START = "xray-tour-start"
+export function requestTourStart() {
+  window.dispatchEvent(new Event(START))
+}
+export function useTourStartRequest(handler: () => void) {
+  const ref = useRef(handler)
+  ref.current = handler
+  useEffect(() => {
+    const on = () => ref.current()
+    window.addEventListener(START, on)
+    return () => window.removeEventListener(START, on)
+  }, [])
+}

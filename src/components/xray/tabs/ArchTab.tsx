@@ -33,7 +33,7 @@ const LAYERS: Layer[] = [
   { id: "pgcron", title: "Postgres — pg_cron", detail: "scheduled MV refresh + housekeeping", indent: true },
   { id: "pgnet", title: "Postgres — pg_net", detail: "DB → edge fn (notify-review)", indent: true },
   { id: "storage", title: "Storage — object store", detail: "uploaded CSV/XLSX" },
-  { id: "worker", title: "Docker — ETL worker", detail: "consumes ingest_queue (server-side)" },
+  { id: "worker", title: "Docker — ETL worker", detail: "consumes ingest_queue — local Docker stack only" },
 ]
 
 export function ArchTab() {
@@ -129,8 +129,8 @@ function Legend() {
     <p className="mt-auto border-t border-border px-4 py-3 font-mono text-[10px] leading-snug text-muted-foreground">
       <span className="text-accent">●</span> active this session ·{" "}
       <span className="opacity-60">▢ idle</span> · server-side = no
-      client-observable signal (e.g. the ETL worker runs even when the browser
-      sees nothing).
+      client-observable signal (e.g. the ETL worker, which runs in the local
+      Docker stack — this hosted demo parses CSV in the browser).
     </p>
   )
 }

@@ -1,21 +1,22 @@
 import { motion } from "motion/react"
 import { Link } from "@tanstack/react-router"
+import { AUTHOR, EVIDENCE, contactLinks, repoUrl } from "@/lib/author"
 
 const STACK = ["React 19", "TypeScript", "Vite", "Tailwind v4", "TanStack", "recharts", "Supabase", "Postgres", "Edge / Deno", "Docker", "pg_cron", "pg_net", "RLS"]
 
-// Real, vetted demo figures (same provenance as the landing — no invented numbers).
+// Real demo figures (same provenance as the landing — the Journal page's totals).
 const FIGURES: [string, string][] = [
-  ["€3.06M", "processed · total debit"],
-  ["936", "account-months"],
-  ["4", "entities · RLS-scoped"],
-  ["18", "monthly periods"],
+  ["€120.0M", "posted · debit side"],
+  ["4,708", "documents · all balanced"],
+  ["4", "companies · RLS-scoped"],
+  ["24", "monthly periods"],
 ]
 
 const LAYERS = [
   ["Browser", "React 19 reaches Postgres through one instrumented fetch — the seam the X-ray panel taps."],
   ["Edge / Deno", "Validated ingest and review notifications run as Deno edge functions."],
   ["Postgres", "Row-level security, trigger chains, scheduled refresh and HTTP callbacks live in the database."],
-  ["Docker worker", "A containerised Deno service drains the ingest queue with atomic, skip-locked claims."],
+  ["Docker worker", "A containerised Deno service drains the ingest queue with atomic, skip-locked claims — in the local stack (docker compose); the hosted demo parses CSV in the browser."],
 ]
 
 export function About() {
@@ -72,19 +73,41 @@ export function About() {
         </div>
       </div>
 
-      <div className="mt-14 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Link to="/register" className="rounded-full bg-accent px-7 py-3.5 text-center text-sm font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
-          Create account
-        </Link>
-        <Link to="/login" className="rounded-full border border-border px-7 py-3.5 text-center text-sm font-bold uppercase tracking-widest text-foreground transition hover:border-foreground/55">
-          Sign in
-        </Link>
+      <div className="mt-16 border-t border-border pt-12">
+        <span className="font-mono text-xs font-semibold uppercase tracking-widest text-accent">Who built it</span>
+        <h2 className="poster mt-3 text-[clamp(1.6rem,5vw,2.8rem)] leading-[0.92] text-foreground">{AUTHOR.name}</h2>
+        <p className="mt-4 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+          Built end to end as a portfolio project: the data model and its security, the ETL and the
+          anomaly screen, the scheduled jobs, the edge functions, the React app and the X-ray that shows
+          them working. Each claim below links to the code behind it.
+        </p>
+        <dl className="mt-8 divide-y divide-border border-y border-border">
+          {EVIDENCE.map((e) => (
+            <div key={e.area} className="grid gap-2 py-5 md:grid-cols-[12rem_1fr] md:gap-6">
+              <dt className="font-display text-lg font-extrabold uppercase leading-tight">{e.area}</dt>
+              <dd>
+                <p className="text-sm leading-relaxed text-muted-foreground">{e.claim}</p>
+                <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs">
+                  {e.where.map((w) => (
+                    <a key={w.path} href={repoUrl(w.path)} target="_blank" rel="noreferrer" className="font-semibold text-foreground underline-offset-4 hover:underline">{w.label} ↗</a>
+                  ))}
+                </p>
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <div className="mt-8 flex flex-wrap gap-3">
+          {contactLinks().map((c) => (
+            <a key={c.href} href={c.href} {...(c.external ? { target: "_blank", rel: "noreferrer" } : {})}
+              className="rounded-md bg-primary px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-primary-foreground transition hover:brightness-125">
+              {c.label}
+            </a>
+          ))}
+          <Link to="/" className="rounded-md border-[1.5px] border-foreground px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-foreground transition hover:bg-foreground/10">
+            Back to the demo
+          </Link>
+        </div>
       </div>
-
-      <p className="mt-10 text-sm text-muted-foreground">
-        Built by <span className="text-foreground">Mariia Chernenko</span> — a portfolio project.
-        The source is on <a href="https://github.com/ria631/rievoree_ukazka" target="_blank" rel="noreferrer" className="text-foreground underline-offset-4 hover:underline">GitHub</a>.
-      </p>
     </section>
   )
 }

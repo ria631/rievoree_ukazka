@@ -1,5 +1,5 @@
 import { useId, useState } from "react"
-import { motion } from "motion/react"
+import { PageIntro } from "@/components/report/Kit"
 import { UploadCloud } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -26,6 +26,11 @@ import { IngestMapping } from "@/components/IngestMapping"
 import { BatchDetail } from "@/components/BatchDetail"
 import { ClassifyAccounts } from "@/components/ClassifyAccounts"
 import { ChartEditor } from "@/components/ChartEditor"
+
+/** The Docker ETL worker (worker/) is what reads XLSX. It runs with the local
+ *  stack (`docker compose up`), not behind the hosted demo — set
+ *  VITE_XLSX_WORKER=true where it does. CSV is parsed in the browser everywhere. */
+const XLSX_WORKER = import.meta.env.VITE_XLSX_WORKER === "true"
 
 function canManage(role: string | null) {
   return role === "manager" || role === "admin" || role === "super_admin"
@@ -118,8 +123,12 @@ export function Ingest() {
       } catch { return }
     }
 
-    // XLSX has no client parser → upload without rows (still needs the worker).
-    if (!/\.csv$/i.test(file.name)) { doUpload(null, period); return }
+    // XLSX has no client parser → upload without rows; only the Docker ETL
+    // worker reads it, and that worker runs in the local stack, not the hosted demo.
+    if (!/\.csv$/i.test(file.name)) {
+      if (!XLSX_WORKER) { setMapError("Excel files are read by the ETL worker, which only runs in the local Docker stack. Save the sheet as CSV and upload that."); return }
+      doUpload(null, period); return
+    }
 
     // Parse CSV in the browser → typed rows for process_uploaded_rows.
     const text = await file.text()
@@ -156,17 +165,10 @@ export function Ingest() {
 
   return (
     <div className="relative">
-      <motion.header
-        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: "easeOut" }}
-        className="pb-10"
-      >
-        <h1 className="text-5xl font-semibold tracking-tight md:text-6xl lg:text-7xl">Upload data</h1>
-        <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-          Upload a CSV of your monthly accounting entries. We check each row,
-          flag anything unusual (a number far outside its history), and once you
-          approve it, the figures appear across your reports.
-        </p>
-      </motion.header>
+      <PageIntro eyebrow="Ingest" title="Upload data">
+        Upload a CSV of monthly accounting entries. Each row is checked, anything far outside its
+        history is flagged, and once a manager approves the batch the figures appear across the reports.
+      </PageIntro>
 
       {canManage(role) && <UploadGuide />}
 
@@ -177,7 +179,7 @@ export function Ingest() {
           and admins. The server enforces this regardless of the UI.
         </div>
       ) : (
-      <form onSubmit={submit} data-tour="ingest-upload" className="grid gap-4 rounded-[1.5rem] bg-card p-6 shadow-soft ring-1 ring-border md:grid-cols-4 md:items-end">
+      <form onSubmit={submit} data-tour="ingest-upload" className="grid gap-4 rounded-xl bg-card p-6 shadow-soft ring-1 ring-border @min-[600px]:grid-cols-4 md:items-end">
         <div className="space-y-1.5">
           <Label className="font-mono text-[10px] uppercase tracking-widest">Entity</Label>
           <SimpleSelect
@@ -195,8 +197,8 @@ export function Ingest() {
           <MonthPicker value={period} onChange={setPeriod} />
         </div>
         <div className="space-y-1.5">
-          <Label className="font-mono text-[10px] uppercase tracking-widest">File (CSV / XLSX)</Label>
-          <FilePicker file={file} accept=".csv,.xlsx,text/csv" onPick={setFile} />
+          <Label className="font-mono text-[10px] uppercase tracking-widest">{XLSX_WORKER ? "File (CSV / XLSX)" : "File (CSV)"}</Label>
+          <FilePicker file={file} accept={XLSX_WORKER ? ".csv,.xlsx,text/csv" : ".csv,text/csv"} onPick={setFile} />
         </div>
         <Button type="submit" className="font-mono" disabled={upload.isPending || saveRules.isPending}>
           {upload.isPending || saveRules.isPending ? "Uploading…" : "Upload"}
@@ -275,7 +277,7 @@ export function Ingest() {
             }
           />
         ) : (
-          <div data-tour="batches-table" className="overflow-hidden rounded-[1.5rem] bg-card shadow-soft ring-1 ring-border">
+          <div data-tour="batches-table" className="overflow-hidden rounded-xl bg-card shadow-soft ring-1 ring-border">
             <Table className="min-w-[640px]">
               <TableHeader className="bg-secondary/50">
                 <TableRow>
@@ -373,11 +375,11 @@ function UploadGuide() {
     URL.revokeObjectURL(url)
   }
   return (
-    <details data-tour="ingest-guide" className="mb-6 rounded-[1.5rem] border border-border bg-card/40 p-5 open:bg-card/60">
+    <details data-tour="ingest-guide" className="mb-6 rounded-xl border border-border bg-card/40 p-5 open:bg-card/60">
       <summary data-tour="ingest-guide-toggle" className="cursor-pointer select-none font-mono text-xs uppercase tracking-widest text-muted-foreground">
         What file do I upload? <span className="text-accent">(click)</span>
       </summary>
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+      <div className="mt-4 grid gap-4 @min-[700px]:grid-cols-[1.4fr_1fr]">
         <div>
           <p className="text-sm leading-relaxed text-muted-foreground">
             A CSV (spreadsheet saved as <code className="rounded bg-secondary px-1 py-0.5 text-foreground">.csv</code>)

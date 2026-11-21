@@ -40,7 +40,8 @@ export function Receivables() {
 
   return (
     <div className="relative">
-      <PageIntro eyebrow="Credit control" title="Receivables & payables">
+      <PageIntro eyebrow="Credit control" title="Receivables & payables"
+        actions={<EntitySelect sheet value={entityId} onChange={setEntityId} names={names} />}>
         What tenants still owe us, what we owe our suppliers, and how late — bucketed by days past due.
         {asOf && <> Open items as at <span className="text-foreground">{dLong(asOf)}</span>.</>}
       </PageIntro>
@@ -49,14 +50,13 @@ export function Receivables() {
         : error ? <ErrorNote message={error.message} />
         : !k || !asOf ? <EmptyNote title="No invoices yet" hint="Apply migration 38 and run the demo generator — receivables and payables appear here." />
         : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div data-tour="rp-filters" className="flex flex-wrap items-center gap-3">
             <Segmented tour="rp-kind" value={kind} onChange={setKind}
               options={[{ value: "ar", label: "Receivables · tenants" }, { value: "ap", label: "Payables · suppliers" }]} />
-            <EntitySelect value={entityId} onChange={setEntityId} names={names} />
           </div>
 
-          <div data-tour="rp-kpis" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div data-tour="rp-kpis" className="grid grid-cols-2 gap-2.5 sm:gap-4 @min-[860px]:grid-cols-4">
             <KpiTile i={0} label={ar ? "Owed to us" : "We owe"} value={k.open} format={eur.format} hint={`${open.length} open invoices`} />
             <KpiTile i={1} label="Overdue" value={k.overdue} format={eur.format} tone={k.overdue > 0 ? "bad" : "good"}
               hint={`${pct(k.overduePct, 0)} of the open balance`} />
@@ -70,7 +70,7 @@ export function Receivables() {
           <TieOut tour="rp-tieout" label={ar ? "Sub-ledger ties to account 1100" : "Sub-ledger ties to account 2000"}
             left={k.open} right={gl} leftLabel="open invoices" rightLabel={ar ? "GL trade receivables" : "GL trade payables"} />
 
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid gap-5 @min-[700px]:grid-cols-2">
             <ChartCard tour="rp-aging" title={`${ar ? "Receivables" : "Payables"} aging by property`} hint="days past due">
               {agingData.length ? <AgingStacked data={agingData} buckets={BUCKETS} />
                 : <p className="py-16 text-center font-mono text-xs text-muted-foreground">Nothing open.</p>}
@@ -80,7 +80,7 @@ export function Receivables() {
             </ChartCard>
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-[1fr_1.3fr]">
+          <div className="grid gap-5 @min-[860px]:grid-cols-[1fr_1.3fr]">
             <TableCard tour="rp-parties" title={ar ? "Tenants with open balances" : "Suppliers we owe"} hint="worst first">
               <div className="divide-y divide-border/50">
                 {parties.map((c) => (

@@ -58,7 +58,7 @@ export function ClassifyAccounts({
   const allMapped = codes.length > 0
 
   return (
-    <div className="mt-4 rounded-[1.5rem] border border-accent/40 bg-accent/[0.06] p-6">
+    <div className="mt-4 rounded-xl border border-accent/40 bg-accent/[0.06] p-6">
       <div className="flex flex-wrap items-center gap-2">
         <ListPlus className="size-4 text-accent" />
         <h3 className="font-mono text-xs uppercase tracking-widest text-accent">

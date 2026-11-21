@@ -73,13 +73,28 @@ function buildFieldMap(headers: string[], rules: Ruleset): Map<number, string> {
   return map;
 }
 
-// Coerce an amount: strip thousands separators, accept a plain signed decimal.
-// Unparseable / empty → null (the DB flags it).
+/**
+ * Read an amount the way accounting exports write it: "14,820.40" and
+ * "14.820,40" are both 14820.4, "1234,56" is 1234.56 (decimal comma), spaces
+ * group thousands. When both separators appear, the last one is the decimal
+ * point; a lone separator followed by exactly three digits in groups is a
+ * thousands separator ("1,234" → 1234). Anything else → null (the DB flags it).
+ * Mirrors src/lib/data/parseCsv.ts (the browser path).
+ */
 function parseAmount(value: string | undefined): number | null {
   if (value == null) return null;
-  const cleaned = value.trim().replace(/,/g, "");
-  if (cleaned === "" || !/^[+-]?\d+(\.\d+)?$/.test(cleaned)) return null;
-  const n = Number(cleaned);
+  let s = value.trim().replace(/[\s\u00a0\u202f]/g, "");
+  if (s === "") return null;
+  const lastComma = s.lastIndexOf(","), lastDot = s.lastIndexOf(".");
+  if (lastComma >= 0 && lastDot >= 0) {
+    s = lastComma > lastDot ? s.replace(/\./g, "").replace(",", ".") : s.replace(/,/g, "");
+  } else if (lastComma >= 0) {
+    s = /^[+-]?\d{1,3}(,\d{3})+$/.test(s) ? s.replace(/,/g, "") : s.replace(",", ".");
+  } else if (/^[+-]?\d{1,3}(\.\d{3}){2,}$/.test(s)) {
+    s = s.replace(/\./g, "");
+  }
+  if (!/^[+-]?\d+(\.\d+)?$/.test(s)) return null;
+  const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
 

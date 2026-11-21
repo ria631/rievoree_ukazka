@@ -9,7 +9,7 @@ import { animate } from "motion/react"
 export function CountUp({
   value,
   format = (n) => Math.round(n).toLocaleString("en"),
-  duration = 1.6,
+  duration = 0.6,
   delay = 0,
   className,
 }: {

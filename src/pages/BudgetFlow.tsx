@@ -43,7 +43,8 @@ export function BudgetFlow() {
 
   return (
     <div className="relative">
-      <PageIntro eyebrow="Cash budget" title="Budget flow">
+      <PageIntro eyebrow="Cash budget" title="Budget flow"
+        actions={<EntitySelect sheet value={entityId} onChange={setEntityId} names={names} />}>
         The year's cash plan by category — tenant receipts in; running costs, tax, capex, debt service and
         dividends out — against what actually went through the bank.
         {last && <> Actuals to <span className="text-foreground">{mLong(last)}</span>, plan after.</>}
@@ -53,15 +54,14 @@ export function BudgetFlow() {
         : error ? <ErrorNote message={error.message} />
         : !model || !plan?.length ? <EmptyNote title="No cash budget yet" hint="Apply migration 38 and run the demo generator — the plan and the bank actuals appear here." />
         : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div data-tour="cf-filters" className="flex flex-wrap items-center gap-3">
-            <EntitySelect value={entityId} onChange={setEntityId} names={names} />
             <FilterLabel label="Year">
               <SimpleSelect aria-label="Year" value={year} onValueChange={setYear} options={years.map((y) => ({ value: y, label: `FY ${y}` }))} />
             </FilterLabel>
           </div>
 
-          <div data-tour="cf-kpis" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div data-tour="cf-kpis" className="grid grid-cols-2 gap-2.5 sm:gap-4 @min-[860px]:grid-cols-4">
             <KpiTile i={0} label={closedN === 12 ? "Cash 31 Dec" : "Cash today"} value={model.opening + model.ytdActual} format={eur.format}
               hint={`opened the year at ${eurShort(model.opening)}`} />
             <KpiTile i={1} label={`Net cash flow · ${closedN} mo`} value={model.ytdActual} format={(n) => (n >= 0 ? "+" : "−") + eur.format(Math.abs(n))}
@@ -74,7 +74,7 @@ export function BudgetFlow() {
               hint={`${mLong(model.lowest.month)} · buffer ${eurShort(model.buffer)}`} />
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid gap-5 @min-[700px]:grid-cols-2">
             <ChartCard tour="cf-balance" title="Cash balance through the year" hint={`FY ${year}`}>
               <CashPlanChart data={chart} buffer={model.buffer} />
             </ChartCard>

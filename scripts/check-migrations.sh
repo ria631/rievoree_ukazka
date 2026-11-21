@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Migration-safety scanner (PLAN.md §9). Fails CI if a policy ships a "fake RLS"
+# Migration-safety scanner. Fails CI if a policy ships a "fake RLS"
 # USING (true) / WITH CHECK (true) escape hatch. Comments (-- …) are ignored, so
 # the migrations that merely MENTION the rule in prose still pass.
 set -euo pipefail

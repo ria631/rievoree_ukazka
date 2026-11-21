@@ -6,6 +6,9 @@ import { createRoot } from "react-dom/client"
 import "./index.css"
 import { router } from "./app/router"
 import { AuthProvider } from "./lib/auth/AuthProvider"
+import { installTornEdges } from "./lib/tornEdge"
+
+installTornEdges()
 
 // One retry, not three: a failing query should say so in seconds, not leave a
 // page "loading" for half a minute. Data is fresh for a minute, so the guided

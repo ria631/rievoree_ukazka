@@ -54,7 +54,8 @@ export function Forecast() {
 
   return (
     <div className="relative">
-      <PageIntro eyebrow="Rolling 12 months" title="Financial forecast">
+      <PageIntro eyebrow="Rolling 12 months" title="Financial forecast"
+        actions={<EntitySelect sheet value={entityId} onChange={setEntityId} names={names} />}>
         Next year's income built lease by lease from the rent roll: contracts run to expiry with their indexation,
         expiries renew or re-let after a void, costs follow last year plus inflation. Move a driver — it re-forecasts instantly.
       </PageIntro>
@@ -63,17 +64,16 @@ export function Forecast() {
         : error ? <ErrorNote message={error.message} />
         : !fc || !last ? <EmptyNote title="Nothing to forecast yet" hint="The forecast needs the rent roll and budgets from migration 38." />
         : (
-        <div className="space-y-6">
-          <div data-tour="fc-controls" className="space-y-4 rounded-[1.5rem] bg-card p-5 shadow-soft ring-1 ring-border md:p-6">
+        <div className="space-y-4">
+          <div data-tour="fc-controls" className="space-y-4 rounded-xl bg-card p-5 shadow-soft ring-1 ring-border md:p-6">
             <div className="flex flex-wrap items-center gap-3">
               <Segmented tour="fc-scenario" value={scenario} onChange={pick}
                 options={[{ value: "downside", label: "Downside" }, { value: "base", label: "Base" }, { value: "upside", label: "Upside" }, { value: "custom", label: "Custom" }]} />
-              <EntitySelect value={entityId} onChange={setEntityId} names={names} />
               <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
                 {mLong(fc.months[0].month)} – {mLong(fc.months[fc.months.length - 1].month)}
               </span>
             </div>
-            <div data-tour="fc-drivers" className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div data-tour="fc-drivers" className="grid gap-x-6 gap-y-4 sm:grid-cols-2 @min-[700px]:grid-cols-5">
               {DRIVERS.map((d) => (
                 <label key={d.key} className="block">
                   <span className="flex items-baseline justify-between font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -88,7 +88,7 @@ export function Forecast() {
             </div>
           </div>
 
-          <div data-tour="fc-kpis" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div data-tour="fc-kpis" className="grid grid-cols-2 gap-2.5 sm:gap-4 @min-[860px]:grid-cols-4">
             <KpiTile i={0} label="Revenue · next 12 mo" value={rev12} format={eur.format} hint="after bad debt" />
             <KpiTile i={1} label="NOI · next 12 mo" value={noi12} format={eur.format} tone={noi12 >= bud12 ? "good" : "bad"}
               hint={`budget ${eurShort(bud12)} · ${noi12 >= bud12 ? "+" : "−"}${eurShort(Math.abs(noi12 - bud12))}`} />
@@ -102,7 +102,7 @@ export function Forecast() {
             <ForecastChart data={chart} today={mLabel(last)} />
           </ChartCard>
 
-          <div className="grid gap-5 xl:grid-cols-[1.25fr_1fr]">
+          <div className="grid gap-5 @min-[860px]:grid-cols-[1.25fr_1fr]">
             <TableCard tour="fc-outlook" title={`Full-year outlook · FY ${fc.outlookYear}`} hint="€ thousands">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[520px] text-[13px]">
@@ -158,11 +158,13 @@ export function Forecast() {
                     <div className="text-right">
                       {e.kind === "expiry"
                         ? <><div className="font-mono text-xs tabular-nums">{eurShort(e.rentPa)} p.a.</div><Chip tone="warn">{e.month <= last ? "ends" : "expires"} {mLabel(e.month)}</Chip></>
+                        : e.kind === "signed"
+                        ? <><div className="font-mono text-xs tabular-nums">{eurShort(e.rentPa)} p.a.</div><Chip tone="good">signed · starts {mLabel(e.month)}</Chip></>
                         : <Chip tone="muted">let after {drivers.voidMonths} mo</Chip>}
                     </div>
                   </div>
                 ))}
-                {!fc.events.length && <p className="px-5 py-10 text-center font-mono text-xs text-muted-foreground">No expiries or vacancies in the next 12 months.</p>}
+                {!fc.events.length && <p className="px-5 py-10 text-center font-mono text-xs text-muted-foreground">No expiries, vacancies or new leases in the next 12 months.</p>}
               </div>
               </div>
             </TableCard>

@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/lib/auth/useAuth"
 import {
   usePipelineEvents,
   type PipelineEvent,
@@ -137,19 +138,28 @@ function summarizeDetail(detail: Record<string, unknown>): string {
 }
 
 function EmptyState({ authed }: { authed: boolean }) {
+  const { role, isDemo } = useAuth()
   return (
     <div className="flex flex-1 flex-col justify-center gap-2 px-4 text-center font-mono text-xs text-muted-foreground">
-      {authed ? (
-        <p>
-          No pipeline events for your entities yet. Approve a batch or load data,
-          then watch events stream in live.
-        </p>
-      ) : (
+      {!authed ? (
         <p>
           Signed out — RLS hides pipeline_events from anon.
           <br />
           Open the <span className="text-accent">RLS</span> tab and run as
           Manager or Admin to see your entities' events stream in live.
+        </p>
+      ) : role === "viewer" ? (
+        <p>
+          Viewers don't see the machinery: the <span className="text-foreground">pipeline_events</span> policy
+          is manager and up, so Postgres returns nothing here.
+          {isDemo && <><br />Switch to <span className="text-accent">Manager</span> in the sidebar to watch the
+          hourly refresh and the connector syncs.</>}
+        </p>
+      ) : (
+        <p>
+          No pipeline events for your entities yet. Approve a batch or load data,
+          then watch events stream in live.
+          {isDemo && <><br />The demo queues a real report refresh every hour — the next one lands here.</>}
         </p>
       )}
     </div>

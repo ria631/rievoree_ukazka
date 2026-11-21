@@ -36,7 +36,7 @@ export function EntityManager() {
     "rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-accent/50"
 
   return (
-    <section className="mt-8 max-w-2xl rounded-[1.5rem] bg-card p-6 shadow-soft ring-1 ring-border md:p-7">
+    <section className="mt-8 max-w-2xl rounded-xl bg-card p-6 shadow-soft ring-1 ring-border md:p-7">
       <div className="flex items-center gap-2">
         <Boxes className="size-4 text-accent" />
         <h2 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Your entities</h2>

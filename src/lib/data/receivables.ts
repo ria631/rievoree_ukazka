@@ -89,14 +89,19 @@ export function arApKpis(items: Invoice[], monthly: InvoiceMonth[], asOf: string
   const win = new Set(monthRange(addMonths(last, -2), last))
   const recent = monthly.filter((r) => win.has(mk(r.period)))
   const invoiced = recent.reduce((s, r) => s + r.invoiced, 0)
-  const days = invoiced > 0 ? open / (invoiced / 92) : 0
+  // Average daily invoicing over the window's real length (Dec–Feb is 90 days, not 92).
+  const windowDays = daysBetween(`${addMonths(last, -2)}-01`, `${addMonths(last, 1)}-01`)
+  const days = invoiced > 0 ? open / (invoiced / windowDays) : 0
   // On-time record: the three months before the last one (all of them are due by now).
   const due = new Set(monthRange(addMonths(last, -3), addMonths(last, -1)))
   const settled = monthly.filter((r) => due.has(mk(r.period)))
   const billed = settled.reduce((s, r) => s + r.invoiced, 0)
   const onTime = settled.reduce((s, r) => s + r.settled_on_time, 0)
-  const paidN = settled.reduce((s, r) => s + r.invoices, 0)
-  const avg = paidN ? settled.reduce((s, r) => s + (r.avg_days_to_pay ?? 0) * r.invoices, 0) / paidN : null
+  // Only months with a known payment time count — a month with nothing paid yet
+  // has no "days to pay", it isn't zero days.
+  const timed = settled.filter((r) => r.avg_days_to_pay != null)
+  const paidN = timed.reduce((s, r) => s + r.invoices, 0)
+  const avg = paidN ? timed.reduce((s, r) => s + (r.avg_days_to_pay as number) * r.invoices, 0) / paidN : null
   return { open, overdue, overduePct: open ? (overdue / open) * 100 : 0, over60, dueNext14, days, onTimePct: billed ? (onTime / billed) * 100 : 0, avgDaysToPay: avg }
 }
 

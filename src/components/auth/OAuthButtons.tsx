@@ -2,8 +2,8 @@ import { useState } from "react"
 import { supabase } from "@/lib/supabase"
 
 /**
- * "Sign in with Google / GitHub" — the OAuth2 flow beside password auth
- * (PLAN.md §7). Goes through the ONE instrumented supabase factory, so the
+ * "Sign in with Google / GitHub" — the OAuth2 flow beside password auth.
+ * Goes through the ONE instrumented supabase factory, so the
  * X-ray panel sees the redirect handshake too. The buttons work the moment the
  * provider secrets are configured (config.toml [auth.external.*]); until then
  * Supabase replies "provider is not enabled" and we surface it inline.

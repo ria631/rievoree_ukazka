@@ -49,7 +49,8 @@ export function RentRoll() {
 
   return (
     <div className="relative">
-      <PageIntro eyebrow="Leases & income" title="Rent roll">
+      <PageIntro eyebrow="Leases & income" title="Rent roll"
+        actions={<EntitySelect sheet value={entityId} onChange={setEntityId} names={names} />}>
         Every unit, its tenant, rent and lease dates — the contract base behind the rental income.
         {asOf && <> As at <span className="text-foreground">{dLong(asOf)}</span>.</>}
       </PageIntro>
@@ -58,14 +59,13 @@ export function RentRoll() {
         : error ? <ErrorNote message={error.message} />
         : !roll?.units.length ? <EmptyNote title="No units yet" hint="Apply migration 38 and run the demo generator — the rent roll appears here." />
         : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div data-tour="roll-filters" className="flex flex-wrap items-center gap-3">
-            <EntitySelect value={entityId} onChange={setEntityId} names={names} />
             <Segmented tour="roll-status" value={status} onChange={setStatus}
               options={[{ value: "all", label: "All units" }, { value: "let", label: "Let" }, { value: "vacant", label: "Vacant" }, { value: "expiring", label: "Expiring ≤ 12 mo" }]} />
           </div>
 
-          <div data-tour="roll-kpis" className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          <div data-tour="roll-kpis" className="grid grid-cols-2 gap-4 @min-[700px]:grid-cols-5">
             <KpiTile i={0} label="Occupancy" value={k.occupancyPct} format={(n) => pct(n)} tone={k.occupancyPct >= 90 ? "good" : undefined}
               hint={`${num.format(k.letArea)} of ${num.format(k.gla)} m² let`} />
             <KpiTile i={1} label="Passing rent p.a." value={k.passingPa} format={eur.format} hint={`${k.units} units · contracted today`} />
@@ -76,7 +76,7 @@ export function RentRoll() {
               hint="overdue rent still unpaid" />
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid gap-5 @min-[700px]:grid-cols-2">
             <ChartCard tour="roll-expiry" title="Lease expiry profile" hint="rent p.a. by time to expiry">
               <ExpiryBars data={expiry} />
             </ChartCard>

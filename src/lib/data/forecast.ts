@@ -49,10 +49,10 @@ export interface LeaseEvent {
   property: string
   unit: string
   tenant: string | null
-  month: string          // expiry month (or "now" for vacant)
-  rentPa: number         // passing rent p.a. (0 if vacant)
+  month: string          // expiry / start month (or "now" for vacant)
+  rentPa: number         // passing or signed rent p.a. (0 if vacant)
   ervPa: number
-  kind: "expiry" | "vacant"
+  kind: "expiry" | "vacant" | "signed"
 }
 
 export interface OutlookRow { label: string; ytd: number; rest: number; outlook: number; budget: number; favorableUp: boolean; strong?: boolean }
@@ -97,40 +97,65 @@ export function runForecast({ data, rows, budgets, last, include }: Input, d: Dr
     const feeX = resi ? 0.5 : 1.5
     const leases = (byUnit.get(u.id) ?? []).sort((a, b) => a.start_date.localeCompare(b.start_date))
     const cur = leases.find((l) => l.start_date <= asOf && l.end_date >= asOf) ?? null
+    // Signed but not started yet: a pre-let, or the next tenant after `cur`.
+    const signed = leases.filter((l) => l.start_date > asOf)
     const ervM = u.erv_m2 * u.area_m2
     const scRate = cur ? cur.service_charge_month / u.area_m2 : (leases.at(-1)?.service_charge_month ?? 0) / u.area_m2
     const p = d.renewal / 100
 
+    // A contract's rent in month m, with an indexation step on each lease
+    // anniversary that falls after the as-of month (and after the lease began).
+    const contractRent = (l: Lease, m: string) => {
+      const startMonth = Number(l.start_date.slice(5, 7))
+      const from = mk(l.start_date) > last ? addMonths(mk(l.start_date), 1) : addMonths(last, 1)
+      let steps = 0
+      for (const k of monthRange(from, m)) if (Number(k.slice(5, 7)) === startMonth) steps++
+      return l.rent_month * Math.pow(1 + l.indexation_pct / 100, steps)
+    }
+
     if (cur) {
       const endK = mk(cur.end_date)
+      const followOn = signed.find((l) => l.start_date > cur.end_date)
       if (endK <= horizon[11]) {
         events.push({ property: prop?.name ?? "—", unit: u.code, tenant: cur.tenant, month: endK, rentPa: cur.rent_month * 12, ervPa: ervM * 12, kind: "expiry" })
-        rentAtRisk += cur.rent_month * 12 * (1 - p)
+        // Rent already re-let under a signed lease isn't at risk.
+        if (!followOn) rentAtRisk += cur.rent_month * 12 * (1 - p)
       }
-      horizon.forEach((m, i) => {
-        if (m <= endK) {
-          // Indexation steps on each lease anniversary after the as-of month.
-          const startMonth = Number(cur.start_date.slice(5, 7))
-          let steps = 0
-          for (const k of monthRange(addMonths(last, 1), m)) if (Number(k.slice(5, 7)) === startMonth) steps++
-          rent[i] += cur.rent_month * Math.pow(1 + cur.indexation_pct / 100, steps)
-          other[i] += cur.service_charge_month + cur.parking_month
-        } else {
-          const since = monthDiff(endK, m)          // months after expiry (≥ 1)
-          const relet = since > voidM ? 1 : 0
-          rent[i] += ervM * g(m) * (p + (1 - p) * relet)
-          other[i] += scRate * u.area_m2 * (p + (1 - p) * relet) + cur.parking_month * p
-          if (since === voidM + 1) letting[i] += (1 - p) * feeX * ervM * g(m)
-        }
-      })
-    } else {
+    } else if (!signed.length) {
       events.push({ property: prop?.name ?? "—", unit: u.code, tenant: null, month: last, rentPa: 0, ervPa: ervM * 12, kind: "vacant" })
-      horizon.forEach((m, i) => {
-        const since = monthDiff(last, m)
-        if (since > voidM) { rent[i] += ervM * g(m); other[i] += scRate * u.area_m2 }
-        if (since === voidM + 1) letting[i] += feeX * ervM * g(m)
-      })
     }
+    for (const l of signed) {
+      if (mk(l.start_date) <= horizon[11]) {
+        events.push({ property: prop?.name ?? "—", unit: u.code, tenant: l.tenant, month: mk(l.start_date), rentPa: l.rent_month * 12, ervPa: ervM * 12, kind: "signed" })
+      }
+    }
+
+    horizon.forEach((m, i) => {
+      // 1 · a contract covers the month (the current lease or a signed one)
+      const l = leases.find((x) => mk(x.start_date) <= m && mk(x.end_date) >= m && x.end_date >= asOf)
+      if (l) {
+        rent[i] += contractRent(l, m)
+        other[i] += l.service_charge_month + l.parking_month
+        return
+      }
+      // 2 · committed to a signed lease that hasn't started: no speculative re-let
+      if (signed.some((x) => mk(x.start_date) > m)) return
+      // 3 · after a lease that ends inside the horizon: renew with probability p,
+      //     otherwise re-let at ERV after the void
+      const ended = [...leases].reverse().find((x) => mk(x.end_date) < m && mk(x.end_date) >= last)
+      if (ended) {
+        const since = monthDiff(mk(ended.end_date), m)   // months after expiry (≥ 1)
+        const relet = since > voidM ? 1 : 0
+        rent[i] += ervM * g(m) * (p + (1 - p) * relet)
+        other[i] += (scRate * u.area_m2 + ended.parking_month) * (p + (1 - p) * relet)
+        if (since === voidM + 1) letting[i] += (1 - p) * feeX * ervM * g(m)
+        return
+      }
+      // 4 · vacant at the as-of date: let at ERV after the void
+      const since = monthDiff(last, m)
+      if (since > voidM) { rent[i] += ervM * g(m); other[i] += scRate * u.area_m2 }
+      if (since === voidM + 1) letting[i] += feeX * ervM * g(m)
+    })
   }
 
   // Costs and debt service from history (same month last year).
@@ -142,7 +167,12 @@ export function runForecast({ data, rows, budgets, last, include }: Input, d: Dr
     if (c === "interest") interestBy.set(k, (interestBy.get(k) ?? 0) + plAmount(r))
     if (isLoan(r)) principalBy.set(k, (principalBy.get(k) ?? 0) + r.debit)
   }
-  const recentInterest = monthRange(addMonths(last, -2), last).reduce((s, k) => s + (interestBy.get(k) ?? 0), 0) / 3
+  // Interest run-rate: the average of the last three months that have any —
+  // a company with one month of history isn't paying a third of its interest.
+  const interestMonths = monthRange(addMonths(last, -2), last).filter((k) => interestBy.has(k))
+  const recentInterest = interestMonths.length
+    ? interestMonths.reduce((s, k) => s + (interestBy.get(k) ?? 0), 0) / interestMonths.length
+    : 0
   const budgetNoi = budgetNoiBy(budgets.filter((b) => include(b.entity_id)))
 
   const months: ForecastMonth[] = horizon.map((m, i) => {
@@ -167,7 +197,8 @@ export function runForecast({ data, rows, budgets, last, include }: Input, d: Dr
 
   const { year, rowsOut } = outlook(scoped, budgets.filter((b) => include(b.entity_id)), months, last)
   // Biggest income at stake first: expiries by rent, then vacant space by ERV.
-  events.sort((a, b) => (a.kind === b.kind ? (b.rentPa - a.rentPa) || (b.ervPa - a.ervPa) : a.kind === "expiry" ? -1 : 1))
+  const order = { expiry: 0, signed: 1, vacant: 2 } as const
+  events.sort((a, b) => (a.kind === b.kind ? (b.rentPa - a.rentPa) || (b.ervPa - a.ervPa) : order[a.kind] - order[b.kind]))
   return { months, history, events, rentAtRisk, outlookYear: year, outlook: rowsOut }
 }
 

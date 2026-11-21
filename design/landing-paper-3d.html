@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>X-Ray Machinery</title>
+<meta name="description" content="X-Ray is a financial reporting engine with its machinery in the open. The page tears open on the real source underneath. Built by Mariia Chernenko.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiIgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByb2xlPSJpbWciIGFyaWEtbGFiZWw9IlgtUmF5Ij4KICA8IS0tIGZhdmljb246IHNhbWUgWC1zaGFwZWQgdGVhciwgc2ltcGxpZmllZCBmb3IgMTYgYW5kIDMyIHB4IC0tPgogIDxyZWN0IHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgcng9IjciIGZpbGw9IiNBM0U2MzUiLz4KICA8cGF0aCBkPSJNNi4yMCA2LjIwIEwxMS4xMCA4LjgwIEwxNi4wMCAxMS40MCBMMjAuOTAgOC44MCBMMjUuODAgNi4yMCBMMjMuMjAgMTEuMTAgTDIwLjYwIDE2LjAwIEwyMy4yMCAyMC45MCBMMjUuODAgMjUuODAgTDIwLjkwIDIzLjIwIEwxNi4wMCAyMC42MCBMMTEuMTAgMjMuMjAgTDYuMjAgMjUuODAgTDguODAgMjAuOTAgTDExLjQwIDE2LjAwIEw4LjgwIDExLjEwIFoiIGZpbGw9IiMwODIzMjEiIHN0cm9rZT0iI0UyRjhCMiIgc3Ryb2tlLXdpZHRoPSIxLjMiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHBhaW50LW9yZGVyPSJzdHJva2UiLz4KICA8cmVjdCB4PSIxMy40IiB5PSIxNS4yIiB3aWR0aD0iNS4yIiBoZWlnaHQ9IjEuNiIgcng9Ii44IiBmaWxsPSIjQTNFNjM1Ii8+Cjwvc3ZnPgo=">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700&family=Saira+Condensed:wght@600;700;800;900&family=Big+Shoulders+Stencil+Display:wght@700;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<!--
+  Landing mockup, "paper machinery". Same brand as the app (src/index.css):
+  the landing is one sheet of lime paper (#A3E635), ink near-black green, the
+  machinery underneath is the dark emerald recess of PageTear, type is Saira /
+  Saira Condensed / Big Shoulders Stencil / JetBrains Mono.
+
+  New: the tear is a real-time WebGL scene instead of the keyed video. The
+  sheet is a mesh; six petals tear along jagged lines, roll up about straight
+  creases and throw real shadows into a recess 1.8 hole-radii deep, where the
+  repo's source lies (verbatim: RLS policy, report view, worker claim,
+  instrumentedFetch). Scrolling dives the camera through the hole into the
+  machinery sections. No video, no bitmap assets.
+
+  Figures are the seeded demo totals the current landing uses; entity names and
+  role memberships come from supabase/seed.sql.
+-->
+<style>
+:root{
+  --paper:#A3E635;
+  --ink:#16301F;              /* oklch(0.20 0.035 150) */
+  --ink-soft:#3A5A3F;         /* oklch(0.36 0.06 150)  */
+  --rule:rgba(22,48,31,.28);
+  --deep:#061716;             /* the machinery: deepest recess */
+  --deep-2:#0B2423;
+  --deep-3:#11312F;
+  --line:#1D4340;
+  --em:#7FE3B6;               /* oklch(0.85 0.14 163) emerald source */
+  --teal:#5DCFDA;             /* oklch(0.81 0.11 197) data window */
+  --lime:#A3E635;
+  --dim:#7FA39B;
+  --text:#E4F2EC;
+  --red:#F06A5D;
+
+  --f-ui:"Saira",ui-sans-serif,system-ui,sans-serif;
+  --f-disp:"Saira Condensed","Saira",ui-sans-serif,sans-serif;
+  --f-stencil:"Big Shoulders Stencil Display","Saira Condensed",sans-serif;
+  --f-code:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --gx:max(16px, env(safe-area-inset-left, 0px));
+  --maxw:1440px;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;overflow-x:clip}
+body{margin:0;background:var(--deep);color:var(--text);font-family:var(--f-ui);font-size:17px;line-height:1.55;overflow-x:clip;-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;text-wrap:balance}
+p{margin:0}
+a{color:inherit}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--lime);outline-offset:3px}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 var(--gx)}
+code{font-family:var(--f-code);font-size:.88em}
+
+/* ---------- header (lime over the paper, dark over the machinery) ---------- */
+.bar{position:fixed;inset:0 0 auto 0;z-index:60;transition:background .3s,color .3s,border-color .3s;color:var(--ink);border-bottom:1px solid transparent}
+.bar.dark{background:color-mix(in srgb,var(--deep) 88%,transparent);backdrop-filter:blur(10px);color:var(--text);border-color:var(--line)}
+.bar .wrap{display:flex;align-items:center;gap:28px;height:64px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--f-disp);font-weight:800;font-size:22px;text-decoration:none;text-transform:uppercase;letter-spacing:.01em}
+.brand img{width:28px;height:28px;border-radius:6px}
+.bar nav{display:flex;gap:26px;font-size:15px;font-weight:500}
+.bar nav a{text-decoration:none;opacity:.72}
+.bar nav a:hover{opacity:1}
+.spacer{flex:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:50px;padding:0 26px;border-radius:6px;font-family:var(--f-code);font-weight:700;font-size:13.5px;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;cursor:pointer;border:1.5px solid transparent;transition:background .15s,color .15s,border-color .15s,transform .15s}
+.btn:active{transform:translateY(1px)}
+.btn-ink{background:var(--ink);color:var(--paper)}
+.btn-ink:hover{background:#0D2216}
+.btn-ghost{border-color:var(--ink);color:var(--ink)}
+.btn-ghost:hover{background:rgba(22,48,31,.08)}
+.btn-lime{background:var(--lime);color:var(--ink)}
+.btn-lime:hover{background:#B6F051}
+.btn-line{border-color:var(--line);color:var(--text)}
+.btn-line:hover{border-color:var(--em)}
+.bar .btn{min-height:42px;padding:0 18px;font-size:12px}
+.bar.dark .btn-ink{background:var(--lime);color:var(--ink)}
+@media (max-width:820px){.bar nav{display:none}}
+
+/* ================= HERO: the sheet, torn in WebGL ================= */
+.hero{position:relative;height:290vh;background:var(--paper)}
+.hero-stage{position:sticky;top:0;height:100svh;overflow:hidden}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hero-copy{position:relative;z-index:2;height:calc(100% - 96px);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;pointer-events:none;color:var(--ink)}
+.hero-copy .txt{pointer-events:auto;padding-top:40px;will-change:transform,opacity}
+.hero h1{font-family:var(--f-disp);font-weight:800;text-transform:uppercase;line-height:.86;letter-spacing:-.01em}
+.hero h1 .l1{display:block;font-size:clamp(1.6rem,3.3vw,3rem)}
+.hero h1 .l2{display:block;white-space:nowrap;font-family:var(--f-stencil);font-size:clamp(3.4rem,9vw,10rem);line-height:.84;margin:.02em 0 .04em}
+.hero h1 .l3{display:block;font-size:clamp(1.8rem,4.6vw,4.3rem)}
+.hero h1 .l2 span{display:inline-block;transform:translateY(105%);animation:rise .8s cubic-bezier(.2,.75,.2,1) forwards}
+.hero h1 .mask{display:block;overflow-x:visible;overflow-y:clip;padding-bottom:.04em}
+.hero h1 .l1,.hero h1 .l3{transform:translateY(110%);animation:rise .7s cubic-bezier(.2,.75,.2,1) forwards}
+.hero h1 .l3{animation-delay:.45s}
+@keyframes rise{to{transform:none}}
+.hero .lede{margin-top:22px;max-width:44ch;font-size:18px;color:var(--ink-soft)}
+.hero .ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
+.hero .note{margin-top:22px;max-width:46ch;font-family:var(--f-code);font-size:12.5px;line-height:1.6;color:var(--ink-soft)}
+.hero .note b{color:var(--ink);font-weight:700}
+.anchor{justify-self:center;width:min(92%,560px);aspect-ratio:1;pointer-events:none}
+.stats{position:absolute;z-index:2;left:0;right:0;bottom:0;color:var(--ink);pointer-events:none}
+.stats .wrap{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--rule)}
+.stat{padding:16px 0 22px;border-left:1px solid var(--rule);padding-left:22px}
+.stat:first-child{border-left:0;padding-left:0}
+.stat .v{font-family:var(--f-disp);font-weight:800;font-size:clamp(1.8rem,3.4vw,3.4rem);line-height:1}
+.stat .l{margin-top:6px;font-family:var(--f-code);font-size:11.5px;color:var(--ink-soft)}
+.dive-hint{position:absolute;z-index:3;font-family:var(--f-code);font-size:12px;color:var(--ink);background:var(--paper);border:1.5px solid var(--ink);padding:6px 10px;border-radius:4px;pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap}
+.in-copy{position:absolute;z-index:3;inset:0;display:grid;place-items:center;text-align:center;pointer-events:none;opacity:0}
+.in-copy h2{font-family:var(--f-disp);font-weight:800;text-transform:uppercase;font-size:clamp(2.6rem,6.4vw,6.2rem);line-height:.9;color:var(--lime);text-shadow:0 0 40px rgba(6,23,22,.9)}
+.in-copy p{margin-top:16px;font-family:var(--f-code);font-size:14px;color:var(--text);text-shadow:0 0 14px #061716}
+.nogl .close{background:var(--paper)}
+.nogl .hero-stage{background:radial-gradient(40% 45% at 72% 50%,var(--deep-3) 0 45%,transparent 46%),var(--paper)}
+@media (max-width:980px){
+  .hero{height:240vh}
+  .hero-copy{grid-template-columns:1fr;grid-template-rows:auto 1fr;align-items:start;padding-top:84px}
+  .hero-copy .txt{padding-top:0}
+  .hero .lede{font-size:16.5px;margin-top:14px}
+  .hero .note{display:none}
+  .anchor{width:min(80vw,420px);align-self:center;margin-bottom:8px}
+  .stats{display:none}
+  .stats .wrap{grid-template-columns:repeat(2,1fr)}
+  .stat:nth-child(3){border-left:0;padding-left:0}
+  .stat{padding:10px 0 12px 16px}
+  .stat .v{font-size:1.6rem}
+}
+@media (max-width:980px) and (max-height:760px){.stats{display:none}.anchor{margin-bottom:24px}}
+
+/* ================= MACHINERY (below the paper) ================= */
+.machinery{position:relative;background:var(--deep)}
+.sec-head{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:end;margin-bottom:44px}
+.sec-head h2{font-family:var(--f-disp);font-weight:800;text-transform:uppercase;font-size:clamp(2.4rem,5vw,4.6rem);line-height:.9}
+.sec-head p{color:var(--dim);max-width:52ch}
+@media (max-width:900px){.sec-head{grid-template-columns:1fr;gap:14px}}
+
+/* exploded view */
+.explode{position:relative;height:420vh}
+.ex-sticky{position:sticky;top:0;height:100svh;overflow:hidden}
+.ex-grid{display:grid;grid-template-columns:minmax(0,400px) minmax(0,1fr);height:100%;gap:24px;align-items:center}
+.ex-insp{position:relative;z-index:3}
+.ex-insp .step{font-family:var(--f-code);font-size:12.5px;color:var(--lime)}
+.ex-insp h2{font-family:var(--f-disp);font-weight:800;text-transform:uppercase;font-size:clamp(2.4rem,4.4vw,4.2rem);line-height:.9;margin-top:10px}
+.ex-insp .what{margin-top:16px;color:var(--dim);max-width:40ch}
+.ex-insp .file{margin-top:18px;font-family:var(--f-code);font-size:12px;color:var(--dim);word-break:break-all}
+.ex-insp pre{margin:10px 0 0;padding:14px;background:#04100F;border:1px solid var(--line);border-radius:8px;font-family:var(--f-code);font-size:12px;line-height:1.65;overflow-x:auto;white-space:pre;color:var(--em);min-height:9.5em;text-shadow:0 0 10px rgba(127,227,182,.35)}
+.ex-pips{display:flex;gap:6px;margin-top:20px}
+.ex-pips span{height:4px;flex:1;border-radius:2px;background:var(--line)}
+.ex-pips span.on{background:var(--lime)}
+.ex-stage{position:relative;height:100%;perspective:2200px;perspective-origin:50% 40%}
+.assembly{position:absolute;left:50%;top:56%;width:440px;height:280px;margin:-140px 0 0 -220px;transform-style:preserve-3d;transform:rotateX(58deg) rotateZ(-40deg) scale(var(--sc,.92))}
+.ex-floor{position:absolute;inset:-260px;transform:translateZ(-260px);
+  background:linear-gradient(var(--line) 1px,transparent 1px) 0 0/40px 40px,linear-gradient(90deg,var(--line) 1px,transparent 1px) 0 0/40px 40px;
+  -webkit-mask-image:radial-gradient(closest-side,#000 40%,transparent);mask-image:radial-gradient(closest-side,#000 40%,transparent)}
+.plate{position:absolute;inset:0;transform-style:preserve-3d}
+.plate .face{position:absolute;inset:0;border-radius:10px;background:#123230;border:1.5px solid #2E5D57;overflow:hidden;
+  -webkit-mask-image:linear-gradient(#000 0 0),var(--hole);mask-image:linear-gradient(#000 0 0),var(--hole);
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+  -webkit-mask-position:0 0,160px 80px;mask-position:0 0,160px 80px;
+  -webkit-mask-size:100% 100%,120px 120px;mask-size:100% 100%,120px 120px;
+  -webkit-mask-composite:xor;mask-composite:exclude;transition:border-color .3s,background .3s}
+.plate .side{position:absolute;inset:0;border-radius:10px;background:#030B0B;transform:translateZ(-9px);border:1px solid #1B3D3A}
+.plate.on .face{border-color:var(--lime);background:#173C35}
+.plate .tag{position:absolute;left:14px;top:12px;font-family:var(--f-disp);font-weight:800;text-transform:uppercase;font-size:21px;line-height:1}
+.plate .tag small{display:block;margin-top:3px;font-family:var(--f-code);font-weight:400;text-transform:none;font-size:10.5px;color:var(--dim)}
+.plate.on .tag{color:var(--lime)}
+.plate .ink{position:absolute;font-family:var(--f-code);font-size:9.5px;line-height:1.55;color:#6E978D;white-space:pre}
+.plate .rimp{position:absolute;left:160px;top:80px;width:120px;height:120px;overflow:visible}
+.recess{position:absolute;left:150px;top:72px;width:140px;height:136px;margin:0;overflow:hidden;padding:18px 0 0 10px;font-family:var(--f-code);font-size:11px;line-height:1.6;color:var(--em);white-space:pre;text-shadow:0 0 10px rgba(127,227,182,.55)}
+.plate.on .recess{color:#D9FFB0}
+.mini-row{position:absolute;left:14px;right:14px;height:16px;border-radius:3px;background:#1E4844}
+.cube{position:absolute;left:220px;top:140px;width:0;height:0;transform-style:preserve-3d}
+.cube i{position:absolute;width:26px;height:26px;left:-13px;top:-13px;background:var(--lime);border:1px solid #6E9F1E}
+.cube i:nth-child(1){transform:translateZ(13px);background:#C6F36B}
+.cube i:nth-child(2){transform:translateZ(-13px)}
+.cube i:nth-child(3){transform:rotateX(90deg) translateZ(13px);background:#8CCB27}
+.cube i:nth-child(4){transform:rotateX(-90deg) translateZ(13px);background:#8CCB27}
+.cube i:nth-child(5){transform:rotateY(90deg) translateZ(13px);background:#79B21E}
+.cube i:nth-child(6){transform:rotateY(-90deg) translateZ(13px);background:#79B21E}
+.k{color:var(--lime)}.s{color:var(--teal)}.c{color:#3F6E62;text-shadow:none}
+@media (max-width:980px){
+  .ex-grid{grid-template-columns:1fr;grid-template-rows:1fr auto;gap:0;align-items:stretch}
+  .ex-stage{order:1;min-height:0}
+  .ex-insp{order:2;padding:0 0 28px}
+  .ex-insp pre{display:none}
+  .ex-insp h2{font-size:2.3rem}
+  .assembly{--sc:.62;top:48%}
+}
+
+/* who sees what */
+.block{padding:130px 0 0}
+.rls{display:grid;grid-template-columns:1.1fr .9fr;gap:20px}
+.rls-box{position:relative;border:1px solid var(--line);border-radius:12px;background:var(--deep-2);overflow:hidden}
+.seg{display:flex;gap:4px;padding:6px;border-bottom:1px solid var(--line)}
+.seg button{all:unset;cursor:pointer;flex:1;text-align:center;padding:11px;border-radius:6px;font-family:var(--f-disp);font-weight:800;text-transform:uppercase;font-size:17px;color:var(--dim)}
+.seg button:hover{color:var(--text)}
+.seg button[aria-pressed="true"]{background:var(--lime);color:var(--ink)}
+.q{padding:14px 18px;font-family:var(--f-code);font-size:13px;color:var(--dim);border-bottom:1px solid var(--line)}
+.q b{color:var(--text);font-weight:500}
+.rows{position:relative}
+.erow{display:grid;grid-template-columns:22px 1fr auto;gap:12px;align-items:center;padding:16px 18px;border-bottom:1px solid var(--line);transition:opacity .35s,background .35s}
+.erow:last-child{border-bottom:0}
+.erow .ic{width:12px;height:12px;border-radius:3px;background:var(--em);box-shadow:0 0 10px rgba(127,227,182,.6)}
+.erow .nm{font-weight:500}
+.erow .why{font-family:var(--f-code);font-size:11.5px;color:var(--dim)}
+.erow.out{opacity:.4;background:repeating-linear-gradient(-45deg,transparent 0 8px,rgba(240,106,93,.08) 8px 16px)}
+.erow.out .ic{background:transparent;border:1.5px solid var(--red);box-shadow:none}
+.erow.out .why{color:var(--red)}
+.scan{position:absolute;left:0;right:0;top:0;height:2px;background:var(--lime);box-shadow:0 0 22px 5px rgba(163,230,53,.55);opacity:0;pointer-events:none}
+.scan.go{animation:scan .9s cubic-bezier(.4,0,.2,1)}
+@keyframes scan{0%{top:0;opacity:1}90%{opacity:1}100%{top:100%;opacity:0}}
+.count{padding:16px 18px;border-top:1px solid var(--line);display:flex;align-items:baseline;gap:10px;color:var(--dim)}
+.count b{font-family:var(--f-disp);font-size:48px;line-height:1;color:var(--text);font-weight:800}
+.pol{border:1px solid var(--line);border-radius:12px;background:#04100F;padding:18px}
+.pol .fn{font-family:var(--f-code);font-size:11.5px;color:var(--dim);word-break:break-all}
+.pol pre{margin:12px 0 0;font-family:var(--f-code);font-size:13px;line-height:1.85;white-space:pre;overflow-x:auto;color:var(--em)}
+.pol .ln{display:block;padding:0 8px;margin:0 -8px;border-radius:3px;transition:background .3s,box-shadow .3s}
+.pol .ln.hl{background:rgba(163,230,53,.12);box-shadow:inset 3px 0 0 var(--lime)}
+.pol p{margin-top:14px;font-size:14.5px;color:var(--dim)}
+@media (max-width:900px){.rls{grid-template-columns:1fr}}
+
+/* parts + tests */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:56px}
+.list h3{font-family:var(--f-disp);font-weight:800;text-transform:uppercase;font-size:26px;margin-bottom:8px}
+.li{display:grid;grid-template-columns:auto 1fr;gap:2px 14px;padding:14px 0;border-bottom:1px solid var(--line)}
+.li .mk{grid-row:span 2;margin-top:6px;width:12px;height:12px;border:1.5px solid var(--dim);border-radius:2px}
+.li .lamp{grid-row:span 2;margin-top:7px;width:10px;height:10px;border-radius:50%;background:var(--em);box-shadow:0 0 0 3px rgba(127,227,182,.18),0 0 10px rgba(127,227,182,.6)}
+.li .t{font-weight:500}
+.li .t span{color:var(--dim);font-weight:400}
+.li .f{font-family:var(--f-code);font-size:11.5px;color:var(--dim);word-break:break-all}
+@media (max-width:900px){.two{grid-template-columns:1fr;gap:40px}}
+
+/* close: back on the paper, torn again in 3D */
+.close{position:relative;margin-top:140px;background:var(--paper);color:var(--ink);overflow:hidden;min-height:100svh}
+#gl2{position:absolute;inset:0;width:100%;height:100%;display:block}
+.close-in{position:relative;z-index:2;min-height:100svh;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:1fr auto;align-items:center;pointer-events:none}
+.close-in>*{pointer-events:auto}
+.close-in .anchor{pointer-events:none}
+.close .copy{padding:120px 0 60px;max-width:640px}
+.close h2{font-family:var(--f-disp);font-weight:800;text-transform:uppercase;font-size:clamp(2.8rem,6.4vw,6.2rem);line-height:.86}
+.close p{margin-top:20px;color:var(--ink-soft);max-width:44ch;font-size:18px}
+.close .ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
+.facts{display:grid;grid-template-columns:repeat(3,auto);justify-content:start;gap:0;margin:40px 0 0;border-top:1px solid var(--rule)}
+.facts div{padding:14px 28px 0 0}
+.facts div+div{padding-left:22px;border-left:1px solid var(--rule)}
+.facts dt{font-family:var(--f-code);font-size:11.5px;color:var(--ink-soft)}
+.facts dd{margin:4px 0 0;font-weight:600;font-size:15px}
+.close footer{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:24px;align-items:center;padding:26px 0 40px;border-top:1px solid var(--rule);font-size:15px;color:var(--ink-soft)}
+.close footer .me{color:var(--ink);font-weight:700}
+.close footer a{text-decoration:none;font-weight:500}
+.close footer .r{margin-left:auto;font-family:var(--f-code);font-size:12px}
+.bar.paper{background:color-mix(in srgb,var(--paper) 92%,transparent);backdrop-filter:blur(8px);color:var(--ink);border-color:var(--rule)}
+@media (max-width:980px){
+  .close-in{grid-template-columns:1fr;grid-template-rows:auto auto auto}
+  .close-in .anchor{order:-1;margin:96px auto 0;width:min(76vw,380px)}
+  .close .copy{padding:8px 0 40px}
+  .facts{grid-template-columns:1fr;border-top:0}
+  .facts div,.facts div+div{padding:10px 0;border-left:0;border-top:1px solid var(--rule)}
+}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}.hero h1 .l2 span,.hero h1 .l1,.hero h1 .l3{transform:none}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js"}}</script>
+</head>
+<body>
+
+<header class="bar" id="bar">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="X-Ray home">
+      <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByb2xlPSJpbWciIGFyaWEtbGFiZWw9IlgtUmF5Ij4KICA8IS0tIFgtUmF5IG1hcms6IHRoZSBsaW1lIHNoZWV0IHRvcm4gb3BlbiBpbiBhbiBYLCB0aGUgbWFjaGluZXJ5IGdsb3dpbmcgdW5kZXJuZWF0aCAtLT4KICA8ZGVmcz4KICAgIDxjbGlwUGF0aCBpZD0ieHItY3V0Ij48cGF0aCBkPSJNMTIuMDAgMTIuMDAgTDE2LjI5IDE1Ljk4IEwyMi42MSAxNi4wOSBMMjYuMjIgMjEuMzYgTDMyLjAwIDIyLjUwIEwzNy44NCAyMS40NyBMNDEuMzkgMTYuMTAgTDQ3LjgzIDE2LjIxIEw1Mi4wMCAxMi4wMCBMNDguNDcgMTYuNTIgTDQ3Ljc0IDIyLjUyIEw0Mi41MyAyNi4xNiBMNDEuNTAgMzIuMDAgTDQyLjc1IDM3LjcyIEw0OC4wMCA0MS4zNCBMNDguNDEgNDcuNTEgTDUyLjAwIDUyLjAwIEw0Ny42NSA0OC4xNCBMNDEuNTUgNDcuNjEgTDM3LjY4IDQyLjgzIEwzMi4wMCA0MS41MCBMMjYuMzEgNDIuODEgTDIyLjM4IDQ3LjQ2IEwxNi40NSA0OC4zMyBMMTIuMDAgNTIuMDAgTDE1LjcyIDQ3LjU3IEwxNS45OSA0MS4zNCBMMjEuMzQgMzcuNzcgTDIyLjUwIDMyLjAwIEwyMC44OCAyNi40NyBMMTYuMDYgMjIuNjIgTDE1LjYxIDE2LjQ4IFoiLz48L2NsaXBQYXRoPgogICAgPHJhZGlhbEdyYWRpZW50IGlkPSJ4ci1kZWVwIiBjeD0iNTAlIiBjeT0iNTYlIiByPSI1OCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiMxRjZFNTgiLz48c3RvcCBvZmZzZXQ9Ii41IiBzdG9wLWNvbG9yPSIjMEMyQzI4Ii8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMDMxMDBFIi8+CiAgICA8L3JhZGlhbEdyYWRpZW50PgogICAgPGZpbHRlciBpZD0ieHItc29mdCIgeD0iLTMwJSIgeT0iLTMwJSIgd2lkdGg9IjE2MCUiIGhlaWdodD0iMTYwJSI+PGZlR2F1c3NpYW5CbHVyIHN0ZERldmlhdGlvbj0iMS42Ii8+PC9maWx0ZXI+CiAgPC9kZWZzPgogIDxyZWN0IHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgcng9IjE0IiBmaWxsPSIjQTNFNjM1Ii8+CiAgPHBhdGggZD0iTTEwLjYwIDEwLjYwIEwxNS4xOSAxNC43NCBMMjEuODcgMTQuNTAgTDI2LjA0IDE5LjUyIEwzMi4wMCAyMC44MCBMMzguMjkgMjAuMjMgTDQyLjI2IDE0Ljc5IEw0OC44MyAxNC43OCBMNTMuNDAgMTAuNjAgTDQ4Ljg0IDE0Ljk5IEw0OS4yNyAyMS43NiBMNDQuMDcgMjUuODUgTDQzLjIwIDMyLjAwIEw0NC4wMSAzOC4xOCBMNDkuMjQgNDIuMjUgTDQ5LjM0IDQ4Ljc3IEw1My40MCA1My40MCBMNDguOTIgNDkuMDMgTDQyLjEwIDQ5LjU2IEwzOC4yMyA0My45MSBMMzIuMDAgNDMuMjAgTDI2LjAzIDQ0LjQ2IEwyMS44MiA0OS40MCBMMTUuMzYgNDkuNjAgTDEwLjYwIDUzLjQwIEwxNC43OCA0OC44MyBMMTQuMDcgNDEuOTIgTDE5Ljk2IDM4LjE3IEwyMC44MCAzMi4wMCBMMjAuMTQgMjUuNzUgTDE0LjQ5IDIxLjg4IEwxNS4wMSAxNS4wNiBaIiBmaWxsPSIjRERGN0E2Ii8+CiAgPHBhdGggZD0iTTEyLjAwIDEyLjAwIEwxNi4yOSAxNS45OCBMMjIuNjEgMTYuMDkgTDI2LjIyIDIxLjM2IEwzMi4wMCAyMi41MCBMMzcuODQgMjEuNDcgTDQxLjM5IDE2LjEwIEw0Ny44MyAxNi4yMSBMNTIuMDAgMTIuMDAgTDQ4LjQ3IDE2LjUyIEw0Ny43NCAyMi41MiBMNDIuNTMgMjYuMTYgTDQxLjUwIDMyLjAwIEw0Mi43NSAzNy43MiBMNDguMDAgNDEuMzQgTDQ4LjQxIDQ3LjUxIEw1Mi4wMCA1Mi4wMCBMNDcuNjUgNDguMTQgTDQxLjU1IDQ3LjYxIEwzNy42OCA0Mi44MyBMMzIuMDAgNDEuNTAgTDI2LjMxIDQyLjgxIEwyMi4zOCA0Ny40NiBMMTYuNDUgNDguMzMgTDEyLjAwIDUyLjAwIEwxNS43MiA0Ny41NyBMMTUuOTkgNDEuMzQgTDIxLjM0IDM3Ljc3IEwyMi41MCAzMi4wMCBMMjAuODggMjYuNDcgTDE2LjA2IDIyLjYyIEwxNS42MSAxNi40OCBaIiBmaWxsPSJ1cmwoI3hyLWRlZXApIi8+CiAgPGcgY2xpcC1wYXRoPSJ1cmwoI3hyLWN1dCkiPgogICAgPHJlY3QgeD0iMjMuNSIgeT0iMjguNCIgd2lkdGg9IjguNiIgaGVpZ2h0PSIxLjkiIHJ4PSIuOTUiIGZpbGw9IiNBM0U2MzUiLz4KICAgIDxyZWN0IHg9IjMzLjYiIHk9IjI4LjQiIHdpZHRoPSI2LjIiIGhlaWdodD0iMS45IiByeD0iLjk1IiBmaWxsPSIjN0ZFM0I2Ii8+CiAgICA8cmVjdCB4PSIyNS42IiB5PSIzMi40IiB3aWR0aD0iMTIuNCIgaGVpZ2h0PSIxLjkiIHJ4PSIuOTUiIGZpbGw9IiM3RkUzQjYiIG9wYWNpdHk9Ii44NSIvPgogICAgPHJlY3QgeD0iMjMuNSIgeT0iMzYuNCIgd2lkdGg9IjYuOCIgaGVpZ2h0PSIxLjkiIHJ4PSIuOTUiIGZpbGw9IiM1RENGREEiIG9wYWNpdHk9Ii45Ii8+CiAgICA8cGF0aCBkPSJNMTIuMDAgMTIuMDAgTDE2LjI5IDE1Ljk4IEwyMi42MSAxNi4wOSBMMjYuMjIgMjEuMzYgTDMyLjAwIDIyLjUwIEwzNy44NCAyMS40NyBMNDEuMzkgMTYuMTAgTDQ3LjgzIDE2LjIxIEw1Mi4wMCAxMi4wMCBMNDguNDcgMTYuNTIgTDQ3Ljc0IDIyLjUyIEw0Mi41MyAyNi4xNiBMNDEuNTAgMzIuMDAgTDQyLjc1IDM3LjcyIEw0OC4wMCA0MS4zNCBMNDguNDEgNDcuNTEgTDUyLjAwIDUyLjAwIEw0Ny42NSA0OC4xNCBMNDEuNTUgNDcuNjEgTDM3LjY4IDQyLjgzIEwzMi4wMCA0MS41MCBMMjYuMzEgNDIuODEgTDIyLjM4IDQ3LjQ2IEwxNi40NSA0OC4zMyBMMTIuMDAgNTIuMDAgTDE1LjcyIDQ3LjU3IEwxNS45OSA0MS4zNCBMMjEuMzQgMzcuNzcgTDIyLjUwIDMyLjAwIEwyMC44OCAyNi40NyBMMTYuMDYgMjIuNjIgTDE1LjYxIDE2LjQ4IFoiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAxMDYwNSIgc3Ryb2tlLXdpZHRoPSI1IiBmaWx0ZXI9InVybCgjeHItc29mdCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDEuMSAxLjUpIiBvcGFjaXR5PSIuOSIvPgogIDwvZz4KPC9zdmc+Cg==" width="28" height="28" alt="">
+      X-Ray
+    </a>
+    <nav aria-label="Sections">
+      <a href="#layers">Layers</a>
+      <a href="#rls">Who sees what</a>
+      <a href="#parts">Parts and tests</a>
+    </nav>
+    <span class="spacer"></span>
+    <a class="btn btn-ink" href="#open">Explore the demo</a>
+  </div>
+</header>
+
+<main id="top">
+
+<section class="hero" id="hero" aria-label="Introduction">
+  <div class="hero-stage" id="stage">
+    <canvas id="gl" aria-hidden="true"></canvas>
+    <div class="wrap hero-copy">
+      <div class="txt" id="heroTxt">
+        <h1 aria-label="See the machinery of your finance">
+          <span class="mask"><span class="l1">See the</span></span>
+          <span class="mask"><span class="l2" id="mach"></span></span>
+          <span class="mask"><span class="l3">of your finance</span></span>
+        </h1>
+        <p class="lede">A financial reporting engine: messy spreadsheets in, validated and anomaly-screened reports out. Built backend-first, with row-level security, a real ETL pipeline and scheduled jobs, and you can watch every layer work.</p>
+        <div class="ctas">
+          <a class="btn btn-ink" href="#open">Explore the demo</a>
+          <a class="btn btn-ghost" href="https://github.com/ria631/rievoree_ukazka" target="_blank" rel="noreferrer">Read the source</a>
+        </div>
+        <p class="note">The page is torn open on the <b>real source</b> beneath it: an RLS policy, the report view, the worker's queue claim. Move around it, then click the hole or scroll to go in.</p>
+      </div>
+      <div class="anchor" id="anchor" aria-hidden="true"></div>
+    </div>
+    <div class="stats" id="stats" aria-label="Demo dataset">
+      <div class="wrap">
+        <div class="stat"><div class="v">€3.06M</div><div class="l">processed, total debit</div></div>
+        <div class="stat"><div class="v">936</div><div class="l">account-months</div></div>
+        <div class="stat"><div class="v">4</div><div class="l">companies, RLS-scoped</div></div>
+        <div class="stat"><div class="v">18</div><div class="l">monthly periods</div></div>
+      </div>
+    </div>
+    <span class="dive-hint" id="diveHint">click to go in</span>
+    <div class="in-copy" id="inCopy" aria-hidden="true"><div><h2>You're in<br>the machinery</h2><p>Every layer from here down is real code from the repo.</p></div></div>
+  </div>
+</section>
+
+<div class="machinery">
+
+<section class="explode" id="layers" aria-label="The four layers of the app">
+  <div class="ex-sticky">
+    <div class="wrap ex-grid">
+      <div class="ex-insp" aria-live="polite">
+        <div class="step" id="exStep">Assembled</div>
+        <h2 id="exName">One app, four layers</h2>
+        <p class="what" id="exWhat">Keep scrolling to take it apart. One upload falls through every layer, and each one shows the code that handles it.</p>
+        <div class="file" id="exFile"></div>
+        <pre id="exCode"><span class="c">// scroll</span></pre>
+        <div class="ex-pips" id="exPips"><span></span><span></span><span></span><span></span></div>
+      </div>
+      <div class="ex-stage" aria-hidden="true">
+        <div class="assembly" id="assembly"><div class="ex-floor"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+<section class="block" id="rls">
+  <div class="sec-head">
+    <h2>Same query. Different rows.</h2>
+    <p>Who sees which company is decided inside Postgres, not in the frontend. Pick a person and the policy filters the table for them.</p>
+  </div>
+  <div class="rls">
+    <div class="rls-box">
+      <div class="seg" role="group" aria-label="Signed in as">
+        <button aria-pressed="true" data-role="admin">Admin</button>
+        <button aria-pressed="false" data-role="manager">Manager</button>
+        <button aria-pressed="false" data-role="viewer">Viewer</button>
+      </div>
+      <div class="q">signed in as <b id="qWho">admin@demo.local</b><br><b>select</b> name <b>from</b> public.entities</div>
+      <div class="rows" id="rows"><div class="scan" id="scan"></div></div>
+      <div class="count"><b id="cnt">4</b><span id="cntL">rows returned</span></div>
+    </div>
+    <div class="pol">
+      <div class="fn">supabase/migrations/20260605000001_identity_and_tenancy.sql</div>
+      <pre id="polCode"></pre>
+      <p id="polNote"></p>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="parts">
+  <div class="sec-head">
+    <h2>Parts list and test bench</h2>
+    <p>What it's built from, where each part lives in the repo, and the tests CI runs on every push.</p>
+  </div>
+  <div class="two">
+    <div class="list" id="bom"><h3>Parts</h3></div>
+    <div class="list" id="bench"><h3>Tests</h3></div>
+  </div>
+</section>
+</div>
+
+<section class="close" id="open" aria-label="Open the demo">
+  <canvas id="gl2" aria-hidden="true"></canvas>
+  <span class="dive-hint" id="openHint" style="position:absolute">open the demo</span>
+  <div class="wrap close-in">
+    <div class="copy">
+      <h2>Now tear into the real one</h2>
+      <p>The demo account is read-only, so nothing you do is saved. Open any page, then open the X-ray panel to see the calls and policies behind it.</p>
+      <div class="ctas">
+        <a class="btn btn-ink" href="https://rievoree-ukazka.vercel.app" target="_blank" rel="noreferrer">Explore the demo</a>
+        <a class="btn btn-ghost" href="https://github.com/ria631/rievoree_ukazka" target="_blank" rel="noreferrer">Read the source</a>
+      </div>
+      <dl class="facts">
+        <div><dt>Sign-in</dt><dd>none, the demo user is shared</dd></div>
+        <div><dt>Roles to try</dt><dd>viewer, manager, admin</dd></div>
+        <div><dt>Resets</dt><dd>every hour</dd></div>
+      </dl>
+    </div>
+    <div class="anchor" id="anchor2" aria-hidden="true"></div>
+    <footer>
+      <span class="me">Mariia Chernenko</span>
+      <a href="https://github.com/ria631/rievoree_ukazka" target="_blank" rel="noreferrer">GitHub</a>
+      <span class="r">Fake data only</span>
+    </footer>
+  </div>
+</section>
+</div>
+</main>
+
+<!-- ======================= shared content + 2D sections ======================= -->
+<script>
+window.$=id=>document.getElementById(id);
+window.REDUCE=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const esc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const KW=["create","policy","view","on","for","select","to","using","or","in","update","set","where","and","skip","locked","limit","returning","order","by","alter","table","enable","row","level","security","revoke","grant","from","insert","delete","all","export","function","async","await","return","const","try","catch","throw","typeof","instanceof","new","if","import","as"];
+window.hl=src=>esc(src)
+  .replace(/(\/\/[^\n]*|--[^\n]*)/g,'<span class="c">$1</span>')
+  .replace(/('[^'\n]*'|"[^"\n]*")/g,'<span class="s">$1</span>')
+  .replace(new RegExp("\\b("+KW.join("|")+")\\b(?![^<]*>)","g"),'<span class="k">$1</span>');
+
+/* verbatim repo source */
+window.SRC={
+rls:`-- entities: members see their entities, admin+ see all. Writes are blocked by
+-- the grants above; these policies exist so a future grant change alone can
+-- never open the table (defense in depth).
+create policy entities_select on public.entities
+  for select to authenticated
+  using (
+    (select private.is_admin())
+    or id in (select private.my_entity_ids())
+  );`,
+report:`create view public.report_account_monthly as
+select m.entity_id, m.period, m.account_id,
+       m.account_code, m.account_name, m.account_type,
+       m.debit, m.credit, m.net, m.entry_count
+from private.mv_account_monthly m
+where (select private.is_admin())
+   or m.entity_id in (select private.my_entity_ids());
+
+revoke all on public.report_account_monthly from anon;
+grant select on public.report_account_monthly to authenticated;`,
+worker:`// Atomic claim: take the oldest ready job OR reclaim one whose worker died
+// mid-flight (status 'processing' past the lease). FOR UPDATE SKIP LOCKED
+// guarantees two workers never grab the same row.
+export async function claimJob(
+  sql: Sql,
+  workerId: string,
+  leaseMinutes = 5,
+): Promise<QueueJob | null> {
+  const rows = await sql<QueueJob[]>\`
+    update public.ingest_queue q
+       set status = 'processing',
+           attempts = attempts + 1,
+           locked_by = \${workerId},
+           locked_at = now()
+     where q.id = (
+       select id from public.ingest_queue
+        where (status = 'pending'    and run_after <= now())
+           or (status = 'processing' and locked_at < now() - make_interval(mins => \${leaseMinutes}))
+        order by run_after, id
+        for update skip locked
+        limit 1
+     )
+    returning q.id, q.batch_id, q.job_type, q.attempts, q.max_attempts
+  \`;
+  return rows[0] ?? null;
+}`,
+fetch:`export function createInstrumentedFetch(): typeof fetch {
+  return async (input, init) => {
+    const url = new URL(
+      typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+    )
+    const startedAt = performance.now()
+    try {
+      const response = await fetch(input, init)
+      record(url, init?.method ?? "GET", startedAt, response.status)
+      return response
+    } catch (error) {
+      record(url, init?.method ?? "GET", startedAt, -1)
+      throw error
+    }
+  }
+}`};
+
+/* headline letters */
+$("mach").innerHTML="Machinery".split("").map((c,i)=>`<span aria-hidden="true" style="animation-delay:${.15+i*.045}s">${c}</span>`).join("");
+
+/* torn-hole shape for the CSS holes (exploded plates, closing section) */
+function rng(seed){return()=>((seed=(seed*16807)%2147483647)-1)/2147483646}
+function tornPath(seed,base=78,jag=1){
+  const r=rng(seed),N=64,ph=[r()*6.28,r()*6.28,r()*6.28],pts=[];
+  for(let i=0;i<N;i++){const a=i/N*Math.PI*2;
+    let rad=base+7*Math.sin(a*3+ph[0])+4*Math.sin(a*7+ph[1])+2.5*Math.sin(a*13+ph[2]);
+    rad+=(r()-.5)*9*jag*(i%2?1:.4);pts.push([100+Math.cos(a)*rad,100+Math.sin(a)*rad*.94]);}
+  return "M"+pts.map(p=>p.map(v=>v.toFixed(1)).join(" ")).join(" L")+" Z";
+}
+const HOLE=tornPath(7), FIBRE=tornPath(7,82.5,1.6);
+document.documentElement.style.setProperty("--hole",`url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><path d='${HOLE}' fill='black'/></svg>`)}")`);
+function drawRim(svg,id,paper){
+  svg.innerHTML=`<defs><clipPath id="c${id}"><path d="${HOLE}"/></clipPath><filter id="b${id}" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3"/></filter></defs>
+  <g clip-path="url(#c${id})"><path d="${HOLE}" fill="none" stroke="#010605" stroke-width="12" filter="url(#b${id})" opacity=".85"/></g>
+  <path d="${FIBRE}" fill="none" stroke="${paper?"#E6F7C4":"#9FD7C2"}" stroke-width="2.4" stroke-linejoin="round" opacity=".7" vector-effect="non-scaling-stroke"/>
+  <path d="${HOLE}" fill="none" stroke="${paper?"#F3FBE2":"#CFEFE2"}" stroke-width="1.4" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+}
+
+
+
+
+/* ---------- exploded view ---------- */
+const LAYERS=[
+ {k:"Layer 1 of 4",name:"Browser",sub:"React 19, TypeScript",file:"src/lib/xray/instrumentedFetch.ts",
+  what:"You drop a spreadsheet on the Ingest page. Every request leaves through one wrapped fetch, which times it and feeds the X-ray panel.",
+  code:`const startedAt = performance.now()
+try {
+  const response = await fetch(input, init)
+  record(url, init?.method ?? "GET", startedAt, response.status)
+  return response
+}`,
+  ink:`<div class="mini-row" style="top:62px;width:120px"></div><div class="mini-row" style="top:86px;right:auto;width:130px;opacity:.6"></div><div class="mini-row" style="top:216px"></div><div class="mini-row" style="top:240px;opacity:.6"></div><div class="ink" style="right:14px;top:62px;text-align:right">Ingest\nfacility-costs.csv</div>`},
+ {k:"Layer 2 of 4",name:"Edge function",sub:"Deno, Supabase Edge",file:"supabase/functions/ingest-submit/index.ts",
+  what:"A Deno function on the edge checks the upload and puts the batch in the ingest queue for the worker.",
+  code:`Deno.serve(async (req) => {
+  // check the upload, then queue
+  // the batch for the worker
+})`,
+  ink:`<div class="ink" style="left:14px;top:60px">Deno.serve(async (req) => {\n  …\n})</div><div class="ink" style="right:14px;bottom:14px;text-align:right">ingest-submit\nnotify-review\nconnector-webhook\nadmin-users</div>`},
+ {k:"Layer 3 of 4",name:"Postgres",sub:"row-level security",file:"supabase/migrations/20260605000001_identity_and_tenancy.sql",
+  what:"The database filters every row by who's asking. Your batch can only land in the companies you belong to.",
+  code:`create policy entities_select on public.entities
+  for select to authenticated
+  using (
+    (select private.is_admin())
+    or id in (select private.my_entity_ids())
+  );`,
+  ink:`<div class="ink" style="left:14px;top:60px">entities_select\njournal_entries\ningest_queue  deny all</div><div class="ink" style="right:14px;bottom:14px;text-align:right">pg_cron  refresh-report-mv\npg_net   connector fetch</div>`},
+ {k:"Layer 4 of 4",name:"Worker",sub:"Deno in Docker",file:"worker/src/db.ts",
+  what:"A worker claims the job without ever colliding with another worker, validates the rows, flags outliers by z-score and loads the batch. Once a minute pg_cron refreshes the report.",
+  code:`  order by run_after, id
+  for update skip locked
+  limit 1
+)
+returning q.id, q.batch_id, q.job_type,
+          q.attempts, q.max_attempts`,
+  ink:`<div class="ink" style="left:14px;top:60px">queue\n#1184 pending\n#1183 processing\n#1182 loaded</div><div class="ink" style="right:14px;bottom:14px;text-align:right">z-score screen\ndelete-and-reload</div>`},
+];
+const asm=$("assembly");
+const plates=LAYERS.map((L,i)=>{
+  const p=document.createElement("div");p.className="plate";
+  p.innerHTML=`<div class="side"><pre class="recess">${hl(L.code)}</pre></div><div class="face"><div class="tag">${L.name}<small>${L.sub}</small></div>${L.ink}</div><svg class="rimp" viewBox="0 0 200 200"></svg>`;
+  asm.appendChild(p);drawRim(p.querySelector(".rimp"),"p"+i,false);return p;
+});
+const cube=document.createElement("div");cube.className="cube";cube.innerHTML="<i></i>".repeat(6);asm.appendChild(cube);
+const pips=[...$("exPips").children], ex=$("layers");
+const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)), smooth=(a,b,v)=>{const t=clamp((v-a)/(b-a));return t*t*(3-2*t)};
+let lastActive=-2;
+function explode(){
+  const r=ex.getBoundingClientRect(),p=clamp(-r.top/(r.height-innerHeight));
+  const spread=smooth(0,.3,p), gap=10+spread*(innerWidth<980?92:128), mid=(LAYERS.length-1)*gap/2;
+  const zs=plates.map((_,i)=>(LAYERS.length-1-i)*gap-mid);
+  plates.forEach((pl,i)=>pl.style.transform=`translateZ(${zs[i]}px)`);
+  const fall=smooth(.3,.94,p), zTop=zs[0]+110, z=zTop+(zs[zs.length-1]-zTop)*fall;
+  cube.style.transform=`translateZ(${(z+14).toFixed(1)}px) rotateZ(${fall*360}deg)`;cube.style.opacity=p<.24?0:1;
+  let a=-1; if(p>=.3){a=0;zs.forEach((zz,i)=>{if(z<=zz+40)a=i})}
+  plates.forEach((pl,i)=>pl.classList.toggle("on",i===a));
+  if(a!==lastActive){lastActive=a;pips.forEach((s,i)=>s.classList.toggle("on",i<=a));
+    if(a<0){$("exStep").textContent="Assembled";$("exName").textContent="One app, four layers";$("exWhat").textContent="Keep scrolling to take it apart. One upload falls through every layer, and each one shows the code that handles it.";$("exFile").textContent="";$("exCode").innerHTML='<span class="c">// scroll</span>'}
+    else{const L=LAYERS[a];$("exStep").textContent=L.k;$("exName").textContent=L.name;$("exWhat").textContent=L.what;$("exFile").textContent=L.file;$("exCode").innerHTML=hl(L.code)}}
+}
+addEventListener("scroll",explode,{passive:true});addEventListener("resize",explode);explode();
+
+/* ---------- who sees what ---------- */
+const ENTS=["Danube Office Park s.r.o.","Riverside Retail Park s.r.o.","Lindenhof Residences s.r.o.","Westgate Logistics Hub s.r.o."];
+const ROLES={
+  admin:{who:"admin@demo.local",see:[0,1,2,3],line:3,note:"An admin passes the first test, is_admin(), so every company comes back."},
+  manager:{who:"manager@demo.local",see:[0,1],line:4,note:"A manager isn't an admin, so only the companies in their membership list come back: the office and the retail park."},
+  viewer:{who:"viewer@demo.local",see:[0],line:4,note:"A viewer was invited to one company, so one row comes back. The other three never leave the database."}};
+const POL=SRC.rls.split("\n").slice(3).join("\n");
+$("polCode").innerHTML=hl(POL).split("\n").map((l,i)=>`<span class="ln" data-i="${i}">${l||" "}</span>`).join("");
+const rowsEl=$("rows");
+ENTS.forEach(n=>{const d=document.createElement("div");d.className="erow";d.innerHTML=`<span class="ic"></span><span class="nm">${n}</span><span class="why"></span>`;rowsEl.appendChild(d)});
+function setRole(k,animate){const R=ROLES[k];
+  document.querySelectorAll(".seg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.role===k));$("qWho").textContent=R.who;
+  const apply=()=>{[...rowsEl.querySelectorAll(".erow")].forEach((r,i)=>{const ok=R.see.includes(i);r.classList.toggle("out",!ok);r.querySelector(".why").textContent=ok?"returned":"filtered by policy"});
+    $("cnt").textContent=R.see.length;$("cntL").textContent=R.see.length===1?"row returned":"rows returned"};
+  const sc=$("scan");if(animate&&!REDUCE){sc.classList.remove("go");void sc.offsetWidth;sc.classList.add("go");setTimeout(apply,420)}else apply();
+  document.querySelectorAll("#polCode .ln").forEach(l=>l.classList.toggle("hl",+l.dataset.i===R.line));$("polNote").textContent=R.note;}
+document.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>setRole(b.dataset.role,true)));setRole("admin",false);
+
+/* ---------- parts + tests ---------- */
+const BOM=[["React 19","pages you click through","src/pages/"],["X-ray panel","calls, pipeline events and policies, live","src/components/xray/"],["Postgres","the ledger, with row-level security on every table","supabase/migrations/"],["Edge functions","uploads, review emails, signed webhooks, users","supabase/functions/"],["ETL worker","parse, validate, z-score, load","worker/src/"],["pg_cron and pg_net","scheduled refresh and spreadsheet fetch, inside the database","…pg_cron_refresh_and_housekeeping.sql"],["Auth","four roles, two-factor codes, invites, Google and GitHub sign-in","src/lib/auth/"]];
+const TESTS=[["Companies can't see each other's data","supabase/tests/security_isolation_test.sql"],["Outliers get flagged by z-score","supabase/tests/detect_anomalies_test.sql"],["Raw rows become clean journal lines","supabase/tests/transform_batch_test.sql"],["Reloading a batch doesn't double it","supabase/tests/load_batch_test.sql"],["Linked spreadsheets sync by month","supabase/tests/sheet_link_connector_test.sql"],["Demo users stay read-only","supabase/tests/demo_staff_test.sql"],["New companies get balanced books and delete cleanly","supabase/tests/account_lifecycle_test.sql"],["Spreadsheet formulas can't run on open","worker/src/sanitize.test.ts"]];
+$("bom").insertAdjacentHTML("beforeend",BOM.map(([a,b,c])=>`<div class="li"><span class="mk"></span><span class="t">${a} <span>${b}</span></span><span class="f">${c}</span></div>`).join(""));
+$("bench").insertAdjacentHTML("beforeend",TESTS.map(([a,c])=>`<div class="li"><span class="lamp"></span><span class="t">${a}</span><span class="f">${c}</span></div>`).join(""));
+</script>
+
+<!-- ======================= the tear (WebGL) ======================= -->
+<script type="module">
+import * as THREE from "three";
+
+const MOBILE=matchMedia("(max-width: 980px)").matches;
+const FOV=34, CAMZ=10;
+
+/* ---------- canvases shared by both tears: paper tooth + the source ---------- */
+function noiseCanvas(size,fn){
+  const c=document.createElement("canvas");c.width=c.height=size;const g=c.getContext("2d"),img=g.createImageData(size,size);
+  for(let i=0;i<size*size;i++){const v=fn(i%size,(i/size)|0);img.data[i*4]=v[0];img.data[i*4+1]=v[1];img.data[i*4+2]=v[2];img.data[i*4+3]=255}
+  g.putImageData(img,0,0);return c;
+}
+function vnoise(seed,cells){const r=rng(seed),g=[];for(let i=0;i<cells*cells;i++)g.push(r());
+  return (x,y)=>{const xi=Math.floor(x)%cells,yi=Math.floor(y)%cells,xf=x-Math.floor(x),yf=y-Math.floor(y);
+    const a=g[yi*cells+xi],b=g[yi*cells+(xi+1)%cells],c=g[((yi+1)%cells)*cells+xi],d=g[((yi+1)%cells)*cells+(xi+1)%cells];
+    const u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v}}
+const S=512,n1=vnoise(3,64),n2=vnoise(5,16),n3=vnoise(9,128),nf=vnoise(13,32);
+const BUMP=noiseCanvas(S,(x,y)=>{
+  const t=n3(x/S*128,y/S*128)*.55+n1(x/S*64,y/S*64)*.3+n2(x/S*16,y/S*16)*.15;
+  const fib=nf(x/S*32*.25,y/S*32)*.5;const v=Math.round((t*.75+fib*.25)*255);return[v,v,v]});
+const MAP=noiseCanvas(S,(x,y)=>{
+  const m=(n2(x/S*16,y/S*16)-.5)*.05+(n1(x/S*64,y/S*64)-.5)*.035;
+  return[163,230,53].map(c=>Math.max(0,Math.min(255,Math.round(c*(1+m)))))});
+
+const CODE=(async()=>{
+  try{ await document.fonts.load('500 26px "JetBrains Mono"'); }catch(e){}
+  const W=2048,c=document.createElement("canvas");c.width=c.height=W;const g=c.getContext("2d");
+  g.fillStyle="#061716";g.fillRect(0,0,W,W);
+  g.fillStyle="rgba(140,230,210,.035)";for(let y=0;y<W;y+=4)g.fillRect(0,y,W,1);
+  const LH=40, font='500 25px "JetBrains Mono", ui-monospace, monospace', KWs=new Set(KW);
+  [[SRC.rls,SRC.worker],[SRC.report,SRC.fetch]].forEach((blocks,ci)=>{
+    let y=70, x=ci?1080:56, ln=1;const lines=[];blocks.forEach(b=>{lines.push(...b.split("\n"));lines.push("")});
+    while(y<W-20){for(const line of lines){if(y>W-20)break;
+      g.font='400 21px "JetBrains Mono", monospace';g.fillStyle="rgba(127,227,182,.22)";g.textAlign="right";g.fillText(String(ln++),x+38,y);g.textAlign="left";
+      let cx=x+62;g.font=font;const isComment=/^\s*(--|\/\/)/.test(line);
+      const toks=isComment?[line]:line.split(/(\s+|[(),;.`]|'[^']*'|"[^"]*")/).filter(Boolean);
+      const colR=x+(ci?940:990);
+      for(const t of toks){if(cx+g.measureText(t).width>colR)break;
+        let col="#7FE3B6",glow=10;
+        if(isComment){col="#3F7A69";glow=0}else if(/^['"]/.test(t))col="#5DCFDA";else if(KWs.has(t))col="#A3E635";
+        g.shadowColor=col;g.shadowBlur=glow;g.fillStyle=col;g.fillText(t,cx,y);cx+=g.measureText(t).width;}
+      g.shadowBlur=0;y+=LH}}
+  });
+  return c;
+})();
+
+/* ---------- the fold: one straight crease per petal, the paper rolls about it ---------- */
+const FOLD_HEAD=`
+attribute vec2 aAxis; attribute float aHk; attribute vec3 aRnd; attribute float aEdge; attribute float aTip;
+uniform float uProg, uGrow, uTime, uScale; uniform vec2 uCenter;
+varying float vEdge; varying float vTip; varying float vFold; varying vec2 vFlat;
+vec3 foldPos(vec3 p, out vec3 n, out float folded){
+  vec2 rel=(p.xy-uCenter)/uScale;
+  float hk=aHk*uGrow, t=dot(rel,aAxis), s=hk-t;
+  n=vec3(0.,0.,1.); folded=0.;
+  if(s<=0.) return p;
+  float pr=clamp((uProg-aRnd.x)/(1.-aRnd.x),0.,1.);
+  float e=1.-pow(1.-pr,3.);
+  float rho=mix(40.,aRnd.y,e);
+  float amax=aRnd.z*e+(uGrow-1.)*1.4;
+  float a=s/rho, inward, up;
+  if(a<amax){ inward=rho*sin(a); up=rho*(1.-cos(a)); }
+  else { float ex=s-rho*amax; inward=rho*sin(amax)+ex*cos(amax); up=rho*(1.-cos(amax))+ex*sin(amax); a=amax; }
+  up+=.012*sin(uTime*1.4+t*7.+aRnd.x*31.)*e*min(s,1.);
+  rel+=aAxis*((hk-inward)-t);
+  n=vec3(aAxis*sin(a),cos(a)); folded=step(.0001,a);
+  return vec3(rel*uScale+uCenter, up*uScale);
+}`;
+const TIP_CUT=`(.15+.85*clamp(uProg*1.4,0.,1.))*uGrow`;
+const FRAG_HEAD=`varying float vEdge; varying float vTip; varying float vFold; varying vec2 vFlat;
+float h21(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}`;
+const CUT=`if(vTip<0.) discard;
+  float _ed=min(vEdge, vTip+(1.-vFold)*9.);
+  float _fz=h21(floor(vFlat*900.));
+  if(vFold>.5 && _ed<.006+.010*_fz) discard;`;
+
+function petals(seed){
+  const r=rng(seed), N=6, TAU=Math.PI*2;
+  let w=[...Array(N)].map(()=>.6+r()*.8);const sw=w.reduce((a,b)=>a+b,0);w=w.map(v=>v/sw*TAU);
+  const start=r()*TAU, B=[];let acc=start;for(let i=0;i<N;i++){B.push(acc);acc+=w[i]}
+  const pet=B.map((b,i)=>{const mid=b+w[i]/2+(r()-.5)*w[i]*.18;
+    return{ax:Math.cos(mid),ay:Math.sin(mid),hk:.92+r()*.3,delay:r()*.3,rho:.13+r()*.3,amax:.9+r()*2.1}});
+  return {N,TAU,w,B,start,pet};
+}
+
+/* one torn sheet: its own renderer, scene, lights and uniforms */
+function createTear({canvas,host,anchor,seed,size=.62}){
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:"high-performance"});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,MOBILE?1.75:2));
+  renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.NoToneMapping;
+  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  const ANISO=renderer.capabilities.getMaxAnisotropy();
+  const scene=new THREE.Scene();scene.background=new THREE.Color("#A3E635");
+  const camera=new THREE.PerspectiveCamera(FOV,1,.01,100);
+
+  const bumpT=new THREE.CanvasTexture(BUMP);bumpT.wrapS=bumpT.wrapT=THREE.RepeatWrapping;bumpT.repeat.set(.55,.55);bumpT.anisotropy=ANISO;
+  const mapT=new THREE.CanvasTexture(MAP);mapT.colorSpace=THREE.SRGBColorSpace;mapT.wrapS=mapT.wrapT=THREE.RepeatWrapping;mapT.repeat.set(.12,.12);mapT.anisotropy=ANISO;
+
+  const U={uProg:{value:0},uGrow:{value:1},uTime:{value:0},uScale:{value:1},uCenter:{value:new THREE.Vector2()}};
+  function injectVertex(sh,withNormal){
+    Object.assign(sh.uniforms,U);
+    sh.vertexShader=sh.vertexShader.replace("#include <common>","#include <common>\n"+FOLD_HEAD+"\n");
+    if(withNormal) sh.vertexShader=sh.vertexShader.replace("#include <beginnormal_vertex>",
+      "float _f; vec3 _n; foldPos(position,_n,_f); vec3 objectNormal=_n;\n#ifdef USE_TANGENT\nvec3 objectTangent=vec3(tangent.xyz);\n#endif");
+    sh.vertexShader=sh.vertexShader.replace("#include <begin_vertex>",
+      `float _f2; vec3 _n2; vec3 transformed=foldPos(position,_n2,_f2);
+       vEdge=aEdge; vTip=length((position.xy-uCenter)/uScale)-aTip*${TIP_CUT}; vFold=_f2; vFlat=position.xy;`);
+  }
+  const paperMat=new THREE.MeshStandardMaterial({color:0xffffff,map:mapT,bumpMap:bumpT,bumpScale:1.4,roughness:.93,metalness:0,side:THREE.DoubleSide,shadowSide:THREE.DoubleSide});
+  paperMat.onBeforeCompile=sh=>{injectVertex(sh,true);
+    sh.fragmentShader=sh.fragmentShader.replace("#include <common>","#include <common>\n"+FRAG_HEAD+"\n").replace("#include <map_fragment>",`#include <map_fragment>
+    ${CUT}
+    float _fib=(1.-smoothstep(0.,.045+.03*_fz,_ed))*vFold;
+    diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.90,.97,.72),_fib*.85);
+    if(!gl_FrontFacing) diffuseColor.rgb*=vec3(1.05,1.03,.93);`)};
+  const depthMat=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,side:THREE.DoubleSide});
+  depthMat.onBeforeCompile=sh=>{injectVertex(sh,false);
+    sh.fragmentShader=sh.fragmentShader.replace("#include <common>","#include <common>\n"+FRAG_HEAD+"\n").replace("#include <clipping_planes_fragment>","#include <clipping_planes_fragment>\n"+CUT)};
+  const sheetMat=new THREE.MeshStandardMaterial({color:0xffffff,map:mapT,bumpMap:bumpT,bumpScale:1.4,roughness:.93,metalness:0});
+
+  const P=petals(seed);
+  function build(cx,cy,R){
+    const {N,TAU,w,B,start,pet}=P;
+    const wob=d=>.07*Math.sin(d*9.3)+.035*Math.sin(d*23.1+seed)+.018*Math.sin(d*51.+seed*.3);
+    const tipR=th=>.44+.09*Math.sin(3*th+1.3+seed)+.06*Math.sin(5*th+.4)+.035*Math.sin(11*th+2.2);
+    const norm=a=>((a%TAU)+TAU)%TAU;
+    const sector=(th,d)=>{const x=norm(norm(th+wob(d))-start);let lo=0;for(let i=0;i<N;i++){if(x>=lo&&x<lo+w[i])return i;lo+=w[i]}return N-1};
+    const angDist=(th,d,k)=>{const tw=norm(th+wob(d)),lo=norm(B[k]),hi=norm(B[k]+w[k]);
+      const dl=Math.min(Math.abs(tw-lo),TAU-Math.abs(tw-lo)),dh=Math.min(Math.abs(tw-hi),TAU-Math.abs(tw-hi));return Math.min(dl,dh)*d};
+    const H=2.55, step=MOBILE?1/38:1/56, n=Math.round(2*H/step), tris=n*n*2;
+    const pos=new Float32Array(tris*9),uv=new Float32Array(tris*6),aAxis=new Float32Array(tris*6),aHk=new Float32Array(tris*3),aRnd=new Float32Array(tris*9),aEdge=new Float32Array(tris*3),aTip=new Float32Array(tris*3);
+    let o=0;
+    const put=(vx,vy,k)=>{const q=pet[k],d=Math.hypot(vx,vy),th=Math.atan2(vy,vx),wx=cx+vx*R,wy=cy+vy*R;
+      pos[o*3]=wx;pos[o*3+1]=wy;pos[o*3+2]=0;uv[o*2]=wx;uv[o*2+1]=wy;
+      aAxis[o*2]=q.ax;aAxis[o*2+1]=q.ay;aHk[o]=q.hk;aRnd[o*3]=q.delay;aRnd[o*3+1]=q.rho;aRnd[o*3+2]=q.amax;
+      aEdge[o]=angDist(th,d,k);aTip[o]=tipR(th);o++};
+    for(let j=0;j<n;j++)for(let i=0;i<n;i++){
+      const x0=-H+i*step,y0=-H+j*step,x1=x0+step,y1=y0+step;
+      for(const T of [[[x0,y0],[x1,y0],[x1,y1]],[[x0,y0],[x1,y1],[x0,y1]]]){
+        const gx=(T[0][0]+T[1][0]+T[2][0])/3, gy=(T[0][1]+T[1][1]+T[2][1])/3;
+        const k=sector(Math.atan2(gy,gx),Math.hypot(gx,gy));for(const v of T) put(v[0],v[1],k);}}
+    const g=new THREE.BufferGeometry();
+    g.setAttribute("position",new THREE.BufferAttribute(pos,3));g.setAttribute("uv",new THREE.BufferAttribute(uv,2));
+    g.setAttribute("aAxis",new THREE.BufferAttribute(aAxis,2));g.setAttribute("aHk",new THREE.BufferAttribute(aHk,1));
+    g.setAttribute("aRnd",new THREE.BufferAttribute(aRnd,3));g.setAttribute("aEdge",new THREE.BufferAttribute(aEdge,1));g.setAttribute("aTip",new THREE.BufferAttribute(aTip,1));
+    g.computeVertexNormals();
+    const m=new THREE.Mesh(g,paperMat);m.customDepthMaterial=depthMat;m.castShadow=m.receiveShadow=true;m.frustumCulled=false;
+    const shape=new THREE.Shape();shape.moveTo(-60,-40);shape.lineTo(60,-40);shape.lineTo(60,40);shape.lineTo(-60,40);shape.closePath();
+    const hole=new THREE.Path(),h=H*R;hole.moveTo(cx-h,cy-h);hole.lineTo(cx-h,cy+h);hole.lineTo(cx+h,cy+h);hole.lineTo(cx+h,cy-h);hole.closePath();shape.holes.push(hole);
+    const s=new THREE.Mesh(new THREE.ShapeGeometry(shape),sheetMat);s.receiveShadow=s.castShadow=true;
+    return {m,s};
+  }
+
+  scene.add(new THREE.AmbientLight(0xffffff,1.25));
+  const key=new THREE.DirectionalLight(0xfffbe8,2.2);key.castShadow=true;
+  key.shadow.mapSize.set(MOBILE?1024:2048,MOBILE?1024:2048);key.shadow.bias=-.0004;key.shadow.normalBias=.02;key.shadow.radius=4;
+  scene.add(key,key.target);
+  const glow=new THREE.PointLight(0x2fe0a8,0,0,1.6);scene.add(glow);
+
+  const T={renderer,scene,camera,U,key,glow,center:new THREE.Vector2(),R:1,depth:1,tear:null,code:null,codeT:null};
+  const worldAtZ0=(px,py)=>{const v=new THREE.Vector3(px/host.clientWidth*2-1,-(py/host.clientHeight)*2+1,.5).unproject(camera);
+    const dir=v.sub(camera.position).normalize();return camera.position.clone().add(dir.multiplyScalar(-camera.position.z/dir.z))};
+  T.layout=()=>{
+    const w=host.clientWidth,h=host.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;
+    camera.position.set(0,0,CAMZ);camera.lookAt(0,0,0);camera.fov=FOV;camera.updateProjectionMatrix();camera.updateMatrixWorld();
+    const r=anchor.getBoundingClientRect(),hr=host.getBoundingClientRect();
+    const cy=r.top-hr.top+r.height/2, c=worldAtZ0(r.left-hr.left+r.width/2,cy), e=worldAtZ0(r.right-hr.left,cy);
+    T.center.set(c.x,c.y);T.R=Math.abs(e.x-c.x)*size;U.uCenter.value.copy(T.center);U.uScale.value=T.R;
+    if(T.tear){scene.remove(T.tear.m,T.tear.s);T.tear.m.geometry.dispose();T.tear.s.geometry.dispose()}
+    T.tear=build(c.x,c.y,T.R);scene.add(T.tear.m,T.tear.s);
+    T.depth=1.8*T.R;
+    if(T.code){scene.remove(T.code);T.code.geometry.dispose()}
+    if(T.codeT){const span=60;T.codeT.repeat.set(span/6.4,span/6.4);
+      T.code=new THREE.Mesh(new THREE.PlaneGeometry(span,span),new THREE.MeshStandardMaterial({map:T.codeT,emissiveMap:T.codeT,emissive:0xffffff,emissiveIntensity:.62,roughness:.85,metalness:0}));
+      T.code.position.set(c.x,c.y,-T.depth);T.code.receiveShadow=true;scene.add(T.code);}
+    const sc=key.shadow.camera;sc.left=sc.bottom=-4.2*T.R;sc.right=sc.top=4.2*T.R;sc.near=.1;sc.far=20*T.R;sc.updateProjectionMatrix();
+    key.target.position.set(c.x,c.y,-T.depth*.5);
+    glow.position.set(c.x,c.y-.2*T.R,-.55*T.depth);glow.distance=5*T.R;
+  };
+  T.light=(mx,my,t,op,hov)=>{
+    key.position.set(T.center.x-3.2*T.R+mx*2.4*T.R,T.center.y+4.2*T.R-my*1.6*T.R,7.5*T.R);
+    glow.intensity=(REDUCE?7:6+1.6*Math.sin(t*1.1))*T.R*T.R*(.25+op*.75)+hov*3*T.R*T.R;
+  };
+  // is a screen point over the hole?
+  T.over=(clientX,clientY)=>{const v=new THREE.Vector3(T.center.x,T.center.y,0).project(camera),hr=host.getBoundingClientRect();
+    const hx=hr.left+(v.x+1)/2*hr.width,hy=hr.top+(1-v.y)/2*hr.height,rpx=T.R/(2*CAMZ*Math.tan(FOV*Math.PI/360))*hr.height;
+    return Math.hypot(clientX-hx,clientY-hy)<rpx*.9};
+  CODE.then(c=>{const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=ANISO;T.codeT=t;T.layout()});
+  T.layout();
+  return T;
+}
+
+let hero, close;
+try{
+  hero=createTear({canvas:$("gl"),host:$("stage"),anchor:$("anchor"),seed:1234});
+  close=createTear({canvas:$("gl2"),host:$("open"),anchor:$("anchor2"),seed:77,size:.6});
+}catch(e){document.documentElement.classList.add("nogl");throw e}
+
+const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+const heroEl=$("hero"), stage=$("stage"), canvas=$("gl"), txt=$("heroTxt"), stats=$("stats"), inCopy=$("inCopy"), bar=$("bar"), hint=$("diveHint"), closeEl=$("open"), hint2=$("openHint");
+let mouse={x:0,y:0},sm={x:0,y:0},hover=0,hoverS=0,hover2=0,hover2S=0,dive=0;
+addEventListener("pointermove",e=>{
+  mouse.x=e.clientX/innerWidth-.5;mouse.y=e.clientY/innerHeight-.5;
+  hover=dive<.02&&hero.over(e.clientX,e.clientY)?1:0;
+  hint.style.opacity=hover?1:0;hint.style.left=(e.clientX+16)+"px";hint.style.top=(e.clientY+14)+"px";
+  canvas.style.cursor=hover?"pointer":"";
+  const cr=closeEl.getBoundingClientRect();
+  hover2=e.clientY>cr.top&&e.clientY<cr.bottom&&close.over(e.clientX,e.clientY)?1:0;
+  hint2.style.opacity=hover2?1:0;hint2.style.left=(e.clientX-cr.left+16)+"px";hint2.style.top=(e.clientY-cr.top+14)+"px";
+  $("gl2").style.cursor=hover2?"pointer":"";
+},{passive:true});
+stage.addEventListener("click",()=>{if(hover) scrollTo({top:heroEl.offsetTop+heroEl.offsetHeight-innerHeight*1.02,behavior:REDUCE?"auto":"smooth"})});
+$("gl2").addEventListener("click",()=>{if(hover2) window.open("https://rievoree-ukazka.vercel.app","_blank","noopener")});
+const readScroll=()=>{dive=Math.max(0,Math.min(1,(scrollY-heroEl.offsetTop)/(heroEl.offsetHeight-innerHeight)))};
+addEventListener("scroll",readScroll,{passive:true});readScroll();
+let rt;addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(()=>{hero.layout();close.layout()},120)});
+
+// the closing sheet tears when it comes into view, not before
+let closeVisible=false, closeStart=0;
+new IntersectionObserver(es=>{closeVisible=es[0].isIntersecting;if(closeVisible&&!closeStart)closeStart=performance.now()+250},{threshold:.25}).observe(closeEl);
+
+const t0=performance.now()+350, OPEN=REDUCE?0:1900;
+function frame(now){
+  sm.x+=(mouse.x-sm.x)*.06;sm.y+=(mouse.y-sm.y)*.06;hoverS+=(hover-hoverS)*.08;hover2S+=(hover2-hover2S)*.08;
+  const t=(now-t0)/1000;
+  const d=ease(dive);
+  // ---------- hero ----------
+  if(dive<1){
+    const H=hero,op=OPEN?Math.max(0,Math.min(1,(now-t0)/OPEN)):1;
+    H.U.uTime.value=t;H.U.uProg.value=op;H.U.uGrow.value=1+d*.9+hoverS*.04;
+    const calm=1-Math.min(1,d*3),rx=sm.x*.55*calm,ry=-sm.y*.35*calm;
+    H.camera.position.lerpVectors(new THREE.Vector3(rx,ry,CAMZ),new THREE.Vector3(H.center.x,H.center.y,-H.depth+1.25*H.R),d);
+    H.camera.lookAt(new THREE.Vector3().lerpVectors(new THREE.Vector3(rx*.3,ry*.3,0),new THREE.Vector3(H.center.x,H.center.y,-H.depth),Math.min(1,d*1.3)));
+    H.camera.fov=FOV+d*14;H.camera.updateProjectionMatrix();
+    H.light(sm.x,sm.y,t,op,hoverS);
+    H.renderer.render(H.scene,H.camera);
+  }
+  txt.style.opacity=Math.max(0,1-d*4);txt.style.transform=`translateY(${-d*120}px)`;
+  stats.style.opacity=Math.max(0,1-d*5);
+  inCopy.style.opacity=Math.max(0,Math.min(1,(dive-.86)*8));
+  canvas.style.opacity=String(Math.max(0,Math.min(1,(1-dive)*8)));
+  stage.style.background=d>.5?"var(--deep)":"";
+  if(dive>.02) hint.style.opacity=0;
+  // ---------- closing sheet ----------
+  if(closeVisible){
+    const C=close,op=closeStart?(OPEN?Math.max(0,Math.min(1,(now-closeStart)/OPEN)):1):0;
+    C.U.uTime.value=t;C.U.uProg.value=op;C.U.uGrow.value=1+hover2S*.08;
+    const cr=closeEl.getBoundingClientRect(),py=(cr.top+cr.height/2-innerHeight/2)/innerHeight; // where the section sits on screen
+    C.camera.position.set(sm.x*.5,-sm.y*.3+py*.6,CAMZ);C.camera.lookAt(sm.x*.15,py*.2,0);
+    C.light(sm.x,sm.y,t,op,hover2S);
+    C.renderer.render(C.scene,C.camera);
+  }
+  // ---------- header: ink on the paper, light over the machinery ----------
+  const endHero=heroEl.offsetTop+heroEl.offsetHeight-innerHeight, overClose=closeEl.getBoundingClientRect().top<=64;
+  bar.classList.toggle("dark",!overClose&&((d>.45&&scrollY<=endHero)||scrollY>endHero));
+  bar.classList.toggle("paper",overClose);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

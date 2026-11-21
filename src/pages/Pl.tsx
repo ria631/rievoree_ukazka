@@ -19,7 +19,7 @@ const ROW = "grid grid-cols-[minmax(170px,1fr)_84px_repeat(3,minmax(84px,112px))
  */
 export function Pl() {
   const { data: rows, isLoading, error } = useReport()
-  const { data: budgets } = useBudget()
+  const { data: budgets, isLoading: budgetLoading } = useBudget()
   const { entityId, setEntityId, names, include } = useEntityScope()
   const [scope, setScope] = useState("ytd")
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
@@ -40,12 +40,13 @@ export function Pl() {
   useTourControl("period", (v) => setScope(v === "@latest" ? `m:${last}` : v))
 
   function toggle(id: string) {
-    setCollapsed((cur) => { const n = new Set(cur); n.has(id) ? n.delete(id) : n.add(id); return n })
+    setCollapsed((cur) => { const n = new Set(cur); if (n.has(id)) n.delete(id); else n.add(id); return n })
   }
 
   return (
     <div className="relative">
-      <PageIntro eyebrow="Income statement" title="P&L">
+      <PageIntro eyebrow="Income statement" title="P&L"
+        actions={<EntitySelect sheet value={entityId} onChange={setEntityId} names={names} />}>
         Revenue, the costs of running the buildings, and what is left: <span className="text-foreground">net operating
         income</span> — then depreciation and interest down to profit before tax. Every line against its budget.
       </PageIntro>
@@ -54,25 +55,27 @@ export function Pl() {
         : error ? <ErrorNote message={error.message} />
         : !last ? <EmptyNote title="No report data for your entities" hint="Approve and load a batch on the Ingest page." />
         : (
-        <div className="space-y-5">
+        <div className="space-y-4">
           <div data-tour="pl-filters" className="flex flex-wrap items-center gap-3">
-            <EntitySelect value={entityId} onChange={setEntityId} names={names} />
             <FilterLabel label="Period">
               <SimpleSelect aria-label="Period filter" value={scope} onValueChange={setScope} options={scopeOptions(last, first)} />
             </FilterLabel>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid gap-5 @min-[700px]:grid-cols-2">
             <ChartCard tour="pl-bridge" title="From revenue to profit" hint={scopeLabel(scope, last)}>
               <Waterfall steps={bridge} />
             </ChartCard>
             <ChartCard tour="pl-variance" title="Biggest variances vs budget" hint={scopeLabel(scope, last)}>
               {hasBudget && variances.length ? <VarianceBars data={variances} />
+                : budgetLoading ? <div className="flex flex-col gap-3 py-10" aria-label="Loading budgets">
+                    {[0.9, 0.7, 0.8, 0.5, 0.6].map((w, i) => <div key={i} className="h-3 animate-pulse rounded bg-secondary" style={{ width: `${w * 100}%` }} />)}
+                  </div>
                 : <p className="py-16 text-center font-mono text-xs text-muted-foreground">No budget for this scope.</p>}
             </ChartCard>
           </div>
 
-          <div data-tour="pl-table" className="overflow-x-auto rounded-[1.5rem] bg-card shadow-soft ring-1 ring-border">
+          <div data-tour="pl-table" className="overflow-x-auto rounded-xl bg-card shadow-soft ring-1 ring-border">
             <div className="min-w-[720px]">
               <div className={cn(ROW, "border-b border-border py-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground")}>
                 <span>Line · {scopeLabel(scope, last)}</span>

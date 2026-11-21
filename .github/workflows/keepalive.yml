@@ -1,0 +1,28 @@
+name: Keep the demo awake
+
+# A free Supabase project pauses after a week without requests. One read-only
+# call a day keeps the hosted demo up for whoever opens the link next.
+# Needs two repository secrets — the same public values the frontend ships:
+# SUPABASE_URL and SUPABASE_ANON_KEY. Without them the job skips.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping auth health and the site
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "SUPABASE_URL / SUPABASE_ANON_KEY not set — skipping."; exit 0
+          fi
+          curl -fsS -o /dev/null -w "auth health %{http_code}\n" \
+            -H "apikey: $SUPABASE_ANON_KEY" "$SUPABASE_URL/auth/v1/health"
+          curl -fsS -o /dev/null -w "site %{http_code}\n" https://rievoree-ukazka.vercel.app/

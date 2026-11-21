@@ -16,7 +16,7 @@
 //   POST { action: "reset_password", user_id }
 //   POST { action: "reset_mfa", user_id }
 // ============================================================================
-import { createClient } from "jsr:@supabase/supabase-js@2"
+import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2"
 import { CORS, json, log, UUID_RE } from "../_shared/connectors.ts"
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
@@ -66,7 +66,9 @@ Deno.serve(async (req) => {
   }
 })
 
-type UClient = ReturnType<typeof createClient>
+// Untyped schema (no generated types here): any client the factory returns fits.
+// deno-lint-ignore no-explicit-any
+type UClient = SupabaseClient<any, any, any>
 
 async function rpcBool(client: UClient, fn: string, args?: Record<string, unknown>): Promise<boolean> {
   const { data, error } = await client.rpc(fn, args)
