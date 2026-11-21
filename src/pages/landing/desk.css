@@ -6,9 +6,9 @@
    Story: HowItWorks puts a1…a5 (cumulative), `out` and `skip` on .flow. The normal
    styles below each `.aN` rule ARE the finished state; animations only play
    INTO them (fill: backwards), so reduced motion simply shows the finished
-   desk. Ambient motion (steam, the plant, the calculator's display) runs only
-   while .flow is .on (on screen), and only on whole elements — nothing that
-   loops animates inside an SVG, so the compositor carries it without repaints. */
+   desk. Ambient motion (steam, the plant) runs only while .flow is .on (on
+   screen) and not .scrolling, and only on whole elements — nothing that loops
+   animates inside an SVG, so the compositor carries it without repaints. */
 
 @property --n { syntax: "<integer>"; inherits: false; initial-value: 0; }
 
@@ -212,8 +212,6 @@
 .lp .dk-calc .key{fill:#2B3835;transform-box:fill-box;transform-origin:center}
 .lp .dk-calc .op{fill:#384945}
 .lp .dk-calc .eq{fill:#A3E635}
-.lp .on .dk-calc .roll{animation:dk-roll 8s step-end infinite}
-@keyframes dk-roll{0%{transform:translateY(0)}20%{transform:translateY(-34px)}40%{transform:translateY(-68px)}60%{transform:translateY(-102px)}80%{transform:translateY(-136px)}}
 
 .lp .dk-cup::before{content:"";position:absolute;left:calc(6 * var(--u));top:calc(8 * var(--u));width:calc(108 * var(--u));height:calc(108 * var(--u));border-radius:50%;
   box-shadow:calc(6 * var(--u)) calc(14 * var(--u)) calc(24 * var(--u)) calc(-6 * var(--u)) rgba(0,0,0,.6)}
@@ -357,7 +355,7 @@
 .lp .skip .dk-story *,.lp .skip .dk-story{animation:none!important}
 
 /* paused off screen; finished and still for reduced motion */
-.lp .flow:not(.on) .desk *{animation-play-state:paused!important}
+.lp .flow:not(.on) .desk *,.lp .flow.scrolling .desk *{animation-play-state:paused!important}
 @media (prefers-reduced-motion:reduce){
   .lp .desk *{animation:none!important;transition:none!important}
   .lp .dk-dots{display:none}

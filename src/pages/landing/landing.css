@@ -145,12 +145,15 @@
 .lp .flow.play:not(.out) .track .token{opacity:1}
 @keyframes lp-draw{to{transform:scaleX(1)}}
 .lp .steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
-.lp .steps li{position:relative;display:flex;flex-direction:column;gap:10px;padding:18px 20px 22px;border:1px solid var(--line);border-radius:12px;background:var(--deep-2);opacity:.55;transform:translateY(10px);transition:border-color .45s,box-shadow .45s,background-color .45s}
+.lp .steps li{position:relative;display:flex;flex-direction:column;gap:10px;padding:18px 20px 22px;border:1px solid var(--line);border-radius:12px;background:var(--deep-2);opacity:.55;transform:translateY(10px)}
+/* the lit card: a glow layer that only fades (opacity runs on the compositor;
+   animating the shadow itself would repaint the card every frame) */
+.lp .steps li::after{content:"";position:absolute;inset:-1px;border-radius:inherit;pointer-events:none;border:1px solid var(--lime);
+  box-shadow:0 0 0 1px rgba(163,230,53,.22),0 18px 40px -22px rgba(163,230,53,.45);opacity:0;transition:opacity .45s ease}
 .lp .flow.play .steps li{animation:lp-step-on .6s ease calc(var(--i) * .12s) forwards}
 @keyframes lp-step-on{to{opacity:1;transform:none}}
-.lp .flow[data-act="1"] .steps li:nth-child(1),.lp .flow[data-act="2"] .steps li:nth-child(2),
-.lp .flow[data-act="3"] .steps li:nth-child(3),.lp .flow[data-act="4"] .steps li:nth-child(4){
-  border-color:var(--lime);background-color:#0E2C29;box-shadow:0 0 0 1px rgba(163,230,53,.22),0 18px 40px -22px rgba(163,230,53,.45)}
+.lp .flow[data-act="1"] .steps li:nth-child(1)::after,.lp .flow[data-act="2"] .steps li:nth-child(2)::after,
+.lp .flow[data-act="3"] .steps li:nth-child(3)::after,.lp .flow[data-act="4"] .steps li:nth-child(4)::after{opacity:1}
 /* act 5 (X-ray): every card shows its machinery line lit, the track glows */
 .lp .steps .tech{transition:color .45s}
 .lp .flow[data-act="5"] .steps li{border-color:var(--line-hi)}

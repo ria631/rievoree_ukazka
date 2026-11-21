@@ -7,8 +7,8 @@
  * the report it ends up in. Real statements from the migrations. Then it
  * falls back into the rain, and again.
  *
- * Cost, on purpose: one 2D canvas for the rain at 1× pixel ratio, ~30 frames
- * a second, each frame a translucent fill plus one glyph per falling column;
+ * Cost, on purpose: one 2D canvas for the rain at 1× pixel ratio, ~24 frames
+ * a second (none while the page scrolls, out of the layers off screen), each frame a translucent fill plus one glyph per falling column;
  * the money/code has its own small canvas, redrawn only in the cells that
  * change. Nothing runs while the hero is off screen or the tab is hidden.
  * Reduced motion: one still frame with the note.
@@ -554,30 +554,41 @@ export function mountCodeRain(o: CodeRainOpts): () => void {
   }
   const onLeave = () => { clearLens(); o.lens?.classList.remove("on") }
 
-  /* running only while visible */
+  /* running only while visible, and never while the page is being scrolled */
   let raf = 0
   let last = 0
   let acc = 0
   let visible = false
-  // While the page is being scrolled the rain drops to ~10 frames a second, so
-  // the scroll gets the main thread; it picks up again once scrolling stops.
-  let scrolledAt = -1e9
-  const onScroll = () => { scrolledAt = performance.now() }
+  // Scrolling gets the main thread to itself: the rain stops on the first
+  // scroll event and picks up a moment after the last one.
+  let scrolling = false
+  let scrollT = 0
+  const onScroll = () => {
+    if (!scrolling) { scrolling = true; run() }
+    clearTimeout(scrollT)
+    scrollT = window.setTimeout(() => { scrolling = false; run() }, 220)
+  }
   const loop = (now: number) => {
     raf = requestAnimationFrame(loop)
     const dt = Math.min(100, now - (last || now))
     last = now
     acc += dt
-    if (acc < (now - scrolledAt < 180 ? 100 : 33)) return // ~30 fps is plenty for falling characters
+    if (acc < 41) return // ~24 fps: plenty for falling characters, and a fifth less canvas work than 30
     frame(acc)
     acc = 0
   }
   const run = () => {
-    const go = visible && !document.hidden && !reduce
+    const go = visible && !scrolling && !document.hidden && !reduce
     if (go && !raf) { last = 0; raf = requestAnimationFrame(loop) }
     if (!go && raf) { cancelAnimationFrame(raf); raf = 0 }
   }
-  const io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; run() }, { threshold: 0.05 })
+  // Off screen the two canvases leave the page's layers entirely: even idle,
+  // a large canvas costs the compositor work on every frame it's part of.
+  const io = new IntersectionObserver(([e]) => {
+    visible = e.isIntersecting
+    o.host.classList.toggle("cr-off", !visible)
+    run()
+  }, { threshold: 0 })
   const onVis = () => run()
 
   let resizeT = 0
@@ -610,6 +621,7 @@ export function mountCodeRain(o: CodeRainOpts): () => void {
   return () => {
     disposed = true
     cancelAnimationFrame(raf)
+    clearTimeout(scrollT)
     io.disconnect()
     ro.disconnect()
     clearTimeout(resizeT)

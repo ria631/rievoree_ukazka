@@ -2,6 +2,8 @@
    in the hero) and the money that forms out of it, then turns to code (CodeHero.tsx). */
 .lp .hero.dark{background:#04110F;color:var(--text)}
 .lp .cr-rain{position:absolute;inset:0;z-index:0;display:block;pointer-events:none}
+/* off screen: out of the layer tree altogether (codeRain.ts toggles .cr-off) */
+.lp .cr-off .cr-rain,.lp .cr-off .cr-zone canvas{display:none}
 .lp .hero.dark::before{content:"";position:absolute;inset:0 0 auto 0;height:120px;z-index:1;pointer-events:none;background:linear-gradient(#04110F 30%,rgba(4,17,15,0))}
 .lp .hero.dark::after{content:"";position:absolute;inset:auto 0 0 0;height:120px;z-index:1;pointer-events:none;background:linear-gradient(to bottom,transparent,var(--deep))}
 .lp .hero.dark .kicker{color:var(--em)}
