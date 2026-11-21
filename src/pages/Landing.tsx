@@ -10,9 +10,9 @@ import "./landing/landing.css"
 
 /**
  * The landing — a portfolio first, a product second. Five screens, each with
- * one job: who built this and what it is (a report screen assembling out of
- * a rain of the repo's own code, then X-raying itself — the product's idea in
- * fifteen seconds), the moment that proves it
+ * one job: who built this and what it is (money forming out of a rain of the
+ * repo's own code, then turning into the code that books and reports it — the
+ * product's idea in fifteen seconds), the moment that proves it
  * (row-level security, live in the browser), how it works (a live desk, then
  * its skeleton), what it shows its author can do — with the tests as
  * evidence — and how to reach her or open the demo.

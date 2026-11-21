@@ -2,20 +2,21 @@ import { useEffect, useRef, type RefObject } from "react"
 import type { Phase } from "./codeRain"
 import "./code-hero.css"
 
-/** What the screen is doing, said in one line under it. */
+/** What's happening, said in one line under it. */
 const SAY: Record<Phase, string> = {
-  build: "Building the screen out of this repo's own code…",
-  screen: "A report screen — every character of it is code.",
-  xray: "X-ray →",
-  code: "Underneath: the request, the SQL view and the RLS policy that made it.",
-  release: "Every screen in the demo can do this. Press X there.",
-  rain: "Every screen in the demo can do this. Press X there.",
+  build: "A payment comes in…",
+  money: "€500 of rent, paid to Danube Office Park.",
+  morph: "…and turns into code.",
+  code: "The bank line, the check, the booking, the policy, the report — the real code from this repo.",
+  release: "That's how every number in the demo is made. Press X there to see it.",
+  rain: "That's how every number in the demo is made. Press X there to see it.",
 }
 
 /**
- * The hero's right side: where the report screen assembles out of the code
- * rain and then shows its own code. The rain and the screen are drawn by
- * codeRain.ts (loaded after first paint); this is the frame and the caption.
+ * The hero's right side: money forms out of the code rain and turns into the
+ * code that handles it — how financial reporting is really made. The rain and
+ * the cells are drawn by codeRain.ts (loaded after first paint); this is the
+ * frame and the caption.
  */
 export function CodeHero({ host, avoid }: { host: RefObject<HTMLElement | null>; avoid: RefObject<HTMLElement | null> }) {
   const zone = useRef<HTMLDivElement>(null)
@@ -46,12 +47,12 @@ export function CodeHero({ host, avoid }: { host: RefObject<HTMLElement | null>;
   return (
     <figure className="cr">
       <div ref={zone} className="cr-zone">
-        <canvas ref={fg} aria-label="A report screen assembled from the repo's code, then shown as the code behind it" role="img" />
+        <canvas ref={fg} aria-label="A €500 note and coins made of code characters, turning into the code that books and reports them" role="img" />
         <span ref={lens} className="cr-lens" aria-hidden="true" />
       </div>
       <figcaption>
         <span ref={say} className="cr-say" aria-live="off">{SAY.build}</span>
-        <span className="cr-hint">Hover the screen to look under it.</span>
+        <span className="cr-hint">Hover the money to see its code.</span>
       </figcaption>
     </figure>
   )
