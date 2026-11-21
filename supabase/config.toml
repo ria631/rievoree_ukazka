@@ -335,7 +335,7 @@ skip_nonce_check = false
 email_optional = false
 
 # ---------------------------------------------------------------------------
-# Social login (PLAN.md §7). "Sign in with Google / GitHub" sits beside password
+# Social login. "Sign in with Google / GitHub" sits beside password
 # auth on /login and /register (supabase.auth.signInWithOAuth). The buttons work
 # the moment these provider secrets are set; until then the provider returns
 # "provider is not enabled" and the UI surfaces it gracefully.
