@@ -4,14 +4,6 @@ import { AUTHOR, EVIDENCE, contactLinks, repoUrl } from "@/lib/author"
 
 const STACK = ["React 19", "TypeScript", "Vite", "Tailwind v4", "TanStack", "recharts", "Supabase", "Postgres", "Edge / Deno", "Docker", "pg_cron", "pg_net", "RLS"]
 
-// Real demo figures (same provenance as the landing — the Journal page's totals).
-const FIGURES: [string, string][] = [
-  ["€120.0M", "posted · debit side"],
-  ["4,708", "documents · all balanced"],
-  ["4", "companies · RLS-scoped"],
-  ["24", "monthly periods"],
-]
-
 const LAYERS = [
   ["Browser", "React 19 reaches Postgres through one instrumented fetch — the seam the X-ray panel taps."],
   ["Edge / Deno", "Validated ingest and review notifications run as Deno edge functions."],
@@ -46,15 +38,6 @@ export function About() {
         ))}
       </div>
 
-      <div className="mt-12 grid grid-cols-2 gap-px border-t border-border pt-10 md:grid-cols-4">
-        {FIGURES.map(([n, l]) => (
-          <div key={l} className="py-2 pr-4">
-            <div className="display text-4xl text-foreground md:text-5xl">{n}</div>
-            <div className="mt-2 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">{l}</div>
-          </div>
-        ))}
-      </div>
-
       <div className="mt-14">
         <h2 className="poster text-[clamp(1.4rem,4vw,2.2rem)] text-foreground">Four layers, each doing real work.</h2>
         <div className="mt-6 space-y-3">
@@ -86,7 +69,8 @@ export function About() {
             <div key={e.area} className="grid gap-2 py-5 md:grid-cols-[12rem_1fr] md:gap-6">
               <dt className="font-display text-lg font-extrabold uppercase leading-tight">{e.area}</dt>
               <dd>
-                <p className="text-sm leading-relaxed text-muted-foreground">{e.claim}</p>
+                <p className="text-base leading-relaxed text-foreground">{e.plain}</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{e.tech}</p>
                 <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs">
                   {e.where.map((w) => (
                     <a key={w.path} href={repoUrl(w.path)} target="_blank" rel="noreferrer" className="font-semibold text-foreground underline-offset-4 hover:underline">{w.label} ↗</a>

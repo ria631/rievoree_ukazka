@@ -6,7 +6,6 @@
  */
 import identitySql from "../../../supabase/migrations/20260605000001_identity_and_tenancy.sql?raw"
 import reportSql from "../../../supabase/migrations/20260610000002_report_account_monthly.sql?raw"
-import ingestFn from "../../../supabase/functions/ingest-submit/index.ts?raw"
 import workerDb from "../../../worker/src/db.ts?raw"
 import instrumentedFetch from "../../lib/xray/instrumentedFetch.ts?raw"
 
@@ -37,22 +36,10 @@ export const SRC = {
   worker: excerpt(workerDb, "// Atomic claim", "return rows[0] ?? null;") + "\n}",
   /** The fetch seam the X-ray panel reads from. */
   fetch: excerpt(instrumentedFetch, "export function createInstrumentedFetch", /^}$/),
-  /** The edge function's tenant check before it issues an upload URL. */
-  edge: excerpt(ingestFn, "const { data: entity, error: entityErr } = await userClient", "not authorized to upload for this entity") + "\n}",
 }
 
 export const FILES = {
   rls: "supabase/migrations/20260605000001_identity_and_tenancy.sql",
-  fetch: "src/lib/xray/instrumentedFetch.ts",
-  edge: "supabase/functions/ingest-submit/index.ts",
-  worker: "worker/src/db.ts",
-}
-
-/** A short window into a snippet: the lines that carry the idea. */
-export function lines(src: string, from: string, count: number): string {
-  const all = src.split("\n")
-  const a = Math.max(0, all.findIndex((l) => l.includes(from)))
-  return dedent(all.slice(a, a + count).join("\n"))
 }
 
 // ── Highlighting: a deliberately tiny tokenizer (comments, strings, keywords) —

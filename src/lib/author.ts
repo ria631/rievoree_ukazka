@@ -27,51 +27,52 @@ export function contactLinks(): ContactLink[] {
   return links
 }
 
-/** What the project demonstrates, each claim pointing at the code that backs it. */
-export const EVIDENCE: { area: string; claim: string; where: { label: string; path: string }[] }[] = [
+/** What the project demonstrates: a plain sentence first, the technique under
+ *  it, and the code that backs it. */
+export const EVIDENCE: { area: string; plain: string; tech: string; where: { label: string; path: string }[] }[] = [
   {
-    area: "Postgres & security",
-    claim: "Row-level security on every table, column grants and triggers underneath; a privilege escalation found in review, fixed and pinned by a test; demo accounts locked read-only in the database.",
+    area: "Data security",
+    plain: "Each company's numbers reach only the people invited to it — and the database enforces that, not the website.",
+    tech: "Row-level security on every table, column grants and triggers underneath; a privilege escalation found in review, fixed and pinned by a test.",
     where: [
-      { label: "migrations", path: "supabase/migrations" },
       { label: "isolation test", path: "supabase/tests/security_isolation_test.sql" },
-      { label: "the fix", path: "supabase/migrations/20261013000001_security_hardening_demo_lockdown.sql" },
+      { label: "the policies", path: "supabase/migrations/20260605000001_identity_and_tenancy.sql" },
     ],
   },
   {
-    area: "ETL & data quality",
-    claim: "Validate → z-score anomaly screen → human approval → idempotent delete-and-reload; a spreadsheet link the database fetches and parses itself; CSV-injection defence.",
+    area: "Data quality",
+    plain: "Messy spreadsheets go in; every row is checked, and anything far outside its history waits for a person.",
+    tech: "Validation rules per company, a z-score screen against 12 months of history, manual approval, idempotent delete-and-reload.",
     where: [
       { label: "anomaly test", path: "supabase/tests/detect_anomalies_test.sql" },
       { label: "reload test", path: "supabase/tests/load_batch_test.sql" },
-      { label: "sanitizer", path: "worker/src/sanitize.ts" },
     ],
   },
   {
-    area: "Async & scheduling",
-    claim: "A queue claimed with FOR UPDATE SKIP LOCKED and leases, advisory locks, trigger chains, pg_cron refreshes and pg_net callbacks — all inside Postgres.",
+    area: "Automation in Postgres",
+    plain: "Reports refresh themselves and linked sheets are re-read every hour — no one exports or copies anything.",
+    tech: "Trigger chains, a refresh queue drained by pg_cron, pg_net fetching sheets, FOR UPDATE SKIP LOCKED queue claims.",
     where: [
-      { label: "worker claim", path: "worker/src/db.ts" },
       { label: "cron refresh", path: "supabase/migrations/20260610000006_pg_cron_refresh_and_housekeeping.sql" },
+      { label: "queue claim", path: "worker/src/db.ts" },
     ],
   },
   {
-    area: "Frontend",
-    claim: "React 19 + TypeScript strict, TanStack Router/Query with code-split routes, every request instrumented at one fetch seam, a WebGL landing, finance pages a CFO reads.",
+    area: "Product & frontend",
+    plain: "Finance pages a CFO reads — P&L, rent roll, cash, forecast — with the maths unit-tested.",
+    tech: "React 19 and TypeScript strict, TanStack Router/Query with code-split routes, every request timed at one fetch seam.",
     where: [
-      { label: "fetch seam", path: "src/lib/xray/instrumentedFetch.ts" },
-      { label: "pages", path: "src/pages" },
       { label: "KPI maths", path: "src/lib/data" },
+      { label: "fetch seam", path: "src/lib/xray/instrumentedFetch.ts" },
     ],
   },
-  {
-    area: "Testing & delivery",
-    claim: "pgTAP against a real local Supabase, Deno tests for the parser, vitest for the reporting maths, ESLint, a migration-safety scanner — all in CI on every pull request.",
-    where: [
-      { label: "pgTAP", path: "supabase/tests" },
-      { label: "CI", path: ".github/workflows/ci.yml" },
-    ],
-  },
+]
+
+/** The tests worth naming — the rest are counted, not listed. */
+export const TOP_TESTS: { name: string; path: string }[] = [
+  { name: "Companies can't see each other's data", path: "supabase/tests/security_isolation_test.sql" },
+  { name: "A demo account never sees a real one", path: "supabase/tests/demo_members_privacy_test.sql" },
+  { name: "A reloaded batch is never counted twice", path: "supabase/tests/load_batch_test.sql" },
 ]
 
 /** GitHub URL for a repo path (tree for folders, blob for files). */
