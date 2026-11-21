@@ -12,6 +12,7 @@ import { BrandLink } from "@/components/BrandMark"
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useAuth } from "@/lib/auth/useAuth"
 import { supabase } from "@/lib/supabase"
+import { isDemoEmail } from "@/lib/auth/demo"
 import { requestTourStart } from "@/lib/tourBus"
 import { cn } from "@/lib/utils"
 
@@ -22,10 +23,7 @@ const DEMO_PASSWORD = "demo123456"
 const DEMO_BLOCKED = new Set(["/ingest", "/users", "/connectors", "/account"])
 const PAPER_ROUTES = new Set(["/", "/login", "/register", "/about", "/reset-password"])
 
-/** Is the session a shared demo identity? Any *@demo.local account is. */
-function isDemoEmail(email: string | undefined) {
-  return (email ?? "").toLowerCase().endsWith("@demo.local")
-}
+
 
 export function AppShell() {
   const { session, role, active, loading } = useAuth()
@@ -436,6 +434,7 @@ function ExitDemo() {
 // The demo tour is read-only; write/account routes need a real account. Shown
 // instead of a silent redirect so the visitor knows why and what to do next.
 function DemoBlockedScreen({ path }: { path: string }) {
+  const navigate = useNavigate()
   const feature = path.replace("/", "") || "that page"
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center gap-5 px-6 text-center">
@@ -447,13 +446,14 @@ function DemoBlockedScreen({ path }: { path: string }) {
         <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
           You're the read-only viewer, so <span className="font-mono text-foreground">{feature}</span> (where
           you'd upload, approve or manage) is off. Switch to <b className="text-foreground">Manager</b> in the
-          menu at the top to look around it, or create a free account to try it for real.
+          menu at the top to look around it, or create your own workspace to do it for real (the demo signs you out first).
         </p>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row">
-        <Link to="/register" className="rounded-md bg-accent px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
-          Create account
-        </Link>
+        <button type="button" onClick={async () => { await supabase.auth.signOut({ scope: "local" }); navigate({ to: "/register" }) }}
+          className="rounded-md bg-accent px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-accent-foreground transition hover:brightness-110">
+          Create your workspace
+        </button>
         <Link to="/dashboard" className="rounded-md border border-line-hi px-6 py-3 font-mono text-xs uppercase tracking-widest text-foreground transition hover:border-signal">
           Back to the reports
         </Link>

@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth/useAuth"
+import { OwnWorkspacePrompt } from "@/components/OwnWorkspacePrompt"
+import { isDemoEmail } from "@/lib/auth/demo"
 import { useEntities } from "@/lib/data/useEntities"
 import { useBatches, useUploadBatch, useApproveBatch, useRejectBatch } from "@/lib/data/useBatches"
 import { useEntityRuleset, useSaveRuleset, DEFAULT_RULES } from "@/lib/data/useRuleset"
@@ -60,7 +62,8 @@ function statusLabel(status: string): string {
 }
 
 export function Ingest() {
-  const { role } = useAuth()
+  const { role, isDemo: demoFlag, user } = useAuth()
+  const isDemo = demoFlag || isDemoEmail(user?.email)
   const { data: entities } = useEntities()
   const batches = useBatches()
   const upload = useUploadBatch()
@@ -170,9 +173,17 @@ export function Ingest() {
         history is flagged, and once a manager approves the batch the figures appear across the reports.
       </PageIntro>
 
+      {isDemo && (
+        <OwnWorkspacePrompt compact
+          title="Upload your own documents in your workspace"
+          body="The shared demo is read-only: look through the uploads and the review queue here. In your own workspace you upload CSV or Excel exports, review what the checks flag, and approve them into the reports." />
+      )}
+
       {canManage(role) && <UploadGuide />}
 
-      {/* Upload — only managers/admins may submit (submit_batch enforces it too). */}
+      {/* Upload — only managers/admins may submit (submit_batch enforces it too).
+          In the shared demo the form stays (the guided tour walks through it);
+          the database refuses the write and the prompt above says why. */}
       {!canManage(role) ? (
         <div className="rounded-2xl bg-card px-6 py-6 font-mono text-xs leading-relaxed text-muted-foreground shadow-soft ring-1 ring-border">
           Your role is read-only — uploading and approving batches is for managers
