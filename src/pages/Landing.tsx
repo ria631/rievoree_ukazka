@@ -4,7 +4,6 @@ import { useExploreDemo } from "@/app/AppShell"
 import { AUTHOR, EVIDENCE, TOP_TESTS, contactLinks, repoUrl } from "@/lib/author"
 import { FILES, SRC, hl } from "./landing/repoSource"
 import { CodeHero } from "./landing/CodeHero"
-import { TornHole } from "./landing/TornHole"
 import { Desk, SkeletonList } from "./landing/Desk"
 import "./landing/landing.css"
 
@@ -109,23 +108,45 @@ export function Landing() {
           <section ref={close} className="close" id="contact" aria-label="Contact and demo">
             <div className="wrap close-in">
               <div className="copy">
-                <h2>Now tear into the real one</h2>
-                <p>The live demo is read-only, with sample data — no sign-up, and it resets every hour. Open any page, then press <kbd>X</kbd> to see the calls and policies behind it.</p>
+                <p className="kicker">The live demo</p>
+                <h2>See it run on a real set of books</h2>
+                <p>
+                  The whole product on sample data: four property companies, two years of accounts and seven
+                  reports, from the P&amp;L to the cash forecast. Read-only and without sign-up; it resets every hour.
+                </p>
+                <ul className="try">
+                  <li><b>Switch roles.</b> As Viewer, Manager or Admin the same page returns one, two or four companies — Postgres decides, not the browser.</li>
+                  <li><b>Press <kbd>X</kbd> on any page.</b> See the API calls behind it, the SQL view, the row-level policy and the source file.</li>
+                  <li><b>Take the guided tour.</b> Two minutes through the reports, the data pipeline and the security model.</li>
+                  <li><b>Use it for real.</b> Create your own workspace to invite your team, upload your CSV exports and connect a Google Sheet.</li>
+                </ul>
                 <div className="ctas">
                   {demoBtn("btn-ink")}
                   <a className="btn btn-ghost" href={AUTHOR.repo} target="_blank" rel="noreferrer">Source on GitHub</a>
-                </div>
-                <div className="work">
-                  <h3>Work with me</h3>
-                  <p>Reporting for groups of companies, data pipelines that hold up in an audit, and the backend underneath them.</p>
-                  <div className="links">
-                    {contacts.map((c) => (
-                      <a key={c.href} className="btn btn-ghost btn-sm" href={c.href} {...(c.external ? { target: "_blank", rel: "noreferrer" } : {})}>{c.label}</a>
-                    ))}
-                  </div>
+                  <Link className="btn btn-ghost" to="/about">How it's built</Link>
                 </div>
               </div>
-              <TornHole onOpen={() => void explore()} busy={busy} />
+              <figure className="peek">
+                <div className="frame">
+                  <div className="chrome" aria-hidden="true"><i /><i /><i /><span>X-Ray demo · Overview</span></div>
+                  <img src="/img/demo-xray-rls.webp" width={1440} height={900} loading="lazy" decoding="async"
+                    alt="The demo's Overview page with the X-ray panel open on its RLS tab: the same query run as Viewer, Manager and Admin returns one, two and four companies." />
+                </div>
+                <figcaption>The Overview with the X-ray panel open: one query, three people, three different answers — enforced by the database.</figcaption>
+              </figure>
+              <div className="work">
+                <h3>Work with me</h3>
+                <p>
+                  I build reporting systems for groups of companies: importing and checking accounting data, a Postgres core
+                  with row-level security and an audit trail, and the reports people rely on at month end. If that is what
+                  you need, get in touch.
+                </p>
+                <div className="links">
+                  {contacts.map((c) => (
+                    <a key={c.href} className="btn btn-ghost btn-sm" href={c.href} {...(c.external ? { target: "_blank", rel: "noreferrer" } : {})}>{c.label}</a>
+                  ))}
+                </div>
+              </div>
               <footer>
                 <span className="me">{AUTHOR.name}</span>
                 <a href={AUTHOR.github} target="_blank" rel="noreferrer">GitHub</a>
@@ -262,7 +283,7 @@ function useActLoop(ref: RefObject<HTMLDivElement | null>) {
       el.dataset.act = String(k)
     }
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      const still = () => { acts(4); delete el.dataset.act }
+      const still = () => acts(4) // the finished desk, captioned as the report act
       el.classList.add("play", "on")
       still()
       ctl.current = { pin: () => acts(5), unpin: still }
@@ -349,15 +370,19 @@ function HowItWorks() {
       <div ref={flow} className="flow">
         <div className="desk-wrap">
           <Desk />
-          <div className="dk-cap" aria-hidden="true">
-            {ACT_CAPTIONS.map((c, i) => <span key={c} className={`c${i + 1}`}><b>{i < 4 ? i + 1 : "X"}</b>{c}</span>)}
+          {/* What the desk is doing, under it — never over it, never under the sticky header */}
+          <div className="dk-bar">
+            <ol className="dk-dots" aria-hidden="true">{ACT_CAPTIONS.map((c, i) => <li key={c} className={`d${i + 1}`} />)}</ol>
+            <div className="dk-cap" aria-live="off">
+              {ACT_CAPTIONS.map((c, i) => <span key={c} className={`c${i + 1}`}><b>{i < 4 ? i + 1 : "X"}</b>{c}</span>)}
+            </div>
+            <button type="button" className="dk-xbtn" aria-pressed={pinned} onClick={toggle}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16" />
+              </svg>
+              {pinned ? "Back to the desk" : "See the skeleton"}
+            </button>
           </div>
-          <button type="button" className="dk-xbtn" aria-pressed={pinned} onClick={toggle}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-              <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16" />
-            </svg>
-            {pinned ? "Back to the desk" : "See the skeleton"}
-          </button>
           {pinned && <SkeletonList />}
         </div>
         <div className="track" aria-hidden="true"><span className="line" /><span className="rail"><span className="token"><i /><i /><i /></span></span></div>

@@ -225,13 +225,16 @@ function Coffee() {
   )
 }
 
+/** Three wisps, each its own element, so they rise on the compositor (no repaint). */
 function Steam() {
   return (
-    <svg viewBox="0 0 80 90">
+    <>
       {[0, 1, 2].map((i) => (
-        <path key={i} d={`M${22 + i * 18} 86c-8-12 8-20 0-32s8-20 0-32`} style={{ "--dl": `${i * 1.1}s` } as CSSProperties} />
+        <span key={i} className="wisp" style={{ "--i": i, "--dl": `${i * 1.1}s` } as CSSProperties}>
+          <svg viewBox="0 0 20 90"><path d="M10 86c-8-12 8-20 0-32s8-20 0-32" /></svg>
+        </span>
       ))}
-    </svg>
+    </>
   )
 }
 
@@ -485,10 +488,12 @@ export function Desk() {
       </div>
 
       {/* the plant leans over everything */}
-      <div className="dk-o dk-plant" style={at(-44, -64, 280, 280, 0, 2.2)}><Plant /></div>
+      <div className="dk-o dk-plant" style={at(-44, -64, 280, 280, 0, 2.2)}><div className="sway"><Plant /></div></div>
 
       {/* act 5: the same desk on X-ray film, its skeleton showing */}
-      <div className="dk-xr"><Skeleton /></div>
+      {/* the film wipes in left to right: the frame slides one way, its content the
+          other, so the skeleton stays put — two transforms, no clip-path repaint */}
+      <div className="dk-xr"><div className="dk-xr-in"><Skeleton /></div></div>
       <div className="dk-sweep"><b>X-ray</b></div>
     </div>
   )

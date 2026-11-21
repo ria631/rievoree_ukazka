@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/table"
 import { LoadingNote, ErrorNote, EmptyNote } from "@/components/StateNote"
 import { useAuth } from "@/lib/auth/useAuth"
+import { OwnWorkspacePrompt } from "@/components/OwnWorkspacePrompt"
+import { isDemoEmail } from "@/lib/auth/demo"
 import { useEntities } from "@/lib/data/useEntities"
 import { useMyEntities } from "@/lib/data/useMyEntities"
 import {
@@ -33,7 +35,33 @@ function isAdminRole(role: string | null) {
   return role === "admin" || role === "super_admin"
 }
 
+/**
+ * In the shared demo there is no team to manage: no list is fetched and the
+ * page says what it does in a real workspace, with the way there.
+ */
 export function Users() {
+  const { isDemo, user } = useAuth()
+  if (isDemo || isDemoEmail(user?.email)) {
+    return (
+      <div className="relative">
+        <PageHead />
+        <OwnWorkspacePrompt
+          title="User management lives in your own workspace"
+          body="This is the shared, read-only demo, so there are no people here to manage. In a workspace of your own you invite your team, decide which companies each person may see and what they may do — and the database enforces it."
+          points={[
+            "Invite teammates by e-mail; they set their own password",
+            "Viewer, Manager or Admin — per person",
+            "Each person sees only the companies you grant them",
+            "Reset passwords and two-factor login, or deactivate access",
+          ]}
+        />
+      </div>
+    )
+  }
+  return <UserAdmin />
+}
+
+function UserAdmin() {
   const { role } = useAuth()
   const members = useOrgMembers()
   const superQ = useIsSuperAdmin()

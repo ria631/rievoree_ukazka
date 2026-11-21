@@ -559,12 +559,16 @@ export function mountCodeRain(o: CodeRainOpts): () => void {
   let last = 0
   let acc = 0
   let visible = false
+  // While the page is being scrolled the rain drops to ~10 frames a second, so
+  // the scroll gets the main thread; it picks up again once scrolling stops.
+  let scrolledAt = -1e9
+  const onScroll = () => { scrolledAt = performance.now() }
   const loop = (now: number) => {
     raf = requestAnimationFrame(loop)
     const dt = Math.min(100, now - (last || now))
     last = now
     acc += dt
-    if (acc < 33) return // ~30 frames a second is plenty for falling characters
+    if (acc < (now - scrolledAt < 180 ? 100 : 33)) return // ~30 fps is plenty for falling characters
     frame(acc)
     acc = 0
   }
@@ -593,6 +597,7 @@ export function mountCodeRain(o: CodeRainOpts): () => void {
     io.observe(o.host)
     ro.observe(o.host)
     document.addEventListener("visibilitychange", onVis)
+    addEventListener("scroll", onScroll, { passive: true })
     if (fine) {
       o.fg.addEventListener("pointermove", onMove)
       o.fg.addEventListener("pointerleave", onLeave)
@@ -609,6 +614,7 @@ export function mountCodeRain(o: CodeRainOpts): () => void {
     ro.disconnect()
     clearTimeout(resizeT)
     document.removeEventListener("visibilitychange", onVis)
+    removeEventListener("scroll", onScroll)
     o.fg.removeEventListener("pointermove", onMove)
     o.fg.removeEventListener("pointerleave", onLeave)
     rain.remove()
