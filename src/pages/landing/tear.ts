@@ -267,7 +267,9 @@ function createTear({ canvas, host, anchor, seed, size = 0.62, mobile, reduce }:
       const dl = Math.min(Math.abs(tw - lo), TAU - Math.abs(tw - lo)), dh = Math.min(Math.abs(tw - hi), TAU - Math.abs(tw - hi))
       return Math.min(dl, dh) * d
     }
-    const H = 2.55, step = mobile ? 1 / 32 : 1 / 46, n = Math.round((2 * H) / step), tris = n * n * 2
+    // The grid must end exactly on the sheet's square hole — a rounded step left
+    // a hairline gap along the edge.
+    const H = 2.55, n = Math.round((2 * H) * (mobile ? 32 : 46)), step = (2 * H) / n, tris = n * n * 2
     const pos = new Float32Array(tris * 9), uv = new Float32Array(tris * 6), aAxis = new Float32Array(tris * 6), aHk = new Float32Array(tris * 3)
     const aRnd = new Float32Array(tris * 9), aEdge = new Float32Array(tris * 3), aTip = new Float32Array(tris * 3)
     let o = 0
@@ -508,7 +510,7 @@ export function mountLanding(els: LandingEls, onOpenDemo: () => void): () => voi
     els.canvas2.style.cursor = overClose ? "pointer" : ""
   }
   const onHeroClick = () => {
-    if (overHero) document.getElementById("layers")?.scrollIntoView({ behavior: reduce ? "auto" : "smooth" })
+    if (overHero) document.getElementById("how")?.scrollIntoView({ behavior: reduce ? "auto" : "smooth" })
   }
   const onCloseClick = () => { if (overClose) onOpenDemo() }
 
