@@ -40,8 +40,11 @@ findings as (
   from rels where relkind in ('r', 'p') and not rls
 
   union all
-  -- 2. What a visitor with no session (the anon role) may do.
-  select case when relkind in ('v', 'm', 'f') or not rls then 'HIGH' else 'MEDIUM' end,
+  -- 2. What a visitor with no session (the anon role) may do. INSERT-only on a
+  --    table with RLS is a write-only box (a contact form): listed as INFO.
+  select case when relkind in ('v', 'm', 'f') or not rls then 'HIGH'
+              when not has_table_privilege('anon', oid, 'SELECT,UPDATE,DELETE') then 'INFO'
+              else 'MEDIUM' end,
          'anon has privileges', schema || '.' || name,
          concat_ws(', ',
            case when has_table_privilege('anon', oid, 'SELECT') then 'SELECT' end,
@@ -53,13 +56,20 @@ findings as (
   from rels where has_table_privilege('anon', oid, 'SELECT,INSERT,UPDATE,DELETE')
 
   union all
-  -- 3. A policy that lets everyone (anon / public) through.
-  select 'HIGH', 'policy open to anon or public', schemaname || '.' || tablename || ' · ' || policyname,
-         cmd || ' to ' || array_to_string(roles, ', ') || ' using (' || coalesce(qual, '—') || ')'
-         || coalesce(' check (' || with_check || ')', '')
-  from pol
-  where roles && array['anon', 'public']::name[]
-    and (coalesce(qual, 'true') = 'true' or with_check = 'true')
+  -- 3. A policy that lets everyone (anon / public) through. An open INSERT is
+  --    only a write-only box when nobody can read the table back: INFO then.
+  select case when p.cmd = 'INSERT'
+                   and not exists (select 1 from pol q where q.schemaname = p.schemaname and q.tablename = p.tablename
+                                     and q.cmd in ('SELECT', 'ALL') and q.roles && array['anon', 'public']::name[])
+              then 'INFO' else 'HIGH' end,
+         case when p.cmd = 'INSERT' then 'anyone may insert (write-only box)' else 'policy open to anon or public' end,
+         p.schemaname || '.' || p.tablename || ' · ' || p.policyname,
+         p.cmd || ' to ' || array_to_string(p.roles, ', ') || ' using (' || coalesce(p.qual, '—') || ')'
+         || coalesce(' check (' || p.with_check || ')', '')
+         || case when p.cmd = 'INSERT' then ' — nobody can read it back; fine for a contact form, mind spam' else '' end
+  from pol p
+  where p.roles && array['anon', 'public']::name[]
+    and (coalesce(p.qual, 'true') = 'true' or p.with_check = 'true')
 
   union all
   -- 4. A policy that is simply true for every signed-in user.
