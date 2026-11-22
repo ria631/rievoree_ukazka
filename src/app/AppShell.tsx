@@ -130,6 +130,7 @@ function AppLayout({ path, role, email, isDemo }: { path: string; role: string |
     <div className="min-h-screen">
       {/* The menu lives at the top: identity + role + guides, then the pages. */}
       <header data-shell-top className="sticky top-0 z-40 border-b border-border bg-side/95 backdrop-blur-md">
+        {isDemo && <DemoStrip email={email} />}
         <div className="flex h-14 items-center gap-3 px-4 min-[900px]:px-6">
           <BrandLink to="/dashboard" className="text-xl" />
           <span className="flex-1" />
@@ -415,17 +416,41 @@ function DemoRoleSwitch({ email }: { role: string | null; email: string }) {
   )
 }
 
-function ExitDemo() {
+/** Leave the shared demo. Scope local: the demo accounts are shared — a
+ *  global sign-out would end every visitor's session on them, not this tab's. */
+function useLeaveDemo() {
   const navigate = useNavigate()
+  return async () => {
+    await supabase.auth.signOut({ scope: "local" })
+    navigate({ to: "/" })
+  }
+}
+
+function ExitDemo() {
+  const leave = useLeaveDemo()
   return (
-    <button onClick={async () => {
-      // scope local: the demo accounts are shared — a global sign-out would end
-      // every visitor's session on them, not just this tab's.
-      await supabase.auth.signOut({ scope: "local" })
-      navigate({ to: "/" })
-    }} className="rounded-md px-2 py-1.5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground transition hover:bg-secondary hover:text-foreground">
-      Exit
+    <button onClick={() => void leave()} className="rounded-md px-2 py-1.5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground transition hover:bg-secondary hover:text-foreground">
+      Leave demo
     </button>
+  )
+}
+
+/**
+ * Always on top in a demo session, at every width: "Open the demo" signs the
+ * visitor in to a shared demo account, and the browser keeps that session for
+ * the next visit — so say plainly who you are and that the companies and files
+ * are fictional, with the way out.
+ */
+function DemoStrip({ email }: { email: string }) {
+  const leave = useLeaveDemo()
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-accent/25 bg-accent/[0.09] px-4 py-1.5 text-center text-[12.5px] leading-snug text-foreground">
+      <span>
+        <b className="font-semibold">Shared demo account</b>
+        <span className="text-muted-foreground"> · signed in as <span className="font-mono text-[12px] text-foreground">{email}</span> · the four companies and their files are fictional sample data</span>
+      </span>
+      <button onClick={() => void leave()} className="font-semibold text-accent underline-offset-2 hover:underline">Leave demo</button>
+    </div>
   )
 }
 
