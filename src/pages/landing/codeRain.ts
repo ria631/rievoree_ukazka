@@ -7,13 +7,15 @@
  * the report it ends up in. Real statements from the migrations. Then it
  * falls back into the rain, and again.
  *
- * Cost, on purpose: one 2D canvas for the rain at 1× pixel ratio, ~30 frames
- * a second, each frame a translucent fill plus one glyph per falling column;
+ * Cost, on purpose: one 2D canvas for the rain at 3/4 resolution, ~24 frames
+ * a second on a timer (none while the page scrolls, out of the layers off
+ * screen; visibility from scroll position, not IntersectionObserver), each frame a translucent fill plus one glyph per falling column;
  * the money/code has its own small canvas, redrawn only in the cells that
  * change. Nothing runs while the hero is off screen or the tab is hidden.
  * Reduced motion: one still frame with the note.
  */
 import { KEYWORDS, SRC, excerpt } from "./repoSource"
+import { watchInView } from "./viewport"
 // Only this lazy chunk needs these two migrations (the check and the booking).
 import etlSql from "../../../supabase/migrations/20260607000002_etl_transform.sql?raw"
 import loadSql from "../../../supabase/migrations/20261031000001_sheet_link_months.sql?raw"
@@ -29,6 +31,7 @@ export interface CodeRainOpts {
   onPhase?: (p: Phase) => void
 }
 
+const RAIN_SCALE = 0.75 // the rain canvas's resolution, relative to CSS pixels
 const GC = 50 // columns
 const GR = 23 // rows
 const DUR: Record<Phase, number> = { build: 3000, money: 3000, morph: 2600, code: 4800, release: 1500, rain: 1200 }
@@ -268,10 +271,13 @@ export function mountCodeRain(o: CodeRainOpts): () => void {
     const hr = o.host.getBoundingClientRect()
     W = Math.max(1, Math.round(hr.width))
     Hh = Math.max(1, Math.round(hr.height))
-    rain.width = W
-    rain.height = Hh
+    // The rain is drawn at 3/4 resolution and scaled up by CSS: falling
+    // characters don't need every pixel, and the canvas does ~44% less work.
+    rain.width = Math.round(W * RAIN_SCALE)
+    rain.height = Math.round(Hh * RAIN_SCALE)
     rain.style.width = `${W}px`
     rain.style.height = `${Hh}px`
+    rc.setTransform(RAIN_SCALE, 0, 0, RAIN_SCALE, 0, 0)
 
     const zrc = o.zone.getBoundingClientRect()
     f = Math.max(7, Math.min(17, zrc.width / (GC * 0.6)))
@@ -554,30 +560,40 @@ export function mountCodeRain(o: CodeRainOpts): () => void {
   }
   const onLeave = () => { clearLens(); o.lens?.classList.remove("on") }
 
-  /* running only while visible */
+  /* running only while visible, and never while the page is being scrolled */
   let raf = 0
+  let timer = 0
   let last = 0
-  let acc = 0
   let visible = false
-  // While the page is being scrolled the rain drops to ~10 frames a second, so
-  // the scroll gets the main thread; it picks up again once scrolling stops.
-  let scrolledAt = -1e9
-  const onScroll = () => { scrolledAt = performance.now() }
-  const loop = (now: number) => {
-    raf = requestAnimationFrame(loop)
-    const dt = Math.min(100, now - (last || now))
-    last = now
-    acc += dt
-    if (acc < (now - scrolledAt < 180 ? 100 : 33)) return // ~30 fps is plenty for falling characters
-    frame(acc)
-    acc = 0
+  // Scrolling gets the main thread to itself: the rain stops on the first
+  // scroll event and picks up a moment after the last one.
+  let scrolling = false
+  let scrollT = 0
+  const onScroll = () => {
+    if (!scrolling) { scrolling = true; run() }
+    clearTimeout(scrollT)
+    scrollT = window.setTimeout(() => { scrolling = false; run() }, 220)
+  }
+  const going = () => visible && !scrolling && !document.hidden && !reduce
+  // ~24 frames a second, woken by a timer — not a requestAnimationFrame that
+  // fires on every vsync only to skip most of them.
+  const schedule = () => { if (going() && !timer && !raf) timer = window.setTimeout(tick, 41) }
+  function tick() {
+    timer = 0
+    raf = requestAnimationFrame((now) => {
+      raf = 0
+      if (!going()) return
+      const dt = Math.min(100, now - (last || now))
+      last = now
+      frame(dt)
+      schedule()
+    })
   }
   const run = () => {
-    const go = visible && !document.hidden && !reduce
-    if (go && !raf) { last = 0; raf = requestAnimationFrame(loop) }
-    if (!go && raf) { cancelAnimationFrame(raf); raf = 0 }
+    if (going()) { if (!timer && !raf) { last = 0; schedule() } }
+    else { clearTimeout(timer); timer = 0; cancelAnimationFrame(raf); raf = 0 }
   }
-  const io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; run() }, { threshold: 0.05 })
+  let unwatch: (() => void)[] = []
   const onVis = () => run()
 
   let resizeT = 0
@@ -594,7 +610,14 @@ export function mountCodeRain(o: CodeRainOpts): () => void {
     layout()
     if (reduce) o.onPhase?.("money")
     else setPhase("build")
-    io.observe(o.host)
+    // On screen → run. Well off screen (300 px past the edge) → the two
+    // canvases leave the layer tree too: even idle, a large canvas costs the
+    // compositor on every frame it's part of. The margin keeps that toggle away
+    // from the moment the hero scrolls back into view.
+    unwatch = [
+      watchInView(o.host, (v) => { visible = v; run() }),
+      watchInView(o.host, (v) => o.host.classList.toggle("cr-off", !v), { margin: 300 }),
+    ]
     ro.observe(o.host)
     document.addEventListener("visibilitychange", onVis)
     addEventListener("scroll", onScroll, { passive: true })
@@ -610,7 +633,9 @@ export function mountCodeRain(o: CodeRainOpts): () => void {
   return () => {
     disposed = true
     cancelAnimationFrame(raf)
-    io.disconnect()
+    clearTimeout(timer)
+    clearTimeout(scrollT)
+    unwatch.forEach((u) => u())
     ro.disconnect()
     clearTimeout(resizeT)
     document.removeEventListener("visibilitychange", onVis)

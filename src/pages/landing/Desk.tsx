@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties } from "react"
+import type { CSSProperties } from "react"
 import "./desk.css"
 
 /**
@@ -14,7 +14,7 @@ import "./desk.css"
  * scales as one picture. Decorative: the steps below carry the meaning.
  */
 
-/** x, y, width, height in desk units; rotation; parallax depth. */
+/** x, y, width, height in desk units; rotation; depth (kept in the layout for reference). */
 const at = (x: number, y: number, w: number, h: number, r = 0, z = 1, extra?: Record<string, string | number>): CSSProperties =>
   ({ "--x": x, "--y": y, "--w": w, "--h": h, "--r": `${r}deg`, "--z": z, ...extra }) as CSSProperties
 
@@ -38,45 +38,58 @@ function Sheet({ name, seed, flags = [], held, clip }: { name: string; seed: num
   const cells = []
   for (let i = 0; i < ROWS; i++) {
     for (let c = 0; c < COLS.length; c++) {
+      if (flags.some((g) => g.row === i && g.col === c)) continue // drawn as an overlay below
       const y = ROW0 + i * ROW_H
       const col = COLS[c]
-      const f = flags.find((g) => g.row === i && g.col === c)
-      if (f) {
-        const cx = col.x + col.w - 8
-        cells.push(
-          <g key={`${i}.${c}`} className="flag" style={{ "--dl": `${f.at}s` } as CSSProperties}>
-            <rect className="fbg" x={col.x - 3} y={y} width={col.w + 3} height={ROW_H} />
-            <rect className="fbar" x={col.x + 2} y={y + 9} width={col.w - 20} height={5} rx={2} />
-            <g className="x"><circle cx={cx} cy={y + 11.5} r={5.2} /><path d={`M${cx} ${y + 8.4}v3.4m0 2.2v.3`} /></g>
-            <g className="v"><circle cx={cx} cy={y + 11.5} r={5.2} /><path d={`M${cx - 2.4} ${y + 11.6}l1.7 1.8l3.3-3.7`} /></g>
-          </g>,
-        )
-      } else {
-        // Names sit left, figures sit right — like a real sheet.
-        const w = col.w * (c === 0 ? 0.5 + r() * 0.45 : 0.35 + r() * 0.5)
-        cells.push(<rect key={`${i}.${c}`} className="cell" x={c === 0 ? col.x + 2 : col.x + col.w - 4 - w} y={y + 9} width={w} height={5} rx={2} />)
-      }
+      // Names sit left, figures sit right — like a real sheet.
+      const w = col.w * (c === 0 ? 0.5 + r() * 0.45 : 0.35 + r() * 0.5)
+      cells.push(<rect key={`${i}.${c}`} className="cell" x={c === 0 ? col.x + 2 : col.x + col.w - 4 - w} y={y + 9} width={w} height={5} rx={2} />)
     }
   }
+  // Overlays are placed in % of the 240 × 310 sheet, so they sit on its cells.
+  const box = (x: number, y: number, w: number, h: number) =>
+    ({ left: `${(x / 240) * 100}%`, top: `${(y / 310) * 100}%`, width: `${(w / 240) * 100}%`, height: `${(h / 310) * 100}%` })
   return (
-    <svg viewBox="0 0 240 310">
-      <rect className="hd" width="240" height="30" />
-      <rect className="ico" x="10" y="8" width="14" height="14" rx="3" />
-      <path className="ico-x" d="M13.6 11.6l6.8 6.8m0-6.8l-6.8 6.8" />
-      <text className="fn" x="31" y="19.6">{name}</text>
-      <rect className="ch" y="36" width="240" height="18" />
-      {["A", "B", "C", "D"].map((l, i) => <text key={l} className="cl" x={COLS[i].x + COLS[i].w / 2} y="48.6">{l}</text>)}
-      {held != null && <rect className="held" y={ROW0 + held * ROW_H} width="240" height={ROW_H} />}
-      {Array.from({ length: ROWS + 1 }, (_, i) => <line key={i} className="gl" x1="0" x2="240" y1={ROW0 + i * ROW_H} y2={ROW0 + i * ROW_H} />)}
-      {COLS.map((c) => <line key={c.x} className="gl" x1={c.x - 3} x2={c.x - 3} y1="36" y2={ROW0 + ROWS * ROW_H} />)}
-      {Array.from({ length: ROWS }, (_, i) => <text key={i} className="rn" x="14" y={ROW0 + i * ROW_H + 15}>{i + 2}</text>)}
-      {cells}
-      {clip && <path className="clip" d="M168 -8v36a7 7 0 0 0 14 0v-31a4 4 0 0 0-8 0v27" />}
-    </svg>
+    <>
+      <svg viewBox="0 0 240 310">
+        <rect className="hd" width="240" height="30" />
+        <rect className="ico" x="10" y="8" width="14" height="14" rx="3" />
+        <path className="ico-x" d="M13.6 11.6l6.8 6.8m0-6.8l-6.8 6.8" />
+        <text className="fn" x="31" y="19.6">{name}</text>
+        <rect className="ch" y="36" width="240" height="18" />
+        {["A", "B", "C", "D"].map((l, i) => <text key={l} className="cl" x={COLS[i].x + COLS[i].w / 2} y="48.6">{l}</text>)}
+        {Array.from({ length: ROWS + 1 }, (_, i) => <line key={i} className="gl" x1="0" x2="240" y1={ROW0 + i * ROW_H} y2={ROW0 + i * ROW_H} />)}
+        {COLS.map((c) => <line key={c.x} className="gl" x1={c.x - 3} x2={c.x - 3} y1="36" y2={ROW0 + ROWS * ROW_H} />)}
+        {Array.from({ length: ROWS }, (_, i) => <text key={i} className="rn" x="14" y={ROW0 + i * ROW_H + 15}>{i + 2}</text>)}
+        {cells}
+        {clip && <path className="clip" d="M168 -8v36a7 7 0 0 0 14 0v-31a4 4 0 0 0-8 0v27" />}
+      </svg>
+      {held != null && <i className="dk-held" style={box(0, ROW0 + held * ROW_H, 240, ROW_H)} />}
+      {flags.map((f) => {
+        const col = COLS[f.col]
+        const w = col.w + 3
+        const mark = (ok: boolean) => (
+          <svg viewBox={`0 0 ${w} ${ROW_H}`} preserveAspectRatio="none">
+            <rect width={w} height={ROW_H} fill={ok ? "#DCF2E4" : "#FFE0DA"} />
+            <rect x="5" y="9" width={w - 23} height="5" rx="2" fill={ok ? "#86BE9C" : "#E2553F"} />
+            <circle cx={w - 8} cy="11.5" r="5.2" fill={ok ? "#2E9E62" : "#E2553F"} />
+            {ok
+              ? <path d={`M${w - 10.4} 11.6l1.7 1.8l3.3-3.7`} fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              : <path d={`M${w - 8} 8.4v3.4m0 2.2v.3`} stroke="#fff" strokeWidth="1.9" strokeLinecap="round" />}
+          </svg>
+        )
+        return (
+          <i key={`${f.row}.${f.col}`} className="dk-flag" style={{ ...box(col.x - 3, ROW0 + f.row * ROW_H, w, ROW_H), "--dl": `${f.at}s` } as CSSProperties}>
+            <b className="bad">{mark(false)}</b>
+            <b className="ok">{mark(true)}</b>
+          </i>
+        )
+      })}
+    </>
   )
 }
 
-/* ───────────── the report: KPIs that count up, bars, the NOI line, a donut, a table ───────────── */
+/* ───────────── the report: KPIs, bars, the NOI line, a donut, a table ───────────── */
 
 const REV = [96, 101, 98, 106, 112, 118]
 const COST = [31, 33, 30, 32, 31, 34]
@@ -98,27 +111,30 @@ function Report() {
     <>
       <div className="rp-head"><b>Portfolio report</b><span>Sep 2026</span><i /></div>
       <div className="rp-kpis">
-        <div><span>Revenue</span><b className="cnt" data-pre="€" data-suf="k" style={{ "--to": 501 } as CSSProperties} /></div>
+        <div><span>Revenue</span><b>€501k</b></div>
         <div>
-          <span>NOI</span><b className="cnt" data-pre="€" data-suf="k" style={{ "--to": 373 } as CSSProperties} />
-          <svg className="ul" viewBox="0 0 100 10" preserveAspectRatio="none"><path d="M2 6C20 2.5 38 8.5 58 5S88 3.5 98 6" pathLength={1} /></svg>
+          <span>NOI</span><b>€373k</b>
+          <svg className="ul" viewBox="0 0 100 10" preserveAspectRatio="none"><path d="M2 6C20 2.5 38 8.5 58 5S88 3.5 98 6" /></svg>
         </div>
-        <div><span>Occupancy</span><b className="cnt" data-pre="" data-suf="%" style={{ "--to": 88 } as CSSProperties} /></div>
+        <div><span>Occupancy</span><b>88%</b></div>
       </div>
+      {/* the chart draws itself left to right: a frame slides one way, its content
+          the other — two transforms, nothing animated inside the SVG */}
+      <div className="rp-wipe"><div className="rp-wipe-in">
       <svg className="rp-chart" viewBox="0 0 330 300">
         {[48, 88, 128, BASE].map((y) => <line key={y} className="gr" x1="20" x2="208" y1={y} y2={y} />)}
         {REV.map((v, g) => (
           <g key={g}>
-            <rect className="bar rev" x={gx(g)} y={BASE - v} width="11" height={v} rx="1.5" style={{ "--dl": `${0.75 + g * 0.06}s` } as CSSProperties} />
-            <rect className="bar cost" x={gx(g) + 12} y={BASE - COST[g]} width="11" height={COST[g]} rx="1.5" style={{ "--dl": `${0.85 + g * 0.06}s` } as CSSProperties} />
+            <rect className="bar rev" x={gx(g)} y={BASE - v} width="11" height={v} rx="1.5" />
+            <rect className="bar cost" x={gx(g) + 12} y={BASE - COST[g]} width="11" height={COST[g]} rx="1.5" />
             <text className="mo" x={gx(g) + 11.5} y={BASE + 13}>{MONTHS[g]}</text>
           </g>
         ))}
-        <polyline className="noi" points={NOI_PTS.join(" ")} pathLength={1} />
+        <polyline className="noi" points={NOI_PTS.join(" ")} />
         <circle className="dot" cx={gx(5) + 11.5} cy={BASE - (REV[5] - COST[5]) * 0.95} r="3.6" />
         <g transform="rotate(-90 270 82)">
-          {SHARE.map((s, i) => {
-            const style = { "--len": s.pct - 1.2, "--off": -cum, "--dl": `${0.95 + i * 0.16}s` } as CSSProperties
+          {SHARE.map((s) => {
+            const style = { "--len": s.pct - 1.2, "--off": -cum } as CSSProperties
             cum += s.pct
             return <circle key={s.name} className={`seg ${s.cls}`} cx="270" cy="82" r="36" pathLength={100} style={style} />
           })}
@@ -126,7 +142,7 @@ function Report() {
         <text className="dc" x="270" y="85">€501k</text>
         <text className="ds" x="270" y="96">revenue</text>
         {SHARE.map((s, i) => (
-          <g key={s.name} className="tr" style={{ "--dl": `${1.2 + i * 0.12}s` } as CSSProperties}>
+          <g key={s.name} className="tr">
             <line className="gr" x1="20" x2="310" y1={206 + i * 22} y2={206 + i * 22} />
             <circle className={`sw ${s.cls}`} cx="26" cy={218 + i * 22} r="3.4" />
             <text x="35" y={221 + i * 22}>{s.name}</text>
@@ -134,6 +150,7 @@ function Report() {
           </g>
         ))}
       </svg>
+      </div></div>
     </>
   )
 }
@@ -143,6 +160,7 @@ function Report() {
 function Tablet() {
   const line = "M0 60 C14 54 22 40 38 44 S62 58 77 46 S102 22 118 30 S140 46 154 36"
   return (
+    <>
     <svg viewBox="0 0 190 270">
       <rect className="body" x="1" y="1" width="188" height="268" rx="18" />
       <rect className="scr" x="11" y="16" width="168" height="240" rx="8" />
@@ -172,14 +190,11 @@ function Tablet() {
         </g>
       </g>
       {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-        <rect key={i} className={`mb${i % 3 === 2 ? " t" : ""}`} x={23 + i * 18} y={172 + (i % 4) * 6} width="11" height={44 - (i % 4) * 6} rx="2"
-          style={{ "--dl": `${-i * 0.37}s` } as CSSProperties} />
+        <rect key={i} className={`mb${i % 3 === 2 ? " t" : ""}`} x={23 + i * 18} y={172 + (i % 4) * 6} width="11" height={44 - (i % 4) * 6} rx="2" />
       ))}
-      <g className="toast">
-        <rect x="19" y="226" width="152" height="22" rx="6" />
-        <text x="95" y="240.5">Report refreshed · 41 s</text>
-      </g>
     </svg>
+    <span className="toast">Report refreshed · 41 s</span>
+    </>
   )
 }
 
@@ -420,39 +435,8 @@ const IMPRESSIONS = [
 ]
 
 export function Desk() {
-  const ref = useRef<HTMLDivElement>(null)
-
-  // Depth: the desk leans a little toward the pointer (desktop only).
-  useEffect(() => {
-    const el = ref.current
-    if (!el || !matchMedia("(hover: hover) and (pointer: fine)").matches || matchMedia("(prefers-reduced-motion: reduce)").matches) return
-    let raf = 0
-    let px = 0
-    let py = 0
-    const apply = () => {
-      raf = 0
-      el.style.setProperty("--px", px.toFixed(3))
-      el.style.setProperty("--py", py.toFixed(3))
-    }
-    const queue = () => { if (!raf) raf = requestAnimationFrame(apply) }
-    const move = (e: PointerEvent) => {
-      const r = el.getBoundingClientRect()
-      px = ((e.clientX - r.left) / r.width) * 2 - 1
-      py = ((e.clientY - r.top) / r.height) * 2 - 1
-      queue()
-    }
-    const leave = () => { px = 0; py = 0; queue() }
-    el.addEventListener("pointermove", move)
-    el.addEventListener("pointerleave", leave)
-    return () => {
-      el.removeEventListener("pointermove", move)
-      el.removeEventListener("pointerleave", leave)
-      cancelAnimationFrame(raf)
-    }
-  }, [])
-
   return (
-    <div ref={ref} className="desk" aria-hidden="true">
+    <div className="desk" aria-hidden="true">
       <div className="dk-mat" />
 
       {/* props under the story */}

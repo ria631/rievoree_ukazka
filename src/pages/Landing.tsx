@@ -5,6 +5,7 @@ import { AUTHOR, EVIDENCE, TOP_TESTS, contactLinks, repoUrl } from "@/lib/author
 import { FILES, SRC, hl } from "./landing/repoSource"
 import { CodeHero } from "./landing/CodeHero"
 import { Desk, SkeletonList } from "./landing/Desk"
+import { watchInView } from "./landing/viewport"
 import "./landing/landing.css"
 
 /**
@@ -27,25 +28,31 @@ export function Landing() {
   const copy = useRef<HTMLDivElement>(null)
 
   // Header: light text over the dark hero, a dark backing once the page
-  // scrolls, paper over the closing sheet. One check per frame at most.
+  // scrolls, paper over the closing sheet. Where the closing sheet starts is
+  // measured once (and again when the page's height changes), so scrolling
+  // itself only compares numbers — no layout reads while the page moves.
   useEffect(() => {
     let raf = 0
+    let closeTop = Infinity
+    const measure = () => { if (close.current) closeTop = close.current.getBoundingClientRect().top + window.scrollY }
     const check = () => {
       raf = 0
       const b = bar.current
-      const h = hero.current
-      const c = close.current
-      if (!b || !h || !c) return
-      const onClose = c.getBoundingClientRect().top <= 64
-      const scrolled = window.scrollY > 8 || h.getBoundingClientRect().top < -8
+      if (!b) return
+      const y = window.scrollY
+      const onClose = y + 64 >= closeTop
+      const scrolled = y > 8
       b.classList.toggle("top-dark", !scrolled && !onClose)
       b.classList.toggle("is-dark", scrolled && !onClose)
       b.classList.toggle("is-paper", onClose)
     }
     const on = () => { if (!raf) raf = requestAnimationFrame(check) }
+    const ro = new ResizeObserver(() => { measure(); on() })
+    ro.observe(document.body)
+    measure()
     check()
     addEventListener("scroll", on, { passive: true })
-    return () => { removeEventListener("scroll", on); cancelAnimationFrame(raf) }
+    return () => { removeEventListener("scroll", on); ro.disconnect(); cancelAnimationFrame(raf) }
   }, [])
 
   const demoBtn = (cls: string, label = "Open the live demo") => (
@@ -314,18 +321,36 @@ function useActLoop(ref: RefObject<HTMLDivElement | null>) {
       i = (i + 1) % plan.length
       wait((i ? plan[i][0] : CYCLE) - at)
     }
-    const io = new IntersectionObserver(([e]) => {
-      clearTimeout(timer)
-      visible = e.isIntersecting
+    // The month runs only while the desk is on screen AND the page is still.
+    // While scrolling only the act timer holds (in JS — no class on the flow,
+    // which would restyle the whole desk on every scroll start and stop).
+    let scrolling = false
+    let scrollT = 0
+    const hold = () => { clearTimeout(timer); if (started) left = Math.max(0, left - (performance.now() - since)) }
+    const go = () => {
+      if (pinned || !visible || scrolling) return
+      if (started) wait(left)
+      else { started = true; el.classList.add("play"); step() }
+    }
+    // On screen = a quarter of the desk visible; from the scroll position, not
+    // an IntersectionObserver (see viewport.ts for why).
+    const desk = el.querySelector(".desk") ?? el
+    const unwatch = watchInView(desk, (v) => {
+      const was = visible
+      visible = v
       el.classList.toggle("on", visible)
-      if (pinned) return
-      if (visible) {
-        if (started) wait(left)
-        else { started = true; el.classList.add("play"); step() }
-      } else if (started) left = Math.max(0, left - (performance.now() - since))
-    }, { threshold: 0.25 })
-    // Watch the desk itself: the whole flow can be taller than the screen.
-    io.observe(el.querySelector(".desk") ?? el)
+      if (visible && !was) go()
+      else if (!visible && was && !pinned && !scrolling) hold()
+    }, { amount: 0.25 })
+    const onScroll = () => {
+      if (!scrolling) {
+        scrolling = true
+        if (visible && !pinned) hold()
+      }
+      clearTimeout(scrollT)
+      scrollT = window.setTimeout(() => { scrolling = false; go() }, 220)
+    }
+    addEventListener("scroll", onScroll, { passive: true })
     ctl.current = {
       pin() {
         if (pinned) return
@@ -347,7 +372,7 @@ function useActLoop(ref: RefObject<HTMLDivElement | null>) {
         if (visible) step()
       },
     }
-    return () => { io.disconnect(); clearTimeout(timer) }
+    return () => { unwatch(); clearTimeout(timer); clearTimeout(scrollT); removeEventListener("scroll", onScroll) }
   }, [ref])
   return ctl
 }
