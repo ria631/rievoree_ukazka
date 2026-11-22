@@ -260,13 +260,13 @@ const STEPS = [
   },
 ]
 
-/** What the desk is doing in each act — over the desk, or under it on phones. */
+/** What the desk is doing in each act — said on the desk itself (under it on phones). */
 const ACT_CAPTIONS = [
-  "Three companies send this month's spreadsheets",
-  "Every row is checked — one odd figure waits for a person",
-  "Each company's numbers stay private to its own people",
-  "The portfolio report rebuilds itself within a minute",
-  "X-ray: the skeleton underneath — the real tables, jobs and policies",
+  { t: "Upload", s: "Three companies send this month's spreadsheets." },
+  { t: "Check", s: "Every row is checked against its history — one odd figure waits for a person." },
+  { t: "Protect", s: "Each company's numbers are stamped private to its own people, enforced in the database." },
+  { t: "Report", s: "The approved numbers rebuild the portfolio report within a minute." },
+  { t: "Under the hood", s: "The real tables, functions, jobs and policies that did all of the above." },
 ]
 
 type ActLoop = { pin: () => void; unpin: () => void }
@@ -395,12 +395,15 @@ function HowItWorks() {
       <div ref={flow} className="flow">
         <div className="desk-wrap">
           <Desk />
-          {/* What the desk is doing, under it — never over it, never under the sticky header */}
+          {/* What's happening, on the scene itself — at its bottom edge, so it's in
+              view whenever the desk is (under the desk on phones) */}
+          <div className="dk-cap">
+            {ACT_CAPTIONS.map((c, i) => (
+              <span key={c.t} className={`c${i + 1}`}><b>{i < 4 ? i + 1 : "X"}</b><strong>{c.t}</strong>{c.s}</span>
+            ))}
+          </div>
           <div className="dk-bar">
-            <ol className="dk-dots" aria-hidden="true">{ACT_CAPTIONS.map((c, i) => <li key={c} className={`d${i + 1}`} />)}</ol>
-            <div className="dk-cap" aria-live="off">
-              {ACT_CAPTIONS.map((c, i) => <span key={c} className={`c${i + 1}`}><b>{i < 4 ? i + 1 : "X"}</b>{c}</span>)}
-            </div>
+            <ol className="dk-dots" aria-hidden="true">{ACT_CAPTIONS.map((c, i) => <li key={c.t} className={`d${i + 1}`} />)}</ol>
             <button type="button" className="dk-xbtn" aria-pressed={pinned} onClick={toggle}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                 <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16" />

@@ -566,7 +566,9 @@ export function mountCodeRain(o: CodeRainOpts): () => void {
   let last = 0
   let visible = false
   // Scrolling gets the main thread to itself: the rain stops on the first
-  // scroll event and picks up a moment after the last one.
+  // scroll event and picks up a moment after the last one. Wheel and touch
+  // count too — at the top of the page the wheel keeps turning without any
+  // scroll event, and the rain mustn't start up under a hand that's scrolling.
   let scrolling = false
   let scrollT = 0
   const onScroll = () => {
@@ -620,7 +622,7 @@ export function mountCodeRain(o: CodeRainOpts): () => void {
     ]
     ro.observe(o.host)
     document.addEventListener("visibilitychange", onVis)
-    addEventListener("scroll", onScroll, { passive: true })
+    for (const t of ["scroll", "wheel", "touchmove"]) addEventListener(t, onScroll, { passive: true })
     if (fine) {
       o.fg.addEventListener("pointermove", onMove)
       o.fg.addEventListener("pointerleave", onLeave)
@@ -639,7 +641,7 @@ export function mountCodeRain(o: CodeRainOpts): () => void {
     ro.disconnect()
     clearTimeout(resizeT)
     document.removeEventListener("visibilitychange", onVis)
-    removeEventListener("scroll", onScroll)
+    for (const t of ["scroll", "wheel", "touchmove"]) removeEventListener(t, onScroll)
     o.fg.removeEventListener("pointermove", onMove)
     o.fg.removeEventListener("pointerleave", onLeave)
     rain.remove()
