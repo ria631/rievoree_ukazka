@@ -5,19 +5,13 @@ import { AuthShell } from "@/components/auth/AuthShell"
 import { TwoFactorChallenge } from "@/components/auth/TwoFactorChallenge"
 import { OAuthButtons } from "@/components/auth/OAuthButtons"
 import { needsMfaChallenge } from "@/lib/auth/mfa"
+import { openDemoGate } from "@/lib/demoSession"
 
 /**
  * Sign in — email/password over the SAME instrumented factory the X-ray RLS demo
- * uses. Three clear paths: explore the demo (no account), sign in, create account.
+ * uses. Three clear paths: open the demo (the e-mail gate), sign in, create account.
  * If the account has a verified TOTP factor, we step the session up to aal2.
  */
-const DEMO_PASSWORD = "demo123456"
-const DEMO_USERS = [
-  { label: "Viewer", email: "viewer@demo.local" },
-  { label: "Manager", email: "manager@demo.local" },
-  { label: "Admin", email: "admin@demo.local" },
-] as const
-
 const fieldClass =
   "rounded-full border border-border bg-foreground/[0.04] px-5 py-3 text-foreground placeholder:text-foreground/40 outline-none transition focus:border-foreground/60"
 
@@ -88,7 +82,7 @@ export function Login() {
   )
 
   return (
-    <AuthShell title="Welcome back" subtitle="Sign in with your e-mail — or step into the demo as a role below.">
+    <AuthShell title="Welcome back" subtitle="Sign in to your workspace.">
       <form onSubmit={(e) => { e.preventDefault(); void signIn(email, password) }} className="flex flex-col gap-3">
         <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required className={fieldClass} />
         <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required className={fieldClass} />
@@ -110,17 +104,14 @@ export function Login() {
         No account? <Link to="/register" className="font-semibold text-foreground underline-offset-4 hover:underline">Create one</Link>
       </p>
 
-      {/* Demo convenience — one-click sign-in as a seeded role (read-only). */}
-      <div className="mt-6 border-t border-border pt-5">
-        <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Explore as a role (demo)</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {DEMO_USERS.map((u) => (
-            <button key={u.email} onClick={() => void signIn(u.email, DEMO_PASSWORD)} disabled={busy}
-              className="rounded-full border border-border px-4 py-2 text-sm text-foreground transition hover:bg-foreground hover:text-background disabled:opacity-50">
-              {u.label}
-            </button>
-          ))}
-        </div>
+      {/* The demo isn't behind this form: its accounts have no known password.
+          It opens through the e-mail gate (DemoGate), as everywhere else. */}
+      <div className="mt-6 border-t border-border pt-5 text-center">
+        <p className="text-sm text-muted-foreground">Just looking?</p>
+        <button type="button" onClick={openDemoGate}
+          className="mt-2 rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-foreground transition hover:bg-foreground hover:text-background">
+          Open the live demo
+        </button>
       </div>
     </AuthShell>
   )

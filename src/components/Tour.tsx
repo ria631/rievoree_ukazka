@@ -5,7 +5,6 @@ import {
   X, Wand2, MousePointerClick, Code2, List, Play, Pause, RotateCcw, Database, Check, Radio,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth/useAuth"
 import { tourControl, useTourStartRequest } from "@/lib/tourBus"
 import { prewarmHighlighter } from "@/lib/code-xray"
@@ -13,6 +12,7 @@ import { useXrayPanel } from "@/components/xray/XrayPanelContext"
 import { CODE_MAP } from "@/components/xray/codeMap"
 import { STEPS, QUICK_STEPS, CHAPTERS, type Chapter } from "@/components/tour/steps"
 import { AskFeedback } from "@/components/tour/slots"
+import { switchDemoIdentity } from "@/lib/demoSession"
 
 /**
  * Guided tour — the part that SELLS the project. It drives the real app: for
@@ -31,7 +31,6 @@ import { AskFeedback } from "@/components/tour/slots"
  * content once per step.
  */
 const SEEN_KEY = "xray-tour-choice"
-const DEMO_PASSWORD = "demo123456"
 const MANAGER = "manager@demo.local"
 // Space kept clear at the top: the sticky menu bar (and its page tabs).
 const headerH = () => {
@@ -329,7 +328,7 @@ export function Tour({ autoOffer }: { autoOffer?: boolean }) {
       setReadyStep(i)
       if (s.as === "manager" && live$.current.isDemo && live$.current.email !== MANAGER) {
         setCaption("Switching you to the Manager demo…")
-        await supabase.auth.signInWithPassword({ email: MANAGER, password: DEMO_PASSWORD })
+        await switchDemoIdentity(MANAGER).catch(() => {})
         await awaitManager(alive)
         setCaption(null)
       }

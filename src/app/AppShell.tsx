@@ -13,11 +13,12 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { useAuth } from "@/lib/auth/useAuth"
 import { supabase } from "@/lib/supabase"
 import { isDemoEmail } from "@/lib/auth/demo"
+import { openDemoGate, switchDemoIdentity } from "@/lib/demoSession"
+import { DemoGateHost } from "@/components/DemoGate"
 import { requestTourStart } from "@/lib/tourBus"
 import { cn } from "@/lib/utils"
 
 const DEMO_EMAIL = "demo@demo.local"
-const DEMO_PASSWORD = "demo123456"
 
 // Routes the read-only viewer tour must not reach (write / account features).
 const DEMO_BLOCKED = new Set(["/ingest", "/users", "/connectors", "/account"])
@@ -59,6 +60,7 @@ export function AppShell() {
     <XrayPanelProvider>
       {onPaper ? <PaperLayout path={path} /> : <AppLayout path={path} role={role} email={session?.user.email ?? ""} isDemo={isDemo} />}
       <CodeOverlay />
+      <DemoGateHost />
     </XrayPanelProvider>
   )
 }
@@ -96,17 +98,9 @@ function PaperLayout({ path }: { path: string }) {
   )
 }
 
-/** Sign in as the shared read-only viewer and open the dashboard. */
+/** Open the demo gate (an e-mail, then the guest demo session — see DemoGate). */
 export function useExploreDemo() {
-  const navigate = useNavigate()
-  const [busy, setBusy] = useState(false)
-  async function explore() {
-    setBusy(true)
-    const { error } = await supabase.auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_PASSWORD })
-    setBusy(false)
-    if (!error) navigate({ to: "/dashboard" })
-  }
-  return { busy, explore }
+  return { busy: false, explore: openDemoGate }
 }
 
 function ExploreDemoButton({ className, label }: { className?: string; label: string }) {
@@ -371,7 +365,7 @@ function useDemoSwitch(email: string) {
   async function pick(target: string) {
     if (target === email || busy) return
     setBusy(target)
-    await supabase.auth.signInWithPassword({ email: target, password: DEMO_PASSWORD })
+    try { await switchDemoIdentity(target) } catch { /* stays on the current identity */ }
     setBusy(null)
     // The read-only viewer tour can't open write pages — land on the dashboard.
     if (target === DEMO_EMAIL && DEMO_BLOCKED.has(path)) navigate({ to: "/dashboard" })
