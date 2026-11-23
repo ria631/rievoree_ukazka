@@ -203,10 +203,6 @@
 @media (max-width:1100px){.lp .areas{grid-template-columns:repeat(2,minmax(0,1fr))}.lp .tested{grid-template-columns:repeat(3,minmax(0,1fr))}.lp .tested .tests{grid-column:1/-1}}
 @media (max-width:640px){.lp .areas{grid-template-columns:1fr}.lp .tested{grid-template-columns:1fr}}
 
-/* scroll settles on the start of each block (Landing.tsx adds .lp-snap to <html>) */
-html.lp-snap{scroll-snap-type:y proximity;scroll-padding-top:76px}
-.lp .hero,.lp .sec-head,.lp .mcp,.lp .mig,.lp .close{scroll-snap-align:start}
-.lp .mcp,.lp .mig{scroll-margin-top:12px}
 
 /* ---------- 5 · contact and the demo: back on the paper ---------- */
 .lp .close{position:relative;margin-top:clamp(80px,12vh,140px);color:var(--ink);overflow:hidden;min-height:100svh}

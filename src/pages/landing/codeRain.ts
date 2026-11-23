@@ -32,6 +32,8 @@ export interface CodeRainOpts {
 }
 
 const RAIN_SCALE = 0.75 // the rain canvas's resolution, relative to CSS pixels
+const FRAME_MS = 33 // the rain's frame period (~30 fps)
+const TUNED_MS = 41 // the frame period the drop speeds were tuned for
 const GC = 50 // columns
 const GR = 23 // rows
 const DUR: Record<Phase, number> = { build: 3000, money: 3000, morph: 2600, code: 4800, release: 1500, rain: 1200 }
@@ -407,6 +409,7 @@ export function mountCodeRain(o: CodeRainOpts): () => void {
   /* one frame: the rain, then whatever the cells need */
   function frame(dt: number) {
     clock += dt
+    const step = dt / TUNED_MS // drop speeds were tuned for one frame every 41 ms
     const t = clock - phaseAt
     const k = Math.min(1, t / DUR[phase])
 
@@ -418,7 +421,7 @@ export function mountCodeRain(o: CodeRainOpts): () => void {
     rc.font = farFont
     rc.fillStyle = C.far
     for (const d of far) {
-      d.acc += d.v
+      d.acc += d.v * step
       while (d.acc >= 1) {
         d.acc -= 1
         d.y += 1
@@ -432,7 +435,7 @@ export function mountCodeRain(o: CodeRainOpts): () => void {
     rc.font = font
     for (let i = 0; i < cols; i++) {
       const d = near[i]
-      d.acc += d.v
+      d.acc += d.v * step
       if (d.acc < 1) continue
       const x = ox + i * cw
       while (d.acc >= 1) {
@@ -577,14 +580,23 @@ export function mountCodeRain(o: CodeRainOpts): () => void {
     scrollT = window.setTimeout(() => { scrolling = false; run() }, 220)
   }
   const going = () => visible && !scrolling && !document.hidden && !reduce
-  // ~24 frames a second, woken by a timer — not a requestAnimationFrame that
-  // fires on every vsync only to skip most of them.
-  const schedule = () => { if (going() && !timer && !raf) timer = window.setTimeout(tick, 41) }
+  // About 30 frames a second, woken by a timer — not a requestAnimationFrame
+  // that fires on every vsync only to skip most of them. The wait counts from
+  // the start of the last frame (a fixed wait *after* each frame added the
+  // frame's own cost and a vsync on top: ~12 fps on a slower laptop), but
+  // always leaves the main thread at least 12 ms to itself.
+  let frameStart = 0
+  const schedule = () => {
+    if (!going() || timer || raf) return
+    const wait = Math.max(12, FRAME_MS - (performance.now() - frameStart))
+    timer = window.setTimeout(tick, wait)
+  }
   function tick() {
     timer = 0
     raf = requestAnimationFrame((now) => {
       raf = 0
       if (!going()) return
+      frameStart = now
       const dt = Math.min(100, now - (last || now))
       last = now
       frame(dt)

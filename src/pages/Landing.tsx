@@ -65,15 +65,6 @@ export function Landing() {
     "Financial reporting for groups of companies, AI on your own database through MCP, and database migrations to PostgreSQL. See X-Ray, a live reporting engine on sample data.",
   )
 
-  // Scrolling settles on the start of a block (hero, each section heading, the
-  // big animations) — proximity only, so long sections still scroll freely.
-  // A class on <html> rather than :has(), and only while the landing is shown.
-  useEffect(() => {
-    const html = document.documentElement
-    html.classList.add("lp-snap")
-    return () => html.classList.remove("lp-snap")
-  }, [])
-
   const demoBtn = (cls: string, label = "Open the live demo") => (
     <button className={`btn ${cls}`} onClick={() => void explore()} disabled={busy}>{busy ? "Opening…" : label}</button>
   )
