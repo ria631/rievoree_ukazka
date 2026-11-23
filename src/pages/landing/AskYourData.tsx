@@ -13,28 +13,29 @@ import "./ask.css"
  * shows the finished conversation.
  */
 
-/** Built by me for an accounting firm (anonymised; facts from the project's spec and tests). */
-const STUDY = {
-  kind: "Accounting firm · built by me",
-  title: "Claude inside the books — without opening the books to the world",
-  body: "The firm's accountants work with Claude (claude.ai and Claude Code) directly on their accounting database. It reads documents and ledgers across their client companies, opens invoice PDFs, and prepares postings as change sets. A second model reviews each change set, an accountant approves it in the firm's own app, and only then is anything written. Routine documents can run as scheduled background jobs.",
+/**
+ * What such an MCP can look like. Deliberately generic: no client, product or
+ * project details — real projects stay with the people they were built for.
+ */
+const EXAMPLE = {
+  kind: "Example · a finance team",
+  title: "AI inside the books — without opening the books to the world",
+  body: "A finance team works with their AI assistant directly on their accounting data. It reads documents and ledgers, opens invoice PDFs and prepares postings. A second model checks every proposed change, an accountant approves it in the team's own app, and only then is anything written. Routine work can run on a schedule.",
+  flow: ["Someone asks", "AI reads — within their rights", "AI proposes a change", "A second model checks it", "An accountant approves", "Then it's written"],
   guards: [
-    ["Company sign-in + MFA", "Microsoft Entra ID, a second factor, and OAuth 2.1 with one approved client."],
-    ["No master key", "The server holds no database password. It acts with the person's own token, through a gate checked on every call."],
-    ["Only what that person may see", "Approved columns only, only their client companies (row-level security), an hourly and daily data budget, every read logged."],
+    ["Company sign-in + MFA", "The same login people already use, a second factor, and only approved AI clients."],
+    ["No master key", "The server holds no database password. It acts as the signed-in person, through a gate checked on every call."],
+    ["Only what that person may see", "Approved columns, only their companies (row-level security), a data budget, every read logged."],
     ["No free SQL, ever", "Text coming out of the data is treated as untrusted, so instructions hidden in a document can't steer the AI."],
     ["One switch stops it", "A single setting cuts all AI access at once; every change is in an audit log."],
   ],
-  stats: [["9", "MCP tools"], ["931", "database tests (pgTAP)"], ["25", "releases, each with verify + rollback"]],
-  tools: ["whoami", "describe_structure", "read_data", "read_file", "propose_change", "changeset_submit", "review_poll"],
 }
 
 const CASES = [
   {
-    kind: "Document management",
+    kind: "Example · approvals",
     title: "Approvals by chat",
-    body: "Staff ask their AI what's waiting for them, preview an approval, decide or comment, and request sign-off from colleagues — always within their own permissions, every step on the record.",
-    tools: ["my_tasks", "approval_preview", "decide_task", "add_comment"],
+    body: "Staff ask their AI what's waiting for them, preview a document, approve or comment, and ask colleagues to sign off — always within their own permissions, every step on the record.",
   },
 ]
 
@@ -80,10 +81,10 @@ export function AskYourData() {
         <div className="mcp-col mcp-srv">
           <div className="mcp-head"><i className="dot lime" />MCP server · your company</div>
           <ul className="tools">
-            <li className="a k1"><code>describe_structure</code><span>what's in the database</span></li>
-            <li className="a k2"><code>read_data</code><span>only rows this person may see</span></li>
+            <li className="a k1"><code>get_schema</code><span>what's in the database</span></li>
+            <li className="a k2"><code>read_rows</code><span>only rows this person may see</span></li>
             <li className="a k3"><code>propose_change</code><span>a draft, never a direct write</span></li>
-            <li className="a k4"><code>review</code><span>a second model checks it</span></li>
+            <li className="a k4"><code>review_change</code><span>a second model checks it</span></li>
           </ul>
           <div className="appr a ap">
             <span className="who">Accountant</span>
@@ -112,19 +113,18 @@ export function AskYourData() {
         <li><b>On the record.</b> Every question and every change is logged — who, when, what.</li>
       </ul>
 
-      <h3 className="cases-h">From client work</h3>
+      <h3 className="cases-h">What it can look like</h3>
       <article className="study">
         <div className="study-main">
-          <p className="eyebrow">{STUDY.kind}</p>
-          <h4>{STUDY.title}</h4>
-          <p>{STUDY.body}</p>
-          <dl className="study-stats">
-            {STUDY.stats.map(([n, t]) => <div key={t}><dt>{n}</dt><dd>{t}</dd></div>)}
-          </dl>
-          <p className="chips">{STUDY.tools.map((t) => <code key={t}>{t}</code>)}</p>
+          <p className="eyebrow">{EXAMPLE.kind}</p>
+          <h4>{EXAMPLE.title}</h4>
+          <p>{EXAMPLE.body}</p>
+          <ol className="study-flow">
+            {EXAMPLE.flow.map((f, i) => <li key={f}><b>{i + 1}</b>{f}</li>)}
+          </ol>
         </div>
         <ul className="study-guards">
-          {STUDY.guards.map(([t, d]) => <li key={t}><b>{t}</b>{d}</li>)}
+          {EXAMPLE.guards.map(([t, d]) => <li key={t}><b>{t}</b>{d}</li>)}
         </ul>
       </article>
       <div className="cases">
@@ -133,7 +133,6 @@ export function AskYourData() {
             <p className="eyebrow">{c.kind}</p>
             <h4>{c.title}</h4>
             <p>{c.body}</p>
-            <p className="chips">{c.tools.map((t) => <code key={t}>{t}</code>)}</p>
           </article>
         ))}
         <article className="case case-more">
@@ -144,9 +143,9 @@ export function AskYourData() {
         </article>
       </div>
       <p className="fine">
-        Why there's no public MCP to try here: an MCP opens a real database to an AI. It's built for each client — on
-        their data, their permissions and their assistant — so it's shown as an animation and from client projects.
-        Client names on request.
+        Why there's no public MCP to try here: an MCP opens a real database to an AI, so each one is built for one
+        company — on their data, their permissions and their assistant. The examples above are illustrations of the
+        kind of system I build; details of real projects stay with the people they were built for.
       </p>
     </section>
   )

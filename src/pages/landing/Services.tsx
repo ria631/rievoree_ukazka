@@ -3,10 +3,10 @@ import "./services.css"
 /**
  * What I build — the page shows one of these working (X-Ray); the others are
  * what the same skills do for a client. Each card says where it can be seen:
- * live on this page, in client work, or on request.
+ * live on this page, or on request (shown above as an animation).
  */
-type Where = "live" | "client" | "request"
-const WHERE: Record<Where, string> = { live: "Live on this page", client: "From client work", request: "On request" }
+type Where = "live" | "request"
+const WHERE: Record<Where, string> = { live: "Live on this page", request: "On request" }
 
 const OFFERS: { title: string; body: string; also?: string; where: Where; href?: string }[] = [
   {
@@ -19,7 +19,7 @@ const OFFERS: { title: string; body: string; also?: string; where: Where; href?:
     title: "AI access to your database (MCP)",
     body: "Your team's AI — Claude, ChatGPT, Copilot — answers questions about your data, drafts bookings and prepares approvals, within each person's permissions.",
     also: "Instead of dashboards, or next to them.",
-    where: "client", href: "#ai",
+    where: "request", href: "#ai",
   },
   {
     title: "Database migration",

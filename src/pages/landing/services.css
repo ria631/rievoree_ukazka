@@ -6,7 +6,6 @@
 .lp .offer .also{font-size:var(--fs-small);color:var(--dim)}
 .lp .offer .where{align-self:flex-start;padding:3px 9px;border-radius:999px;font-family:var(--f-code);font-size:12px;font-weight:700;letter-spacing:.04em}
 .lp .offer.live .where{background:var(--lime);color:var(--ink)}
-.lp .offer.client .where{border:1px solid var(--teal);color:var(--teal)}
 .lp .offer.request .where{border:1px solid var(--line-hi);color:var(--dim)}
 .lp .offer .see{margin-top:auto;padding-top:4px;font-size:var(--fs-small);font-weight:600;color:var(--lime);text-decoration:none}
 .lp .offer .see:hover{text-decoration:underline}
