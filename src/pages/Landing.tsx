@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react"
 import { Link } from "@tanstack/react-router"
 import { useExploreDemo } from "@/app/AppShell"
 import { AUTHOR, EVIDENCE, TOP_TESTS, contactLinks, repoUrl } from "@/lib/author"
+import { usePageMeta } from "@/lib/pageMeta"
 import { FILES, SRC, hl } from "./landing/repoSource"
 import { CodeHero } from "./landing/CodeHero"
 import { AskYourData } from "./landing/AskYourData"
@@ -59,6 +60,20 @@ export function Landing() {
     return () => { removeEventListener("scroll", on); ro.disconnect(); cancelAnimationFrame(raf) }
   }, [])
 
+  usePageMeta(
+    "Mariia Chernenko — Data & Backend Engineer for Finance Teams",
+    "Financial reporting for groups of companies, AI on your own database through MCP, and database migrations to PostgreSQL. See X-Ray, a live reporting engine on sample data.",
+  )
+
+  // Scrolling settles on the start of a block (hero, each section heading, the
+  // big animations) — proximity only, so long sections still scroll freely.
+  // A class on <html> rather than :has(), and only while the landing is shown.
+  useEffect(() => {
+    const html = document.documentElement
+    html.classList.add("lp-snap")
+    return () => html.classList.remove("lp-snap")
+  }, [])
+
   const demoBtn = (cls: string, label = "Open the live demo") => (
     <button className={`btn ${cls}`} onClick={() => void explore()} disabled={busy}>{busy ? "Opening…" : label}</button>
   )
@@ -85,9 +100,9 @@ export function Landing() {
         <section ref={hero} className="hero dark" aria-label="Introduction">
           <div className="wrap hero-grid">
             <div ref={copy} className="txt">
-              <p className="kicker">Data &amp; backend engineer · for finance teams</p>
               <h1>
-                <span className="lp-mask"><span className="name">{AUTHOR.name.split(" ")[0]}</span></span>
+                <span className="kicker">Data &amp; backend engineer · for finance teams</span>{" "}
+                <span className="lp-mask"><span className="name">{AUTHOR.name.split(" ")[0]}</span></span>{" "}
                 <span className="lp-mask"><span className="name n2">{AUTHOR.name.split(" ").slice(1).join(" ")}</span></span>
               </h1>
               <p className="lede">
@@ -450,40 +465,42 @@ function HowItWorks() {
 
 function Skills() {
   return (
-    <section className="sec" id="skills">
+    <section className="sec" id="skills" aria-labelledby="skills-h">
       <div className="sec-head">
-        <p className="eyebrow">How it's built</p>
-        <h2>Proof, not promises</h2>
-        <p>Each line links to the code behind it, and the tests run on every change.</p>
+        <p className="eyebrow">What this project shows</p>
+        <h2 id="skills-h">Inside X-Ray</h2>
+        <p>
+          X-Ray is one sample project, built to show how I work — four things it proves, each block linked to the
+          code behind it.
+        </p>
       </div>
-      <div className="skills">
-        <ul className="areas">
-          {EVIDENCE.map((e) => (
-            <li key={e.area}>
-              <h3>{e.area}</h3>
-              <p className="plain">{e.plain}</p>
-              <p className="links">
-                {e.where.map((w) => <a key={w.path} className="path" href={repoUrl(w.path)} target="_blank" rel="noreferrer">{w.label} ↗</a>)}
-              </p>
-            </li>
-          ))}
-        </ul>
-        <aside className="proof">
-          <h3>Tested on every change</h3>
-          <dl>
-            <div><dt>138</dt><dd>database assertions (pgTAP) against a real Postgres</dd></div>
-            <div><dt>81</dt><dd>unit tests for the money maths</dd></div>
-            <div><dt>14</dt><dd>tests for the file parser</dd></div>
-          </dl>
-          <p className="tech">Three of them:</p>
+      <ul className="areas">
+        {EVIDENCE.map((e, i) => (
+          <li key={e.area}>
+            <span className="n">{String(i + 1).padStart(2, "0")}</span>
+            <h3>{e.area}</h3>
+            <p className="plain">{e.plain}</p>
+            <p className="links">
+              {e.where.map((w) => <a key={w.path} className="path" href={repoUrl(w.path)} target="_blank" rel="noreferrer">{w.label} ↗</a>)}
+            </p>
+          </li>
+        ))}
+      </ul>
+      <h3 className="tested-h">Tested on every change</h3>
+      <div className="tested">
+        <div className="stat"><b>138</b><span>database assertions (pgTAP) against a real Postgres</span></div>
+        <div className="stat"><b>81</b><span>unit tests for the money maths</span></div>
+        <div className="stat"><b>14</b><span>tests for the file parser</span></div>
+        <div className="stat tests">
+          <span className="k3">Three of them</span>
           <ul>
             {TOP_TESTS.map((t) => (
-              <li key={t.path}><a href={repoUrl(t.path)} target="_blank" rel="noreferrer">{t.name}</a></li>
+              <li key={t.path}><a href={repoUrl(t.path)} target="_blank" rel="noreferrer">{t.name} ↗</a></li>
             ))}
           </ul>
-          <p className="tech">Writing them found and fixed four real bugs in the reporting maths. Built with Claude Code as a pair programmer.</p>
-        </aside>
+        </div>
       </div>
+      <p className="fine">Writing the tests found and fixed four real bugs in the reporting maths. Built with Claude Code as a pair programmer.</p>
     </section>
   )
 }

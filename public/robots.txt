@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+Allow: /about
+# the demo app behind the e-mail gate: nothing for search engines there
+Disallow: /dashboard
+Disallow: /ingest
+Disallow: /pl
+Disallow: /rent-roll
+Disallow: /receivables
+Disallow: /budget-flow
+Disallow: /forecast
+Disallow: /journal
+Disallow: /connectors
+Disallow: /users
+Disallow: /account
+Disallow: /login
+Disallow: /register
+Disallow: /reset-password
+
+Sitemap: https://rievoree-ukazka.vercel.app/sitemap.xml

@@ -47,7 +47,10 @@ export function Offer() {
           </li>
         ))}
       </ol>
-      <p className="also"><b>Part of every project:</b> data imports and integrations · access control · automatic checks and approvals</p>
+      <p className="also">
+        <b>Part of every project:</b> data imports and integrations · access control · automatic checks and approvals.{" "}
+        <b>Something else?</b> These are the most common requests, not the whole list — <a href="#contact">ask me</a>.
+      </p>
     </section>
   )
 }

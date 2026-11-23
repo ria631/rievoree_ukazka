@@ -1,6 +1,7 @@
 import { motion } from "motion/react"
 import { Link } from "@tanstack/react-router"
 import { AUTHOR, EVIDENCE, contactLinks, repoUrl } from "@/lib/author"
+import { usePageMeta } from "@/lib/pageMeta"
 
 const STACK = ["React 19", "TypeScript", "Vite", "Tailwind v4", "TanStack", "recharts", "Supabase", "Postgres", "Edge / Deno", "Docker", "pg_cron", "pg_net", "RLS"]
 
@@ -12,6 +13,10 @@ const LAYERS = [
 ]
 
 export function About() {
+  usePageMeta(
+    "How X-Ray is built — Mariia Chernenko",
+    "How X-Ray works under the hood: React 19, Postgres with row-level security, an ETL pipeline, scheduled jobs and edge functions — and the tests that prove it.",
+  )
   return (
     <section className="mx-auto max-w-3xl px-6 py-20 md:py-28">
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: "easeOut" }}>
