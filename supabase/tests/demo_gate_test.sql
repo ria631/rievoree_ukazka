@@ -58,6 +58,7 @@ reset role;
 
 -- 11–12. The demo-password lock holds, unless the transaction opts in.
 insert into auth.users (id, email) values ('dddd6000-0000-4000-8000-000000000001', 'tap-gate@demo.local');
+select set_config('app.allow_privileged_profile_change', 'on', true);  -- is_demo is a frozen column
 update public.profiles set is_demo = true where id = 'dddd6000-0000-4000-8000-000000000001';
 select throws_ok(
   $$ update auth.users set encrypted_password = 'x' where id = 'dddd6000-0000-4000-8000-000000000001' $$,
