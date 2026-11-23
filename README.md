@@ -73,11 +73,11 @@ reports out — and you can watch every layer run:
 
 ### What's real vs. illustrative (honesty invariant)
 Every figure in the product app is a real query result. On the landing, the
-code under the torn page and the RLS policy beside the demo are **pulled from
-the repo files at build time** (`src/pages/landing/repoSource.ts`, Vite `?raw`),
-never retyped; the "Who sees what" table is a **replay** of the seeded
-memberships (labelled as such) — the live version is the X-ray **RLS** tab,
-which runs the query against Postgres as each role. The X-ray **SQL** tab shows
+code in the hero animation is **pulled from the repo files at build time**
+(`src/pages/landing/repoSource.ts`, Vite `?raw`), never retyped. The MCP and
+migration sections are **animations** of the kind of system I build, labelled
+as such. The live role check is the X-ray **RLS** tab, which runs the query
+against Postgres as each role. The X-ray **SQL** tab shows
 reference SQL pulled from the migrations, clearly marked "not a live EXPLAIN";
 the **Calls** and **Pipeline** tabs are live.
 

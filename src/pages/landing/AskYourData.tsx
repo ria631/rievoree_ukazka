@@ -13,31 +13,8 @@ import "./ask.css"
  * shows the finished conversation.
  */
 
-/**
- * What such an MCP can look like. Deliberately generic: no client, product or
- * project details — real projects stay with the people they were built for.
- */
-const EXAMPLE = {
-  kind: "Example · a finance team",
-  title: "AI inside the books — without opening the books to the world",
-  body: "A finance team works with their AI assistant directly on their accounting data. It reads documents and ledgers, opens invoice PDFs and prepares postings. A second model checks every proposed change, an accountant approves it in the team's own app, and only then is anything written. Routine work can run on a schedule.",
-  flow: ["Someone asks", "AI reads — within their rights", "AI proposes a change", "A second model checks it", "An accountant approves", "Then it's written"],
-  guards: [
-    ["Company sign-in + MFA", "The same login people already use, a second factor, and only approved AI clients."],
-    ["No master key", "The server holds no database password. It acts as the signed-in person, through a gate checked on every call."],
-    ["Only what that person may see", "Approved columns, only their companies (row-level security), a data budget, every read logged."],
-    ["No free SQL, ever", "Text coming out of the data is treated as untrusted, so instructions hidden in a document can't steer the AI."],
-    ["One switch stops it", "A single setting cuts all AI access at once; every change is in an audit log."],
-  ],
-}
-
-const CASES = [
-  {
-    kind: "Example · approvals",
-    title: "Approvals by chat",
-    body: "Staff ask their AI what's waiting for them, preview a document, approve or comment, and ask colleagues to sign off — always within their own permissions, every step on the record.",
-  },
-]
+/** What teams typically use it for — generic, no client details. */
+const USES = ["Questions about the numbers", "Bookings drafted for approval", "Approvals by chat", "Routine checks on a schedule"]
 
 export function AskYourData() {
   const ref = useRef<HTMLDivElement>(null)
@@ -50,13 +27,11 @@ export function AskYourData() {
   return (
     <section className="sec" id="ai">
       <div className="sec-head">
-        <p className="eyebrow">Option 2 · no dashboards needed</p>
+        <p className="eyebrow">02 · AI on your database</p>
         <h2>Rather ask than click? Talk to your data.</h2>
         <p>
-          Not every team wants another reporting tool. With an <b>MCP server</b> on top of your database, the AI your
-          people already use — Claude, ChatGPT, Copilot — can answer questions about your numbers in plain language,
-          draft bookings and prepare approvals. It sees only what that person may see, changes nothing without a
-          human's approval, and every call is logged.
+          An <b>MCP server</b> lets the AI your team already uses — Claude, ChatGPT, Copilot — work with your database.
+          It sees only what that person may see and changes nothing without a person's approval.
         </p>
       </div>
 
@@ -113,40 +88,11 @@ export function AskYourData() {
         <li><b>On the record.</b> Every question and every change is logged — who, when, what.</li>
       </ul>
 
-      <h3 className="cases-h">What it can look like</h3>
-      <article className="study">
-        <div className="study-main">
-          <p className="eyebrow">{EXAMPLE.kind}</p>
-          <h4>{EXAMPLE.title}</h4>
-          <p>{EXAMPLE.body}</p>
-          <ol className="study-flow">
-            {EXAMPLE.flow.map((f, i) => <li key={f}><b>{i + 1}</b>{f}</li>)}
-          </ol>
-        </div>
-        <ul className="study-guards">
-          {EXAMPLE.guards.map(([t, d]) => <li key={t}><b>{t}</b>{d}</li>)}
-        </ul>
-      </article>
-      <div className="cases">
-        {CASES.map((c) => (
-          <article key={c.title} className="case">
-            <p className="eyebrow">{c.kind}</p>
-            <h4>{c.title}</h4>
-            <p>{c.body}</p>
-          </article>
-        ))}
-        <article className="case case-more">
-          <p className="eyebrow">Your company</p>
-          <h4>Your AI, your database</h4>
-          <p>Claude, ChatGPT or Copilot on your accounting system, ERP, CRM or document store — read-only to start, with writes added only where you want a person to approve them.</p>
-          <a className="see" href="#contact">Talk to me →</a>
-        </article>
-      </div>
-      <p className="fine">
-        Why there's no public MCP to try here: an MCP opens a real database to an AI, so each one is built for one
-        company — on their data, their permissions and their assistant. The examples above are illustrations of the
-        kind of system I build; details of real projects stay with the people they were built for.
+      <p className="mcp-uses">
+        <b>Typical uses</b>
+        {USES.map((u) => <span key={u}>{u}</span>)}
       </p>
+      <p className="fine">Each MCP is built for one company, on its own data and permissions — so here it's shown as an animation.</p>
     </section>
   )
 }

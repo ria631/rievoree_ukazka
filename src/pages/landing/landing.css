@@ -95,43 +95,8 @@
 .lp .plain{font-size:var(--fs-body);color:var(--text)}
 .lp .fine{margin-top:16px;font-size:var(--fs-small);color:var(--dim)}
 
-/* 2 · same query, different rows */
-.lp .rls{display:grid;grid-template-columns:1.1fr .9fr;gap:20px;align-items:start}
-.lp .rls-box{border:1px solid var(--line);border-radius:12px;background:var(--deep-2);overflow:hidden}
-.lp .seg{display:flex;gap:4px;padding:6px;border-bottom:1px solid var(--line)}
-.lp .seg button{all:unset;cursor:pointer;flex:1;text-align:center;padding:10px;border-radius:6px;font-family:var(--f-disp);font-weight:800;text-transform:capitalize;font-size:var(--fs-h3);color:var(--dim)}
-.lp .seg button:hover{color:var(--text)}
-.lp .seg button[aria-pressed="true"]{background:var(--lime);color:var(--ink)}
-.lp .seg button:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
-.lp .q{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding:14px 18px;border-bottom:1px solid var(--line)}
-.lp .q code{color:var(--em)}
-.lp .q span{font-size:var(--fs-small);color:var(--dim)}
-.lp .rows{position:relative}
-.lp .erow{display:grid;grid-template-columns:18px 1fr auto;gap:12px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);transition:opacity .35s,background .35s}
-.lp .erow:last-child{border-bottom:0}
-.lp .erow .ic{width:12px;height:12px;border-radius:3px;background:var(--em);box-shadow:0 0 10px rgba(127,227,182,.5)}
-.lp .erow .nm{font-weight:500}
-.lp .erow .why{font-size:var(--fs-small);color:var(--dim)}
-.lp .erow.out{opacity:.45;background:repeating-linear-gradient(-45deg,transparent 0 8px,rgba(240,106,93,.08) 8px 16px)}
-.lp .erow.out .ic{background:transparent;border:1.5px solid var(--red);box-shadow:none}
-.lp .erow.out .why{color:var(--red)}
-/* the scan line: a full-height layer whose top edge glows, moved by transform
-   (moving `top` would re-lay out the box every frame) */
-.lp .scan{position:absolute;inset:0;opacity:0;pointer-events:none}
-.lp .scan::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:var(--lime);box-shadow:0 0 22px 5px rgba(163,230,53,.5)}
-.lp .scan.go{animation:lp-scan .8s cubic-bezier(.4,0,.2,1)}
-@keyframes lp-scan{0%{transform:translateY(0);opacity:1}90%{opacity:1}100%{transform:translateY(100%);opacity:0}}
-.lp .count{display:flex;align-items:baseline;gap:10px;padding:14px 18px;border-top:1px solid var(--line);color:var(--dim)}
-.lp .count b{font-family:var(--f-disp);font-size:var(--fs-h2);line-height:1;color:var(--text);font-weight:800}
-.lp .pol{border:1px solid var(--line);border-radius:12px;background:#04100F;padding:18px}
-.lp .pol-title{font-family:var(--f-disp);font-weight:700;text-transform:uppercase;font-size:var(--fs-h3)}
-.lp .pol pre{margin:12px 0 0;font-family:var(--f-code);font-size:var(--fs-code);line-height:1.8;color:var(--em);white-space:pre-wrap;overflow-wrap:anywhere}
-.lp .pol .ln{display:block;padding:0 8px;margin:0 -8px;border-radius:3px;transition:background .3s,box-shadow .3s}
-.lp .pol .ln.hl{background:rgba(163,230,53,.12);box-shadow:inset 3px 0 0 var(--lime)}
-.lp .pol-note{margin-top:14px;font-size:var(--fs-body);color:var(--text)}
-.lp .pol .path{display:inline-block;margin-top:12px}
+/* syntax colours for highlighted source (hl in repoSource.ts) */
 .lp .k{color:var(--lime)}.lp .s{color:var(--teal)}.lp .c{color:#5E9384}
-@media (max-width:900px){.lp .rls{grid-template-columns:1fr}}
 
 /* 3 · how it works — the desk (desk.css) plays the month on a loop; the
    token rides the track and the matching step card lights with each act

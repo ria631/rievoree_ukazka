@@ -1,12 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react"
+import { useEffect, useRef, useState, type RefObject } from "react"
 import { Link } from "@tanstack/react-router"
 import { useExploreDemo } from "@/app/AppShell"
 import { AUTHOR, EVIDENCE, TOP_TESTS, contactLinks, repoUrl } from "@/lib/author"
-import { FILES, SRC, hl } from "./landing/repoSource"
 import { CodeHero } from "./landing/CodeHero"
 import { AskYourData } from "./landing/AskYourData"
 import { MoveYourData } from "./landing/MoveYourData"
-import { Services } from "./landing/Services"
+import { Offer } from "./landing/Services"
 import { Desk, SkeletonList } from "./landing/Desk"
 import { watchInView } from "./landing/viewport"
 import "./landing/landing.css"
@@ -70,9 +69,9 @@ export function Landing() {
         <div className="wrap">
           <Link to="/" className="brand" aria-label="X-Ray home"><img src="/xray-mark.svg" alt="" />X-Ray</Link>
           <nav aria-label="Sections">
-            <a href="#how">How it works</a>
+            <a href="#how">Reporting</a>
             <a href="#ai">AI &amp; MCP</a>
-            <a href="#build">What I build</a>
+            <a href="#migrate">Migration</a>
             <a href="#contact">Contact</a>
           </nav>
           <span className="spacer" />
@@ -96,12 +95,12 @@ export function Landing() {
                 without losing a row.
               </p>
               <p className="lede2">
-                This page is a working example — <b>X-Ray</b>, a reporting engine running on sample data. Open it,
-                switch roles, and press <kbd>X</kbd> to see the code behind any screen.
+                The demo on this page is real: <b>X-Ray</b>, a reporting engine on sample data. Open it and press{" "}
+                <kbd>X</kbd> on any screen to see how it works.
               </p>
               <div className="ctas">
                 {demoBtn("btn-ink")}
-                <a className="btn btn-ghost" href="#build">What I can build for you</a>
+                <a className="btn btn-ghost" href="#offer">What I do</a>
               </div>
               <p className="aside">
                 Sample data · read-only · resets every hour ·{" "}
@@ -114,18 +113,10 @@ export function Landing() {
 
         <div className="machinery">
           <div className="wrap">
-            {/* what's on this page, in one row — so nobody has to guess */}
-            <p className="map-h">On this page</p>
-            <ol className="map">
-              {PAGE_MAP.map((m, i) => (
-                <li key={m.href}><a href={m.href}><b>{String(i + 1).padStart(2, "0")}</b><strong>{m.t}</strong><span>{m.s}</span></a></li>
-              ))}
-            </ol>
-            <WhoSeesWhat />
+            <Offer />
             <HowItWorks />
             <AskYourData />
             <MoveYourData />
-            <Services />
             <Skills />
           </div>
 
@@ -136,14 +127,12 @@ export function Landing() {
                 <p className="kicker">Try it · talk to me</p>
                 <h2>See it run on a real set of books</h2>
                 <p>
-                  The whole product on sample data: four property companies, two years of accounts and seven
-                  reports, from the P&amp;L to the cash forecast. Read-only and without sign-up; it resets every hour.
+                  Four sample companies, two years of accounts, seven reports — read-only, no sign-up, reset every hour.
                 </p>
                 <ul className="try">
-                  <li><b>Switch roles.</b> As Viewer, Manager or Admin the same page returns one, two or four companies — Postgres decides, not the browser.</li>
-                  <li><b>Press <kbd>X</kbd> on any page.</b> See the API calls behind it, the SQL view, the row-level policy and the source file.</li>
-                  <li><b>Take the guided tour.</b> Two minutes through the reports, the data pipeline and the security model.</li>
-                  <li><b>Use it for real.</b> Create your own workspace to invite your team, upload your CSV exports and connect a Google Sheet.</li>
+                  <li><b>Switch roles.</b> Viewer, Manager or Admin: the same page shows one, two or four companies. The database decides.</li>
+                  <li><b>Press <kbd>X</kbd> on any page.</b> The API calls, SQL and security rule behind it.</li>
+                  <li><b>Take the tour.</b> Two minutes through reports, data pipeline and security.</li>
                 </ul>
                 <div className="ctas">
                   {demoBtn("btn-ink")}
@@ -162,9 +151,8 @@ export function Landing() {
               <div className="work">
                 <h3>Work with me</h3>
                 <p>
-                  Reporting for groups of companies, AI access to your own data through MCP, and migrations off
-                  spreadsheets and old systems — all on a database that holds up in an audit. Tell me what you have and
-                  what you need, and I'll tell you honestly which of these fits.
+                  Reporting, AI on your database, or a migration — tell me what you have and what you need, and I'll
+                  tell you honestly which fits.
                 </p>
                 <div className="links">
                   {contacts.map((c) => (
@@ -183,83 +171,6 @@ export function Landing() {
         </div>
       </main>
     </div>
-  )
-}
-
-/** The page in five lines, right under the hero. */
-const PAGE_MAP = [
-  { href: "#rls", t: "Who sees what", s: "The database decides — try three roles" },
-  { href: "#how", t: "How it works", s: "A month of numbers, from spreadsheet to report" },
-  { href: "#ai", t: "Ask your data", s: "Your AI on your database, through MCP" },
-  { href: "#migrate", t: "Move your data", s: "Off spreadsheets and old systems, row for row" },
-  { href: "#build", t: "What I build", s: "Everything above, and what else I do" },
-  { href: "#contact", t: "Try it · talk to me", s: "The live demo, and how to reach me" },
-]
-
-/* ───────────────────────── 2 · the proof: same query, different rows ───────────────────────── */
-
-// Company names and memberships from supabase/seed.sql.
-const ENTS = ["Danube Office Park", "Riverside Retail Park", "Lindenhof Residences", "Westgate Logistics Hub"]
-const ROLES = {
-  admin: { who: "admin@demo.local", see: [0, 1, 2, 3], line: 3, note: "The admin passes the first test, is_admin(), so every company comes back." },
-  manager: { who: "manager@demo.local", see: [0, 1], line: 4, note: "A manager isn't an admin, so only the companies on their membership list come back." },
-  viewer: { who: "viewer@demo.local", see: [0], line: 4, note: "This viewer was invited to one company. The other three never leave the database." },
-} as const
-type RoleKey = keyof typeof ROLES
-
-function WhoSeesWhat() {
-  const [role, setRole] = useState<RoleKey>("admin")
-  const [shown, setShown] = useState<RoleKey>("admin")
-  const [scanKey, setScanKey] = useState(0)
-  const policy = useMemo(() => hl(SRC.rls.split("\n").slice(3).join("\n")).split("\n"), [])
-
-  function pick(k: RoleKey) {
-    setRole(k)
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { setShown(k); return }
-    setScanKey((n) => n + 1)
-    window.setTimeout(() => setShown(k), 380)
-  }
-  const R = ROLES[shown]
-  return (
-    <section className="sec" id="rls">
-      <div className="sec-head">
-        <p className="eyebrow">Live · try it</p>
-        <h2>Who sees what is decided by the database</h2>
-        <p>
-          In most apps the website hides what you shouldn't see — and anyone who goes around the website sees it all.
-          Here the database itself refuses. Three people run the same query; pick one and watch what comes back.
-        </p>
-      </div>
-      <div className="rls">
-        <div className="rls-box">
-          <div className="seg" role="group" aria-label="Signed in as">
-            {(Object.keys(ROLES) as RoleKey[]).map((k) => (
-              <button key={k} aria-pressed={role === k} onClick={() => pick(k)}>{k}</button>
-            ))}
-          </div>
-          <div className="q"><code>select name from companies</code><span>as {ROLES[role].who}</span></div>
-          <div className="rows">
-            {scanKey > 0 && <div key={scanKey} className="scan go" />}
-            {ENTS.map((n, i) => {
-              const ok = (R.see as readonly number[]).includes(i)
-              return (
-                <div key={n} className={`erow${ok ? "" : " out"}`}>
-                  <span className="ic" /><span className="nm">{n}</span><span className="why">{ok ? "returned" : "hidden by the policy"}</span>
-                </div>
-              )
-            })}
-          </div>
-          <div className="count"><b>{R.see.length}</b><span>{R.see.length === 1 ? "company returned" : "companies returned"}</span></div>
-        </div>
-        <div className="pol">
-          <p className="pol-title">The rule that decides it</p>
-          <pre>{policy.map((l, i) => <span key={i} className={`ln${i === R.line ? " hl" : ""}`} dangerouslySetInnerHTML={{ __html: l || " " }} />)}</pre>
-          <p className="pol-note">{R.note}</p>
-          <a className="path" href={repoUrl(FILES.rls)} target="_blank" rel="noreferrer">the migration ↗</a>
-        </div>
-      </div>
-      <p className="fine">A replay of the demo's memberships. In the live demo, X-ray → RLS signs in as each person and runs it against Postgres.</p>
-    </section>
   )
 }
 
@@ -421,12 +332,11 @@ function HowItWorks() {
   return (
     <section className="sec" id="how">
       <div className="sec-head">
-        <p className="eyebrow">Option 1 · reporting</p>
+        <p className="eyebrow">01 · Reporting · live demo</p>
         <h2>How a month of numbers becomes a report</h2>
         <p>
-          Four steps that run for real in the demo: spreadsheets come in, every row is checked, each company's figures
-          stay private, and the reports rebuild themselves. Then <b>See the skeleton</b> shows the actual tables, jobs
-          and policies behind each step.
+          Spreadsheets come in, every row is checked, each company's figures stay private, and the reports rebuild
+          themselves. <b>See the skeleton</b> shows the real tables and jobs behind it.
         </p>
       </div>
       <div ref={flow} className="flow">
@@ -475,7 +385,7 @@ function Skills() {
       <div className="sec-head">
         <p className="eyebrow">How it's built</p>
         <h2>Proof, not promises</h2>
-        <p>What building X-Ray shows — each line links to the code that backs it, and the tests run on every change.</p>
+        <p>Each line links to the code behind it, and the tests run on every change.</p>
       </div>
       <div className="skills">
         <ul className="areas">
@@ -483,7 +393,6 @@ function Skills() {
             <li key={e.area}>
               <h3>{e.area}</h3>
               <p className="plain">{e.plain}</p>
-              <p className="tech">{e.tech}</p>
               <p className="links">
                 {e.where.map((w) => <a key={w.path} className="path" href={repoUrl(w.path)} target="_blank" rel="noreferrer">{w.label} ↗</a>)}
               </p>

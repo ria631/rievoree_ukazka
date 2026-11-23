@@ -57,37 +57,19 @@
 .lp .mcp .tbls li .done{color:var(--em)}
 .lp .mcp .lock{margin:auto 10px 10px;padding-top:8px;font-family:var(--f-code);font-size:12px;color:#F59186}
 
+.lp .mcp-uses{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:18px 0 0;font-size:var(--fs-small)}
+.lp .mcp-uses b{margin-right:4px;color:var(--text)}
+.lp .mcp-uses span{padding:5px 11px;border:1px solid var(--line-hi);border-radius:999px;color:var(--text)}
 .lp .mcp-points{list-style:none;margin:18px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 .lp .mcp-points li{padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--deep-2);font-size:var(--fs-small);line-height:1.5;color:var(--dim)}
 .lp .mcp-points b{display:block;margin-bottom:2px;font-size:var(--fs-body);color:var(--text)}
 
-.lp .cases-h{margin-top:34px;font-family:var(--f-disp);font-weight:800;font-size:var(--fs-h3);text-transform:uppercase}
-.lp .study-flow{list-style:none;margin:20px 0 0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.lp .study-flow li{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:#061716;font-size:var(--fs-small);color:var(--text)}
-.lp .study-flow b{flex:none;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--lime);color:var(--ink);font-family:var(--f-code);font-size:12px}
-.lp .study-flow li:nth-child(n+4) b{background:#E8C55A}
-.lp .study-flow li:last-child b{background:var(--em)}
-@media (max-width:520px){.lp .study-flow{grid-template-columns:1fr}}
-.lp .study-guards{list-style:none;margin:0;padding:0;display:grid;gap:8px;align-content:start}
-.lp .study-guards li{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#061716;font-size:var(--fs-small);line-height:1.45;color:var(--dim)}
-.lp .study-guards b{display:block;margin-bottom:1px;color:var(--text)}
-.lp .cases{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px}
-.lp .case-more{display:flex;flex-direction:column;border-style:dashed}
-.lp .case-more .see{margin-top:auto;padding-top:12px;font-size:var(--fs-small);font-weight:600;color:var(--lime);text-decoration:none}
-.lp .case-more .see:hover{text-decoration:underline}
-.lp .case{padding:18px 20px 20px;border:1px solid var(--line);border-radius:12px;background:var(--deep-2)}
-.lp .case h4{margin:0;font-family:var(--f-disp);font-weight:800;font-size:var(--fs-h3);line-height:1.1;text-transform:uppercase}
-.lp .case p{margin:10px 0 0;font-size:var(--fs-body);line-height:1.55;color:var(--text)}
-.lp .case .eyebrow{margin:0 0 8px}
-.lp .study{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;margin-top:14px;padding:22px 24px;border:1px solid rgba(163,230,53,.35);border-radius:14px;background:radial-gradient(120% 140% at 0% 0%,rgba(163,230,53,.07),transparent 60%),var(--deep-2)}
-.lp .study h4{margin:0;font-family:var(--f-disp);font-weight:800;font-size:clamp(22px,2.2vw,28px);line-height:1.08;text-transform:uppercase}
-.lp .study-main > p{margin:10px 0 0;font-size:var(--fs-body);line-height:1.6;color:var(--text)}
-.lp .study-main > .eyebrow{margin:0 0 8px}
 
 @media (max-width:900px){
   .lp .mcp{grid-template-columns:1fr;gap:12px;padding:14px}
   .lp .mcp-wire{display:none}
-  .lp .mcp-points,.lp .cases,.lp .study{grid-template-columns:1fr}
+  .lp .mcp .mcp-db{display:none} /* phones: chat and server tell the story; the bubbles say what was booked */
+  .lp .mcp-points{grid-template-columns:1fr}
 }
 
 /* ───── the timeline ───── */
