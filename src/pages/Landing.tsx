@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type RefObject } from "react"
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react"
 import { Link } from "@tanstack/react-router"
 import { useExploreDemo } from "@/app/AppShell"
 import { AUTHOR, EVIDENCE, TOP_TESTS, contactLinks, repoUrl } from "@/lib/author"
+import { FILES, SRC, hl } from "./landing/repoSource"
 import { CodeHero } from "./landing/CodeHero"
 import { AskYourData } from "./landing/AskYourData"
 import { MoveYourData } from "./landing/MoveYourData"
@@ -115,6 +116,7 @@ export function Landing() {
           <div className="wrap">
             <Offer />
             <HowItWorks />
+            <WhoSeesWhat />
             <AskYourData />
             <MoveYourData />
             <Skills />
@@ -171,6 +173,73 @@ export function Landing() {
         </div>
       </main>
     </div>
+  )
+}
+
+/* ───────────────────────── 2 · try it: same query, different rows ───────────────────────── */
+
+// Company names and memberships from supabase/seed.sql.
+const ENTS = ["Danube Office Park", "Riverside Retail Park", "Lindenhof Residences", "Westgate Logistics Hub"]
+const ROLES = {
+  admin: { who: "admin@demo.local", see: [0, 1, 2, 3], line: 3, note: "The admin passes the first test, is_admin(), so every company comes back." },
+  manager: { who: "manager@demo.local", see: [0, 1], line: 4, note: "A manager isn't an admin, so only the companies on their membership list come back." },
+  viewer: { who: "viewer@demo.local", see: [0], line: 4, note: "This viewer was invited to one company. The other three never leave the database." },
+} as const
+type RoleKey = keyof typeof ROLES
+
+function WhoSeesWhat() {
+  const [role, setRole] = useState<RoleKey>("admin")
+  const [shown, setShown] = useState<RoleKey>("admin")
+  const [scanKey, setScanKey] = useState(0)
+  const policy = useMemo(() => hl(SRC.rls.split("\n").slice(3).join("\n")).split("\n"), [])
+
+  function pick(k: RoleKey) {
+    setRole(k)
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { setShown(k); return }
+    setScanKey((n) => n + 1)
+    window.setTimeout(() => setShown(k), 380)
+  }
+  const R = ROLES[shown]
+  return (
+    <section className="sec" id="rls">
+      <div className="sec-head">
+        <p className="eyebrow">01 · Reporting · try it</p>
+        <h2>Who sees what? The database decides.</h2>
+        <p>
+          Three people run the same query. Pick one and watch what comes back — the database itself refuses the rest,
+          not the website.
+        </p>
+      </div>
+      <div className="rls">
+        <div className="rls-box">
+          <div className="seg" role="group" aria-label="Signed in as">
+            {(Object.keys(ROLES) as RoleKey[]).map((k) => (
+              <button key={k} aria-pressed={role === k} onClick={() => pick(k)}>{k}</button>
+            ))}
+          </div>
+          <div className="q"><code>select name from companies</code><span>as {ROLES[role].who}</span></div>
+          <div className="rows">
+            {scanKey > 0 && <div key={scanKey} className="scan go" />}
+            {ENTS.map((n, i) => {
+              const ok = (R.see as readonly number[]).includes(i)
+              return (
+                <div key={n} className={`erow${ok ? "" : " out"}`}>
+                  <span className="ic" /><span className="nm">{n}</span><span className="why">{ok ? "returned" : "hidden by the policy"}</span>
+                </div>
+              )
+            })}
+          </div>
+          <div className="count"><b>{R.see.length}</b><span>{R.see.length === 1 ? "company returned" : "companies returned"}</span></div>
+        </div>
+        <div className="pol">
+          <p className="pol-title">The rule that decides it</p>
+          <pre>{policy.map((l, i) => <span key={i} className={`ln${i === R.line ? " hl" : ""}`} dangerouslySetInnerHTML={{ __html: l || " " }} />)}</pre>
+          <p className="pol-note">{R.note}</p>
+          <a className="path" href={repoUrl(FILES.rls)} target="_blank" rel="noreferrer">the migration ↗</a>
+        </div>
+      </div>
+      <p className="fine">A replay of the demo's memberships. In the live demo, X-ray → RLS signs in as each person and runs it against Postgres.</p>
+    </section>
   )
 }
 
