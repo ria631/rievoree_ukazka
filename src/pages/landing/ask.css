@@ -7,7 +7,7 @@
 
    Timeline (s): question 0.3 · thinking 1.0–2.6 · read_data 1.6–3.6 ·
    rows 2.6–4.4 · answer 4.4 · second ask 6.0 · propose_change 6.8–8.6 ·
-   pending row 7.8 · "waiting" 8.2 · approved 9.6 · booked 10.0 ·
+   pending row 7.8 · "waiting" 8.2 · review 8.7–9.5 · approved 9.6 · booked 10.0 ·
    confirmation 10.4 · fade 13.3–13.9 */
 
 .lp .eyebrow{font-family:var(--f-code);font-size:var(--fs-code);font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--lime);margin-bottom:10px}
@@ -23,57 +23,72 @@
 
 /* chat */
 .lp .mcp-msgs{display:flex;flex-direction:column;gap:8px;padding:14px;flex:1}
-.lp .b{margin:0;max-width:92%;padding:9px 12px;border-radius:12px;font-size:var(--fs-small);line-height:1.45}
-.lp .b p{margin:0}
-.lp .b.me{align-self:flex-end;background:var(--lime);color:var(--ink);border-bottom-right-radius:4px;font-weight:500}
-.lp .b.ai{align-self:flex-start;background:var(--deep-3);color:var(--text);border:1px solid var(--line);border-bottom-left-radius:4px}
-.lp .b.ai b{color:var(--lime)}
-.lp .b.think{display:none;gap:4px;padding:12px 14px}
-.lp .b.think i{width:6px;height:6px;border-radius:50%;background:var(--dim)}
+.lp .mcp .b{margin:0;max-width:92%;padding:9px 12px;border-radius:12px;font-size:var(--fs-small);line-height:1.45}
+.lp .mcp .b p{margin:0}
+.lp .mcp .b.me{align-self:flex-end;background:var(--lime);color:var(--ink);border-bottom-right-radius:4px;font-weight:500}
+.lp .mcp .b.ai{align-self:flex-start;background:var(--deep-3);color:var(--text);border:1px solid var(--line);border-bottom-left-radius:4px}
+.lp .mcp .b.ai b{color:var(--lime)}
+.lp .mcp .b.think{display:none;gap:4px;padding:12px 14px}
+.lp .mcp .b.think i{width:6px;height:6px;border-radius:50%;background:var(--dim)}
 
 /* wires + packets */
 .lp .mcp-wire{position:relative;align-self:center;height:2px;margin:0 6px;background:linear-gradient(90deg,var(--line-hi),var(--line-hi))}
-.lp .pk{position:absolute;top:-4px;left:0;width:10px;height:10px;border-radius:50%;background:var(--lime);box-shadow:0 0 10px rgba(163,230,53,.8);opacity:0}
-.lp .pk.back{background:var(--teal);box-shadow:0 0 10px rgba(93,207,218,.8)}
+.lp .mcp .pk{position:absolute;top:-4px;left:0;width:10px;height:10px;border-radius:50%;background:var(--lime);box-shadow:0 0 10px rgba(163,230,53,.8);opacity:0}
+.lp .mcp .pk.back{background:var(--teal);box-shadow:0 0 10px rgba(93,207,218,.8)}
 
 /* MCP server */
-.lp .tools{list-style:none;margin:0;padding:10px;display:grid;gap:6px}
-.lp .tools li{position:relative;display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--line);border-radius:8px}
-.lp .tools li::after,.lp .tbls li::after{content:"";position:absolute;inset:-1px;border-radius:inherit;border:1px solid var(--lime);background:rgba(163,230,53,.09);opacity:0;pointer-events:none}
-.lp .tools code{font-family:var(--f-code);font-size:var(--fs-code);color:var(--lime)}
-.lp .tools span{font-size:12.5px;color:var(--dim)}
-.lp .appr{position:relative;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:4px 10px;margin:0 10px 10px;padding:9px 12px;border-radius:8px;border:1px dashed rgba(232,197,90,.6);background:rgba(232,197,90,.07);font-size:var(--fs-small)}
-.lp .appr .who{font-weight:600;color:#E8C55A}
-.lp .appr .st{grid-column:2;grid-row:1;color:var(--text)}
-.lp .appr .wait{opacity:0}
-.lp .appr .ok{color:var(--em);font-weight:600}
+.lp .mcp .tools{list-style:none;margin:0;padding:10px;display:grid;gap:6px}
+.lp .mcp .tools li{position:relative;display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--line);border-radius:8px}
+.lp .mcp .tools li::after,.lp .mcp .tbls li::after{content:"";position:absolute;inset:-1px;border-radius:inherit;border:1px solid var(--lime);background:rgba(163,230,53,.09);opacity:0;pointer-events:none}
+.lp .mcp .tools code{font-family:var(--f-code);font-size:var(--fs-code);color:var(--lime)}
+.lp .mcp .tools span{font-size:12.5px;color:var(--dim)}
+.lp .mcp .appr{position:relative;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:4px 10px;margin:0 10px 10px;padding:9px 12px;border-radius:8px;border:1px dashed rgba(232,197,90,.6);background:rgba(232,197,90,.07);font-size:var(--fs-small)}
+.lp .mcp .appr .who{font-weight:600;color:#E8C55A}
+.lp .mcp .appr .st{grid-column:2;grid-row:1;color:var(--text)}
+.lp .mcp .appr .wait{opacity:0}
+.lp .mcp .appr .ok{color:var(--em);font-weight:600}
 
 /* database */
-.lp .tbls{list-style:none;margin:0;padding:10px;display:grid;gap:6px}
-.lp .tbls li{position:relative;display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-family:var(--f-code);font-size:var(--fs-code);color:var(--text)}
-.lp .tbls li:last-child{color:var(--dim)}
-.lp .tbls li span{font-family:var(--f-ui);font-size:12.5px;color:var(--dim)}
-.lp .tbls li .pend{display:none;color:#E8C55A}
-.lp .tbls li .done{color:var(--em)}
-.lp .lock{margin:auto 10px 10px;padding-top:8px;font-family:var(--f-code);font-size:12px;color:#F59186}
+.lp .mcp .tbls{list-style:none;margin:0;padding:10px;display:grid;gap:6px}
+.lp .mcp .tbls li{position:relative;display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-family:var(--f-code);font-size:var(--fs-code);color:var(--text)}
+.lp .mcp .tbls li:last-child{color:var(--dim)}
+.lp .mcp .tbls li span{font-family:var(--f-ui);font-size:12.5px;color:var(--dim)}
+.lp .mcp .tbls li .pend{display:none;color:#E8C55A}
+.lp .mcp .tbls li .done{color:var(--em)}
+.lp .mcp .lock{margin:auto 10px 10px;padding-top:8px;font-family:var(--f-code);font-size:12px;color:#F59186}
 
 .lp .mcp-points{list-style:none;margin:18px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 .lp .mcp-points li{padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--deep-2);font-size:var(--fs-small);line-height:1.5;color:var(--dim)}
 .lp .mcp-points b{display:block;margin-bottom:2px;font-size:var(--fs-body);color:var(--text)}
 
 .lp .cases-h{margin-top:34px;font-family:var(--f-disp);font-weight:800;font-size:var(--fs-h3);text-transform:uppercase}
-.lp .cases{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:14px}
+.lp .study-guards{list-style:none;margin:0;padding:0;display:grid;gap:8px;align-content:start}
+.lp .study-guards li{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#061716;font-size:var(--fs-small);line-height:1.45;color:var(--dim)}
+.lp .study-guards b{display:block;margin-bottom:1px;color:var(--text)}
+.lp .cases{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px}
+.lp .case-more{display:flex;flex-direction:column;border-style:dashed}
+.lp .case-more .see{margin-top:auto;padding-top:12px;font-size:var(--fs-small);font-weight:600;color:var(--lime);text-decoration:none}
+.lp .case-more .see:hover{text-decoration:underline}
 .lp .case{padding:18px 20px 20px;border:1px solid var(--line);border-radius:12px;background:var(--deep-2)}
 .lp .case h4{margin:0;font-family:var(--f-disp);font-weight:800;font-size:var(--fs-h3);line-height:1.1;text-transform:uppercase}
 .lp .case p{margin:10px 0 0;font-size:var(--fs-body);line-height:1.55;color:var(--text)}
 .lp .case .eyebrow{margin:0 0 8px}
 .lp .case .chips{display:flex;flex-wrap:wrap;gap:6px}
-.lp .case .chips code{padding:3px 8px;border:1px solid var(--line-hi);border-radius:999px;font-family:var(--f-code);font-size:12px;color:var(--em)}
+.lp .study{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;margin-top:14px;padding:22px 24px;border:1px solid rgba(163,230,53,.35);border-radius:14px;background:radial-gradient(120% 140% at 0% 0%,rgba(163,230,53,.07),transparent 60%),var(--deep-2)}
+.lp .study h4{margin:0;font-family:var(--f-disp);font-weight:800;font-size:clamp(22px,2.2vw,28px);line-height:1.08;text-transform:uppercase}
+.lp .study-main > p{margin:10px 0 0;font-size:var(--fs-body);line-height:1.6;color:var(--text)}
+.lp .study-main > .eyebrow{margin:0 0 8px}
+.lp .study-stats{display:flex;flex-wrap:wrap;gap:10px 28px;margin:18px 0 0}
+.lp .study-stats div{display:flex;flex-direction:column}
+.lp .study-stats dt{font-family:var(--f-disp);font-weight:800;font-size:34px;line-height:1;color:var(--lime)}
+.lp .study-stats dd{margin:4px 0 0;font-size:12.5px;color:var(--dim)}
+.lp .study .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}
+.lp .study .chips code,.lp .case .chips code{padding:3px 8px;border:1px solid var(--line-hi);border-radius:999px;font-family:var(--f-code);font-size:12px;color:var(--em)}
 
 @media (max-width:900px){
   .lp .mcp{grid-template-columns:1fr;gap:12px;padding:14px}
   .lp .mcp-wire{display:none}
-  .lp .mcp-points,.lp .cases{grid-template-columns:1fr}
+  .lp .mcp-points,.lp .cases,.lp .study{grid-template-columns:1fr}
 }
 
 /* ───── the timeline ───── */
@@ -81,32 +96,32 @@
   .lp .mcp .a,.lp .mcp .a::after{animation-duration:14s;animation-timing-function:ease;animation-iteration-count:infinite}
   .lp .mcp:not(.on) .a,.lp .mcp:not(.on) .a::after{animation-play-state:paused}
 
-  .lp .b.think{display:flex}
-  .lp .q1{animation-name:mcp-q1}
-  .lp .t1{animation-name:mcp-t1}
-  .lp .r1{animation-name:mcp-r1}
-  .lp .q2{animation-name:mcp-q2}
-  .lp .r2{animation-name:mcp-r2}
-  .lp .r3{animation-name:mcp-r3}
-  .lp .tools .k2::after{animation-name:mcp-k2}
-  .lp .tools .k3::after{animation-name:mcp-k3}
-  .lp .tools .k4::after{animation-name:mcp-k4}
-  .lp .tbls .d1::after,.lp .tbls .d2::after{animation-name:mcp-rows}
-  .lp .tbls .d3::after{animation-name:mcp-d3}
-  .lp .tbls .d3 .pend{display:block}
-  .lp .tbls .d3 .pend{animation:mcp-pend 14s ease infinite}
-  .lp .tbls .d3 .done{animation:mcp-done 14s ease infinite}
+  .lp .mcp .b.think{display:flex}
+  .lp .mcp .q1{animation-name:mcp-q1}
+  .lp .mcp .t1{animation-name:mcp-t1}
+  .lp .mcp .r1{animation-name:mcp-r1}
+  .lp .mcp .q2{animation-name:mcp-q2}
+  .lp .mcp .r2{animation-name:mcp-r2}
+  .lp .mcp .r3{animation-name:mcp-r3}
+  .lp .mcp .tools .k2::after{animation-name:mcp-k2}
+  .lp .mcp .tools .k3::after{animation-name:mcp-k3}
+  .lp .mcp .tools .k4::after{animation-name:mcp-k4}
+  .lp .mcp .tbls .d1::after,.lp .mcp .tbls .d2::after{animation-name:mcp-rows}
+  .lp .mcp .tbls .d3::after{animation-name:mcp-d3}
+  .lp .mcp .tbls .d3 .pend{display:block}
+  .lp .mcp .tbls .d3 .pend{animation:mcp-pend 14s ease infinite}
+  .lp .mcp .tbls .d3 .done{animation:mcp-done 14s ease infinite}
   .lp .mcp:not(.on) .tbls .d3 span{animation-play-state:paused}
-  .lp .ap{animation-name:mcp-ap}
-  .lp .appr .wait{animation:mcp-wait 14s ease infinite}
-  .lp .appr .ok{animation:mcp-ok 14s ease infinite}
+  .lp .mcp .ap{animation-name:mcp-ap}
+  .lp .mcp .appr .wait{animation:mcp-wait 14s ease infinite}
+  .lp .mcp .appr .ok{animation:mcp-ok 14s ease infinite}
   .lp .mcp:not(.on) .appr .st{animation-play-state:paused}
-  .lp .p1{animation-name:mcp-p1;animation-timing-function:linear}
-  .lp .p1b{animation-name:mcp-p1b;animation-timing-function:linear}
-  .lp .p2b{animation-name:mcp-p2b;animation-timing-function:linear}
-  .lp .p2{animation-name:mcp-p2;animation-timing-function:linear}
-  .lp .p3{animation-name:mcp-p3;animation-timing-function:linear}
-  .lp .p3b{animation-name:mcp-p3b;animation-timing-function:linear}
+  .lp .mcp .p1{animation-name:mcp-p1;animation-timing-function:linear}
+  .lp .mcp .p1b{animation-name:mcp-p1b;animation-timing-function:linear}
+  .lp .mcp .p2b{animation-name:mcp-p2b;animation-timing-function:linear}
+  .lp .mcp .p2{animation-name:mcp-p2;animation-timing-function:linear}
+  .lp .mcp .p3{animation-name:mcp-p3;animation-timing-function:linear}
+  .lp .mcp .p3b{animation-name:mcp-p3b;animation-timing-function:linear}
 }
 
 /* bubbles: in, stay, fade with the loop */
@@ -120,7 +135,7 @@
 /* highlights (the ::after layers) */
 @keyframes mcp-k2{0%,11.5%{opacity:0}13%,24%{opacity:1}26%,100%{opacity:0}}
 @keyframes mcp-k3{0%,48.5%{opacity:0}50%,60%{opacity:1}61.5%,100%{opacity:0}}
-@keyframes mcp-k4{0%,67%{opacity:0}68.5%,74%{opacity:1}75.7%,100%{opacity:0}}
+@keyframes mcp-k4{0%,60.5%{opacity:0}62%,68%{opacity:1}69.5%,100%{opacity:0}}
 @keyframes mcp-rows{0%,18.5%{opacity:0}20%,29.5%{opacity:1}31%,100%{opacity:0}}
 @keyframes mcp-d3{0%,55.7%{opacity:0}57%,70%{opacity:1}72%,100%{opacity:0}}
 
@@ -142,5 +157,5 @@
 @keyframes mcp-p3b{0%,51.5%{opacity:0;transform:translateX(0)}52%{opacity:1}55.7%{opacity:1;transform:translateX(24px)}56.2%,100%{opacity:0;transform:translateX(24px)}}
 
 /* the proposed and the booked line share one spot */
-.lp .tbls li.d3{display:grid}
-.lp .tbls li.d3 > span{grid-row:2;grid-column:1}
+.lp .mcp .tbls li.d3{display:grid}
+.lp .mcp .tbls li.d3 > span{grid-row:2;grid-column:1}

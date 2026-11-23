@@ -13,13 +13,23 @@ import "./ask.css"
  * shows the finished conversation.
  */
 
+/** Built by me for an accounting firm (anonymised; facts from the project's spec and tests). */
+const STUDY = {
+  kind: "Accounting firm · built by me",
+  title: "Claude inside the books — without opening the books to the world",
+  body: "The firm's accountants work with Claude (claude.ai and Claude Code) directly on their accounting database. It reads documents and ledgers across their client companies, opens invoice PDFs, and prepares postings as change sets. A second model reviews each change set, an accountant approves it in the firm's own app, and only then is anything written. Routine documents can run as scheduled background jobs.",
+  guards: [
+    ["Company sign-in + MFA", "Microsoft Entra ID, a second factor, and OAuth 2.1 with one approved client."],
+    ["No master key", "The server holds no database password. It acts with the person's own token, through a gate checked on every call."],
+    ["Only what that person may see", "Approved columns only, only their client companies (row-level security), an hourly and daily data budget, every read logged."],
+    ["No free SQL, ever", "Text coming out of the data is treated as untrusted, so instructions hidden in a document can't steer the AI."],
+    ["One switch stops it", "A single setting cuts all AI access at once; every change is in an audit log."],
+  ],
+  stats: [["9", "MCP tools"], ["931", "database tests (pgTAP)"], ["25", "releases, each with verify + rollback"]],
+  tools: ["whoami", "describe_structure", "read_data", "read_file", "propose_change", "changeset_submit", "review_poll"],
+}
+
 const CASES = [
-  {
-    kind: "Accounting firm",
-    title: "AI that works inside the books",
-    body: "The team's AI reads the document inbox and the ledger in their accounting system, proposes postings as a change set, a second model double-checks them, and an accountant approves before anything reaches the books. Tax estimates and year-end checks run straight from the ledger.",
-    tools: ["describe_structure", "read_data", "propose_change", "review → approve"],
-  },
   {
     kind: "Document management",
     title: "Approvals by chat",
@@ -49,7 +59,7 @@ export function AskYourData() {
         </p>
       </div>
 
-      <div ref={ref} className="mcp" aria-label="Animation: a question in an AI chat goes through an MCP server to the company's database and back with an answer; a booking is proposed, approved by an accountant, then written.">
+      <div ref={ref} className="mcp" aria-label="Animation: a question in an AI chat goes through an MCP server to the company's database and back with an answer; a booking is proposed, checked by a second model, approved by an accountant, then written.">
         <div className="mcp-col mcp-chat">
           <div className="mcp-head"><i className="dot" />Your AI assistant</div>
           <div className="mcp-msgs">
@@ -60,7 +70,7 @@ export function AskYourData() {
               <p><b>3 invoices</b> unpaid, €12,900 — the oldest 41 days.</p>
             </div>
             <p className="b me a q2">Book the new electricity invoice.</p>
-            <div className="b ai a r2"><p>Proposed — waiting for your accountant.</p></div>
+            <div className="b ai a r2"><p>Proposed and double-checked — waiting for your accountant.</p></div>
             <div className="b ai a r3"><p>Approved and booked. Logged as change <b>#2841</b>.</p></div>
           </div>
         </div>
@@ -73,7 +83,7 @@ export function AskYourData() {
             <li className="a k1"><code>describe_structure</code><span>what's in the database</span></li>
             <li className="a k2"><code>read_data</code><span>only rows this person may see</span></li>
             <li className="a k3"><code>propose_change</code><span>a draft, never a direct write</span></li>
-            <li className="a k4"><code>approve</code><span>a person signs it off</span></li>
+            <li className="a k4"><code>review</code><span>a second model checks it</span></li>
           </ul>
           <div className="appr a ap">
             <span className="who">Accountant</span>
@@ -103,6 +113,20 @@ export function AskYourData() {
       </ul>
 
       <h3 className="cases-h">From client work</h3>
+      <article className="study">
+        <div className="study-main">
+          <p className="eyebrow">{STUDY.kind}</p>
+          <h4>{STUDY.title}</h4>
+          <p>{STUDY.body}</p>
+          <dl className="study-stats">
+            {STUDY.stats.map(([n, t]) => <div key={t}><dt>{n}</dt><dd>{t}</dd></div>)}
+          </dl>
+          <p className="chips">{STUDY.tools.map((t) => <code key={t}>{t}</code>)}</p>
+        </div>
+        <ul className="study-guards">
+          {STUDY.guards.map(([t, d]) => <li key={t}><b>{t}</b>{d}</li>)}
+        </ul>
+      </article>
       <div className="cases">
         {CASES.map((c) => (
           <article key={c.title} className="case">
@@ -112,6 +136,12 @@ export function AskYourData() {
             <p className="chips">{c.tools.map((t) => <code key={t}>{t}</code>)}</p>
           </article>
         ))}
+        <article className="case case-more">
+          <p className="eyebrow">Your company</p>
+          <h4>Your AI, your database</h4>
+          <p>Claude, ChatGPT or Copilot on your accounting system, ERP, CRM or document store — read-only to start, with writes added only where you want a person to approve them.</p>
+          <a className="see" href="#contact">Talk to me →</a>
+        </article>
       </div>
       <p className="fine">
         Why there's no public MCP to try here: an MCP opens a real database to an AI. It's built for each client — on
