@@ -7,7 +7,7 @@
 -- Self-contained; rolls back.
 begin;
 create extension if not exists pgtap;
-select plan(27);
+select plan(28);
 
 -- How many rows can the current role see? A permission error counts as none.
 create or replace function pg_temp.visible_rows(p_rel text) returns bigint
@@ -46,11 +46,20 @@ select is(
     where n.nspname = 'public' and c.relkind in ('r', 'p') and not c.relrowsecurity),
   0, 'every table in the public schema has RLS enabled');
 
--- 2. The fixture is really there (so the zeros below mean something).
+-- 2. Grants are the first layer: anon holds nothing in the public schema but
+--    INSERT on the two write-only boxes (leads, tour_feedback).
+select is(
+  (select coalesce(string_agg(table_name || ':' || privilege_type, ', ' order by table_name, privilege_type), '')
+     from information_schema.role_table_grants
+    where grantee = 'anon' and table_schema = 'public'
+      and not (table_name in ('leads', 'tour_feedback') and privilege_type = 'INSERT')),
+  '', 'anon holds no table privilege but INSERT on leads and tour_feedback');
+
+-- 3. The fixture is really there (so the zeros below mean something).
 select ok(pg_temp.visible_rows('public.entities') > 0 and pg_temp.visible_rows('public.profiles') > 0,
   'fixture: the owner sees companies and profiles');
 
--- 3. Now as the anonymous API caller.
+-- 4. Now as the anonymous API caller.
 select set_config('role', 'anon', true);
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 

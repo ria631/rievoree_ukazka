@@ -176,7 +176,7 @@ export function Ingest() {
       {isDemo && (
         <OwnWorkspacePrompt compact
           title="Upload your own documents in your workspace"
-          body="The shared demo is read-only: look through the uploads and the review queue here. In your own workspace you upload CSV or Excel exports, review what the checks flag, and approve them into the reports." />
+          body="The companies and files on this page are fictional sample data in a shared, read-only demo account. In your own workspace you upload your CSV or Excel exports, review what the checks flag and approve them into the reports — and only the people you invite can see them." />
       )}
 
       {canManage(role) && <UploadGuide />}

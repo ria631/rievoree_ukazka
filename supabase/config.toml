@@ -435,6 +435,13 @@ verify_jwt = false
 enabled = true
 verify_jwt = true
 
+# The public way into the shared demo: a visitor has no session yet, so the
+# platform must not require one. The function rate-limits and only ever issues
+# the four demo identities.
+[functions.demo-session]
+enabled = true
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

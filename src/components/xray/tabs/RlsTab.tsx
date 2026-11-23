@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 import { createInstrumentedFetch } from "@/lib/xray/instrumentedFetch"
 import { useXrayPanel } from "@/components/xray/XrayPanelContext"
 import { useAuth } from "@/lib/auth/useAuth"
-import { supabase } from "@/lib/supabase"
+import { demoTokensFor, switchDemoIdentity } from "@/lib/demoSession"
 
 /**
  * RLS — "same query, three identities". The core demo moment: run the IDENTICAL
@@ -21,7 +21,6 @@ import { supabase } from "@/lib/supabase"
 
 // LOCAL + remote demo accounts. The shared password is the public demo
 // password, never a real secret; these accounts are DB-locked to read-only.
-const DEMO_PASSWORD = "demo123456"
 
 type Role = "viewer" | "manager" | "admin"
 
@@ -47,21 +46,19 @@ interface RunResult {
 const URL_ = import.meta.env.VITE_SUPABASE_URL as string
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 
-/** Sign in as `email`, run THE query under that JWT, end that one session.
- *  No second auth client (no GoTrueClient warnings, nothing touches the app's
- *  storage). Instrumented, so the calls still show up on the X-ray CALLS tab. */
+/** Get a session for `email` (from the demo-session function, asked with the
+ *  current demo session — no password exists), run THE query under that JWT,
+ *  end that one session. No second auth client (no GoTrueClient warnings,
+ *  nothing touches the app's storage). Instrumented, so the calls show up on
+ *  the X-ray CALLS tab. */
 async function probeAs(email: string): Promise<RunResult> {
   const fetchX = createInstrumentedFetch()
-  const res = await fetchX(`${URL_}/auth/v1/token?grant_type=password`, {
-    method: "POST",
-    headers: { apikey: KEY, "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password: DEMO_PASSWORD }),
-  })
-  const auth = await res.json().catch(() => ({}))
-  if (!res.ok || !auth.access_token) {
-    return { count: 0, names: [], error: auth.msg ?? auth.error_description ?? `sign-in failed (${res.status})` }
+  let token: string
+  try {
+    token = (await demoTokensFor(email, fetchX)).access_token
+  } catch (e) {
+    return { count: 0, names: [], error: e instanceof Error ? e.message : "sign-in failed" }
   }
-  const token = auth.access_token as string
   try {
     // The identical query, now under this identity's JWT → RLS decides rows.
     const probe = createClient(URL_, KEY, { accessToken: async () => token, global: { fetch: fetchX } })
@@ -89,9 +86,8 @@ export function RlsTab() {
   // Demo only: sign the APP in as this shared demo identity (all read-only).
   async function switchApp(role: Role, email: string) {
     setSwitching(role); setSwitchErr(null)
-    const { error } = await supabase.auth.signInWithPassword({ email, password: DEMO_PASSWORD })
+    try { await switchDemoIdentity(email) } catch (e) { setSwitchErr(e instanceof Error ? e.message : "switch failed") }
     setSwitching(null)
-    if (error) setSwitchErr(error.message)
   }
   const [results, setResults] = useState<Partial<Record<Role, RunResult>>>({})
   const [busy, setBusy] = useState<Role | null>(null)

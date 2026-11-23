@@ -441,7 +441,7 @@ export function Desk() {
 
       {/* props under the story */}
       <div className="dk-o dk-calc" style={at(-26, 420, 150, 190, 14, 1.3)}><Calculator /></div>
-      <div className="dk-o dk-pencil" style={at(560, 508, 220, 16, -5, 0.9)}><Pencil /></div>
+      <div className="dk-o dk-pencil" style={at(860, 512, 220, 16, -5, 0.9)}><Pencil /></div>
       <div className="dk-o dk-tab" style={at(1000, 196, 190, 270, 4, 1.2)}><Tablet /></div>
       <div className="dk-o dk-cup" style={at(1046, 30, 130, 120, -8, 1.6)}><Coffee /></div>
       <div className="dk-o dk-steam" style={at(1062, -40, 80, 90, 0, 1.9)}><Steam /></div>

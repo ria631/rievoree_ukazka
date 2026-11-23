@@ -21,6 +21,7 @@ supabase functions deploy notify-review
 supabase functions deploy connector-webhook
 supabase functions deploy admin-users
 supabase functions deploy classify-accounts
+supabase functions deploy demo-session --no-verify-jwt
 ```
 
 Secrets they read:
@@ -72,8 +73,29 @@ select jobname, schedule, active from cron.job order by jobname;
 
 ## 5. The shared demo
 
-- Demo identities (`*@demo.local`, password `demo123456`) are read-only in the
-  database (`profiles.is_demo`); `reset_demo_state()` runs hourly.
+- **The only way in is the e-mail gate.** "Open the demo" asks for an e-mail
+  and calls the `demo-session` edge function, which records the e-mail in
+  `public.leads` (source `demo`), rate-limits per hashed address
+  (`public.demo_session_gate`: 8 entries / 120 role switches per 10 min) and
+  mints a session for the demo identity with the service role — no password.
+  The role switch, the guided tour and the X-ray RLS tab get their sessions the
+  same way. The demo accounts' passwords are random and unknown, so the sign-in
+  form and the Auth API can't open them.
+- **Switching an existing project over** (order matters — the live site keeps
+  working at every step):
+  1. `supabase db push` (adds the gate),
+  2. `supabase functions deploy demo-session --no-verify-jwt`,
+  3. merge and let Vercel deploy the app that uses it,
+  4. run `supabase/ops/lock_demo_passwords.sql` once in the SQL Editor.
+- **Leads:** Table Editor → `leads`, or
+  ```sql
+  select email, source, created_at from public.leads order by created_at desc;
+  ```
+  The landing promises the e-mail is used only to follow up about the project
+  and deleted on request: `delete from public.leads where lower(email) = lower('<address>');`
+- Demo identities (`*@demo.local`) are read-only in the database
+  (`profiles.is_demo`); `reset_demo_state()` runs hourly. Locally, `seed.sql`
+  still gives them the password `demo123456` (for local testing only).
 - A demo identity lists only demo identities (migration `20261121000001`).
   Real accounts should not be members of the sample companies at all — check:
   ```sql

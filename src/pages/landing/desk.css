@@ -11,7 +11,7 @@
    animates inside an SVG, so the compositor carries it without repaints. */
 
 
-.lp .desk-wrap{position:relative;margin:0 0 26px}
+.lp .desk-wrap{position:relative;margin:0 0 26px;container-type:inline-size}
 .lp .desk{position:relative;aspect-ratio:1200/560;container-type:inline-size;--u:calc(100cqw / 1200);border-radius:18px;overflow:hidden;border:1px solid var(--line);background:#0B2A26;isolation:isolate;user-select:none}
 .lp .dk-mat{position:absolute;inset:0;
   background:
@@ -283,24 +283,35 @@
 .lp .dk-skel .tests text{font-size:11.5px;font-weight:600;fill:#D9F99D;text-anchor:middle}
 /* the skeleton itself is still: the film's wipe is what reveals it */
 
-/* ─────────── the caption: what this act is doing ─────────── */
-/* the bar under the desk: which act (dots), what it's doing (caption), the X-ray toggle */
-.lp .dk-bar{display:flex;align-items:center;gap:16px;margin-top:14px;padding:10px 12px 10px 16px;border:1px solid var(--line);border-radius:14px;background:var(--deep-2)}
+/* ─────────── the caption: what this act is doing, on the desk itself ───────────
+   Pinned to the desk's bottom edge (its height is 560/1200 of the wrap's width,
+   so cqw places it exactly), centred, above everything in the scene. */
+.lp .dk-cap{position:absolute;left:50%;top:calc(100cqw * 560 / 1200 - 18px);z-index:6;display:grid;justify-items:center;width:calc(100% - 48px);
+  transform:translate(-50%,-100%);pointer-events:none}
+.lp .dk-cap span{grid-area:1/1;display:flex;align-items:center;gap:12px;max-width:100%;padding:9px 18px 9px 9px;border-radius:999px;
+  background:rgba(4,17,15,.93);border:1px solid rgba(163,230,53,.5);box-shadow:0 14px 32px -14px rgba(0,0,0,.85);
+  font-size:var(--fs-body);line-height:1.35;color:var(--text);opacity:0;transform:translateY(6px);transition:opacity .35s ease,transform .35s ease}
+.lp .dk-cap b{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--lime);color:var(--ink);font-family:var(--f-code);font-size:var(--fs-code);font-weight:700}
+.lp .dk-cap strong{flex:none;font-family:var(--f-disp);font-weight:800;font-size:var(--fs-h3);line-height:1;text-transform:uppercase;letter-spacing:.02em;color:var(--lime)}
+.lp .flow[data-act="1"] .dk-cap .c1,.lp .flow[data-act="2"] .dk-cap .c2,
+.lp .flow[data-act="3"] .dk-cap .c3,.lp .flow[data-act="4"] .dk-cap .c4,
+.lp .flow[data-act="5"] .dk-cap .c5{opacity:1;transform:none}
+.lp .dk-cap .c5 b{background:#D4F78A}
+.lp .flow.out .dk-cap span{opacity:0}
+@container (max-width:680px){
+  .lp .dk-cap{position:static;transform:none;width:auto;margin-top:10px;justify-items:stretch}
+  .lp .dk-cap span{align-items:flex-start;flex-wrap:wrap;gap:6px 10px;padding:10px 14px;border-radius:12px;font-size:var(--fs-small)}
+  .lp .dk-cap strong{font-size:var(--fs-body)}
+}
+
+/* the bar under the desk: which act (dots) and the X-ray toggle */
+.lp .dk-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:14px;padding:10px 12px 10px 16px;border:1px solid var(--line);border-radius:14px;background:var(--deep-2)}
 .lp .dk-dots{display:flex;gap:6px;margin:0;padding:0;list-style:none;flex:none}
 .lp .dk-dots li{width:22px;height:4px;border-radius:2px;background:var(--line-hi);transition:background-color .35s}
 .lp .flow[data-act="1"] .dk-dots .d1,.lp .flow[data-act="2"] .dk-dots :is(.d1,.d2),
 .lp .flow[data-act="3"] .dk-dots :is(.d1,.d2,.d3),.lp .flow[data-act="4"] .dk-dots :is(.d1,.d2,.d3,.d4),
 .lp .flow[data-act="5"] .dk-dots li{background:var(--lime)}
 .lp .flow[data-act="5"] .dk-dots .d5{background:#D4F78A;box-shadow:0 0 8px rgba(163,230,53,.7)}
-.lp .dk-cap{flex:1;min-width:0;display:grid}
-.lp .dk-cap span{grid-area:1/1;display:flex;align-items:center;gap:10px;min-width:0;font-size:var(--fs-body);line-height:1.35;color:var(--text);
-  opacity:0;transform:translateY(4px);transition:opacity .35s ease,transform .35s ease}
-.lp .dk-cap b{flex:none;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--lime);color:var(--ink);font-family:var(--f-code);font-size:var(--fs-code);font-weight:700}
-.lp .flow[data-act="1"] .dk-cap .c1,.lp .flow[data-act="2"] .dk-cap .c2,
-.lp .flow[data-act="3"] .dk-cap .c3,.lp .flow[data-act="4"] .dk-cap .c4,
-.lp .flow[data-act="5"] .dk-cap .c5{opacity:1;transform:none}
-.lp .dk-cap .c5 b{background:#D4F78A}
-.lp .flow.out .dk-cap span{opacity:0}
 
 /* see the skeleton any time: pins act 5, or goes back to the desk */
 .lp .dk-xbtn{flex:none;display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 16px 0 12px;border-radius:999px;
@@ -308,11 +319,7 @@
   transition:background-color .2s,color .2s}
 .lp .dk-xbtn svg{width:18px;height:18px;flex:none}
 .lp .dk-xbtn:hover,.lp .dk-xbtn[aria-pressed="true"]{background:var(--lime);color:var(--ink)}
-@media (max-width:760px){
-  .lp .dk-bar{flex-wrap:wrap;gap:10px 12px}
-  .lp .dk-cap{flex-basis:100%;order:-1}
-  .lp .dk-cap span{font-size:var(--fs-small)}
-}
+
 
 /* the skeleton as a list, phones only (the desk is too small to read there) */
 .lp .dk-list{margin-top:12px;padding:16px 16px 18px;border:1px solid var(--line-hi);border-radius:14px;background:#061716}
