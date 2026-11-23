@@ -64,6 +64,7 @@
 /* ───── the timeline ───── */
 @media (prefers-reduced-motion:no-preference){
   .lp .mig .a,.lp .mig .a::after{animation-duration:12s;animation-timing-function:ease;animation-iteration-count:infinite}
+  .lp .mig .checks :is(em,i){animation-duration:12s;animation-timing-function:ease;animation-iteration-count:infinite}
   .lp .mig:not(.on) .a,.lp .mig:not(.on) .a::after,.lp .mig:not(.on) .checks :is(em,i){animation-play-state:paused}
 
   .lp .mig-src li{animation-name:mig-dim}
@@ -84,9 +85,9 @@
   .lp .mig .checks .c1{animation-name:mig-c1}
   .lp .mig .checks .c2{animation-name:mig-c2}
   .lp .mig .checks .c3{animation-name:mig-c3}
-  .lp .mig .checks .c1 .w{animation:mig-w1 12s ease infinite} .lp .mig .checks .c1 :is(.v,i){animation:mig-v1 12s ease infinite}
-  .lp .mig .checks .c2 .w{animation:mig-w2 12s ease infinite} .lp .mig .checks .c2 :is(.v,i){animation:mig-v2 12s ease infinite}
-  .lp .mig .checks .c3 .w{animation:mig-w3 12s ease infinite} .lp .mig .checks .c3 :is(.v,i){animation:mig-v3 12s ease infinite}
+  .lp .mig .checks .c1 .w{animation-name:mig-w1} .lp .mig .checks .c1 :is(.v,i){animation-name:mig-v1}
+  .lp .mig .checks .c2 .w{animation-name:mig-w2} .lp .mig .checks .c2 :is(.v,i){animation-name:mig-v2}
+  .lp .mig .checks .c3 .w{animation-name:mig-w3} .lp .mig .checks .c3 :is(.v,i){animation-name:mig-v3}
 
   .lp .mig .gone,.lp .mig .sw{animation-name:mig-sw}
 }
