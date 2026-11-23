@@ -1,160 +1,277 @@
-/* "Rather ask than click?" (AskYourData.tsx): chat → MCP server → database.
+/* "Rather ask than click?" (AskYourData.tsx): the chat your team sees, and
+   what happens behind it (MCP server → database).
 
-   One 14 s timeline. Every animated element has class .a; its keyframes are in
-   percentages of the loop. Without animation (reduced motion) every element
-   shows its final state — the finished conversation. Transform and opacity
-   only (highlights are ::after layers that fade); paused unless .mcp is .on.
-
-   Timeline (s): question 0.3 · thinking 1.0–2.6 · read_data 1.6–3.6 ·
-   rows 2.6–4.4 · answer 4.4 · second ask 6.0 · propose_change 6.8–8.6 ·
-   pending row 7.8 · "waiting" 8.2 · review 8.7–9.5 · approved 9.6 · booked 10.0 ·
-   confirmation 10.4 · fade 13.3–13.9 */
+   One 16 s timeline. Every animated element has class .a; its keyframes are
+   GENERATED from times in seconds by scripts/gen-ask-keyframes.py (the block
+   from "the timeline" on — don't edit it by hand). Transform and opacity only; highlights
+   are ::after layers that fade; paused unless .mcp is .on. Without animation
+   (reduced motion) every element shows its end state: the finished chat. */
 
 .lp .eyebrow{font-family:var(--f-code);font-size:var(--fs-code);font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--lime);margin-bottom:10px}
 .lp .sec-head p b{color:var(--text)}
 
-.lp .mcp{display:grid;grid-template-columns:minmax(0,1.2fr) 44px minmax(0,1fr) 44px minmax(0,.9fr);align-items:stretch;gap:0;
-  padding:22px;border:1px solid var(--line);border-radius:16px;background:radial-gradient(120% 120% at 0% 0%,rgba(163,230,53,.06),transparent 55%),var(--deep-2)}
-.lp .mcp-col{min-width:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;background:#061716;overflow:hidden}
-.lp .mcp-head{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:var(--fs-small);font-weight:600;color:var(--text);background:rgba(11,36,35,.8)}
-.lp .mcp-head .dot{width:8px;height:8px;border-radius:50%;background:var(--em)}
-.lp .mcp-head .dot.lime{background:var(--lime)}
-.lp .mcp-head .dot.teal{background:var(--teal)}
+.lp .mcp{display:grid;grid-template-columns:minmax(0,1.5fr) 40px minmax(0,1fr);grid-template-rows:auto 1fr;row-gap:10px;
+  padding:22px;border:1px solid var(--line);border-radius:16px;background:radial-gradient(120% 120% at 0% 0%,rgba(163,230,53,.07),transparent 55%),radial-gradient(90% 90% at 100% 100%,rgba(93,207,218,.06),transparent 60%),var(--deep-2)}
+.lp .mcp-lbl{margin:0;font-family:var(--f-code);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.lp .mcp-lbl.l1{grid-column:1;grid-row:1}
+.lp .mcp-lbl.l2{grid-column:3;grid-row:1}
 
-/* chat */
-.lp .mcp-msgs{display:flex;flex-direction:column;gap:8px;padding:14px;flex:1}
-.lp .mcp .b{margin:0;max-width:92%;padding:9px 12px;border-radius:12px;font-size:var(--fs-small);line-height:1.45}
-.lp .mcp .b p{margin:0}
-.lp .mcp .b.me{align-self:flex-end;background:var(--lime);color:var(--ink);border-bottom-right-radius:4px;font-weight:500}
-.lp .mcp .b.ai{align-self:flex-start;background:var(--deep-3);color:var(--text);border:1px solid var(--line);border-bottom-left-radius:4px}
-.lp .mcp .b.ai b{color:var(--lime)}
-.lp .mcp .b.think{display:none;gap:4px;padding:12px 14px}
-.lp .mcp .b.think i{width:6px;height:6px;border-radius:50%;background:var(--dim)}
+/* ── the chat: a light app window, like any AI assistant ── */
+.lp .mcp .chat{grid-column:1;grid-row:2;min-width:0;display:flex;flex-direction:column;border-radius:14px;background:#F6F7F2;color:#18221E;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.06)}
+.lp .mcp .chat-top{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#ECEEE6;border-bottom:1px solid #DDE0D5}
+.lp .mcp .win{display:flex;gap:6px}
+.lp .mcp .win i{width:10px;height:10px;border-radius:50%;background:#FF5F57}
+.lp .mcp .win i:nth-child(2){background:#FEBC2E}
+.lp .mcp .win i:nth-child(3){background:#28C840}
+.lp .mcp .ttl{font-size:14px;font-weight:700}
+.lp .mcp .conn{margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:#DFF3DF;color:#1C6E37;font-size:12px;font-weight:600;white-space:nowrap}
+.lp .mcp .conn i{width:7px;height:7px;border-radius:50%;background:#22A35A;box-shadow:0 0 0 3px rgba(34,163,90,.18)}
 
-/* wires + packets */
-.lp .mcp-wire{position:relative;align-self:center;height:2px;margin:0 6px;background:linear-gradient(90deg,var(--line-hi),var(--line-hi))}
+.lp .mcp .msgs{flex:1;display:flex;flex-direction:column;gap:10px;padding:16px}
+.lp .mcp .u{align-self:flex-end;max-width:86%;margin:0;padding:9px 13px;border-radius:16px 16px 4px 16px;background:#D9F99D;color:#1A2E05;font-size:14px;line-height:1.45;font-weight:500}
+.lp .mcp .ai{display:flex;align-items:flex-start;gap:10px;font-size:14px;line-height:1.5}
+.lp .mcp .ai p{margin:0}
+.lp .mcp .ai b{color:#18221E}
+.lp .mcp .av{flex:none;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#F97316,#A855F7);color:#fff;font-size:13px}
+
+/* tool calls: violet chips, a spinner, then a tick */
+.lp .mcp .calls{position:relative;display:flex;flex-wrap:wrap;gap:6px;padding-left:36px}
+.lp .mcp .call{position:relative;display:inline-flex;align-items:center;padding:5px 11px 5px 27px;border:1px solid #D8CCFF;border-radius:999px;background:#EFE9FF;color:#4B2BB0;font-family:var(--f-code);font-size:12px;line-height:1.3}
+.lp .mcp .call .sp{position:absolute;left:9px;top:50%;width:11px;height:11px;margin-top:-5.5px;border-radius:50%;border:2px solid #B7A3F7;border-top-color:transparent;display:none}
+.lp .mcp .call .ok{position:absolute;left:9px;top:50%;margin-top:-8px;font-size:12px;line-height:16px;color:#16A34A}
+.lp .mcp .think{position:absolute;left:36px;top:0;display:none;gap:4px;margin:0;padding:9px 11px;border-radius:12px;background:#E7E9E1}
+.lp .mcp .think i{width:6px;height:6px;border-radius:50%;background:#7E8882}
+
+/* the Excel file the AI hands back, and its chart */
+.lp .mcp .files{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px;margin-left:36px}
+.lp .mcp .xl{flex:1 1 300px;max-width:430px;border:1px solid #CBD6CD;border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 6px 18px rgba(16,124,65,.10)}
+.lp .mcp .xl-head{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #E2E8E2}
+.lp .mcp .xl-ico{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:6px;background:#107C41;color:#fff;font-weight:800;font-size:15px}
+.lp .mcp .xl-name{min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.lp .mcp .xl-name b{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lp .mcp .xl-name span{font-size:12px;color:#6B756F}
+.lp .mcp .xl-btn{margin-left:auto;flex:none;padding:6px 11px;border-radius:8px;background:#107C41;color:#fff;font-size:12px;font-weight:600}
+.lp .mcp .xl-grid{display:grid;font-size:12.5px}
+.lp .mcp .xl-row{display:grid;grid-template-columns:28px minmax(0,1fr) 108px}
+.lp .mcp .xl-row > span{padding:5px 9px;border-right:1px solid #E2E8E2;border-bottom:1px solid #E2E8E2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lp .mcp .xl-row > span:last-child{border-right:0}
+.lp .mcp .xl-row .hd{padding:5px 0;background:#F0F3F0;color:#6B756F;font-size:11px;text-align:center}
+.lp .mcp .xl-row .num{text-align:right;font-variant-numeric:tabular-nums}
+.lp .mcp .xl-row .num.pos{color:#107C41;font-weight:700}
+.lp .mcp .xl-row .num.neg{color:#C4314B;font-weight:700}
+.lp .mcp .xl-tabs{display:flex;gap:2px;padding:0 8px;background:#F0F3F0;font-size:11.5px}
+.lp .mcp .xl-tabs span{padding:5px 10px;color:#6B756F}
+.lp .mcp .xl-tabs .on{background:#fff;color:#107C41;font-weight:700;box-shadow:inset 0 -2px 0 #107C41}
+
+.lp .mcp .chart{flex:1 1 150px;max-width:220px;display:flex;flex-direction:column;padding:10px 12px;border:1px solid #D9D2F5;border-radius:12px;background:linear-gradient(180deg,#FFFFFF,#F5F2FF)}
+.lp .mcp .chart-h{display:flex;flex-direction:column;margin:0;line-height:1.25}
+.lp .mcp .chart-h b{font-size:13px}
+.lp .mcp .chart-h span{font-size:11.5px;color:#6B756F}
+.lp .mcp .cbars{flex:1;min-height:110px;display:flex;align-items:flex-end;gap:7px;margin-top:10px;padding-bottom:2px;border-bottom:1px solid #DCD6EE}
+.lp .mcp .cbar{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
+.lp .mcp .cbar i{display:block;width:100%;height:calc(var(--h) * 82%);border-radius:4px 4px 0 0;background:linear-gradient(180deg,#A3E635,#22A35A);transform-origin:50% 100%}
+.lp .mcp .cbar:last-child i{background:linear-gradient(180deg,#C084FC,#7C3AED)}
+.lp .mcp .cbar em{font-style:normal;font-size:10.5px;color:#6B756F}
+
+/* the booking: proposed (amber), then approved (green) — one spot */
+.lp .mcp .appr{display:grid;margin-left:36px;font-size:13.5px;font-weight:600}
+.lp .mcp .appr .st{grid-area:1/1;padding:10px 12px;border-radius:10px}
+.lp .mcp .appr .w{border:1px solid #EFC65A;background:#FFF4D4;color:#865400;opacity:0}
+.lp .mcp .appr .k{border:1px solid #86D19F;background:#E3F6E9;color:#156B35}
+
+/* the input box: typed text is revealed by a cover sliding off it; the
+   cover's left edge is the caret */
+.lp .mcp .inp{position:relative;display:flex;align-items:center;height:46px;margin:0 14px 14px;padding:0 50px 0 14px;border:1px solid #D3D8CC;border-radius:14px;background:#fff;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.lp .mcp .ph{position:absolute;left:14px;color:#8A938D}
+.lp .mcp .ty{position:absolute;left:14px;max-width:calc(100% - 66px);overflow:hidden;white-space:nowrap;color:#18221E;opacity:0}
+.lp .mcp .cv{position:absolute;top:0;bottom:0;left:0;right:-4px;background:#fff;border-left:2px solid #18221E;transform:translateX(100%)}
+.lp .mcp .send{position:absolute;right:8px;top:50%;display:grid;place-items:center;width:30px;height:30px;margin-top:-15px;border-radius:50%;background:#18221E;color:#D9F99D;font-size:15px;font-weight:800}
+
+/* ── behind it: dark cards, wires, packets ── */
+.lp .mcp .wire{position:relative;background:var(--line-hi)}
+.lp .mcp .wire.h{grid-column:2;grid-row:2;align-self:center;height:2px;margin:0 6px}
+.lp .mcp .wire.v{width:2px;height:28px;margin:0 auto}
 .lp .mcp .pk{position:absolute;top:-4px;left:0;width:10px;height:10px;border-radius:50%;background:var(--lime);box-shadow:0 0 10px rgba(163,230,53,.8);opacity:0}
 .lp .mcp .pk.back{background:var(--teal);box-shadow:0 0 10px rgba(93,207,218,.8)}
-
-/* MCP server */
-.lp .mcp .tools{list-style:none;margin:0;padding:10px;display:grid;gap:6px}
-.lp .mcp .tools li{position:relative;display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--line);border-radius:8px}
-.lp .mcp .tools li::after,.lp .mcp .tbls li::after{content:"";position:absolute;inset:-1px;border-radius:inherit;border:1px solid var(--lime);background:rgba(163,230,53,.09);opacity:0;pointer-events:none}
+.lp .mcp .wire.v .pk{top:0;left:-4px}
+.lp .mcp .side{grid-column:3;grid-row:2;min-width:0;display:flex;flex-direction:column}
+.lp .mcp .card{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;background:#061716;overflow:hidden}
+.lp .mcp .card.db{flex:1}
+.lp .mcp .card-head{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);background:rgba(11,36,35,.8);font-size:var(--fs-small);font-weight:600;color:var(--text)}
+.lp .mcp .card-head .dot{width:8px;height:8px;border-radius:50%}
+.lp .mcp .card-head .dot.lime{background:var(--lime)}
+.lp .mcp .card-head .dot.teal{background:var(--teal)}
+.lp .mcp .tools,.lp .mcp .tbls{list-style:none;margin:0;padding:10px;display:grid;gap:6px}
+.lp .mcp .tools li,.lp .mcp .tbls li{position:relative;display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--line);border-radius:8px}
+.lp .mcp .tools li::after,.lp .mcp .tbls li::after{content:"";position:absolute;inset:-1px;border-radius:inherit;border:1px solid var(--lime);background:rgba(163,230,53,.10);opacity:0;pointer-events:none}
 .lp .mcp .tools code{font-family:var(--f-code);font-size:var(--fs-code);color:var(--lime)}
 .lp .mcp .tools span{font-size:12.5px;color:var(--dim)}
-.lp .mcp .appr{position:relative;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:4px 10px;margin:0 10px 10px;padding:9px 12px;border-radius:8px;border:1px dashed rgba(232,197,90,.6);background:rgba(232,197,90,.07);font-size:var(--fs-small)}
-.lp .mcp .appr .who{font-weight:600;color:#E8C55A}
-.lp .mcp .appr .st{grid-column:2;grid-row:1;color:var(--text)}
-.lp .mcp .appr .wait{opacity:0}
-.lp .mcp .appr .ok{color:var(--em);font-weight:600}
-
-/* database */
-.lp .mcp .tbls{list-style:none;margin:0;padding:10px;display:grid;gap:6px}
-.lp .mcp .tbls li{position:relative;display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-family:var(--f-code);font-size:var(--fs-code);color:var(--text)}
-.lp .mcp .tbls li:last-child{color:var(--dim)}
-.lp .mcp .tbls li span{font-family:var(--f-ui);font-size:12.5px;color:var(--dim)}
-.lp .mcp .tbls li .pend{display:none;color:#E8C55A}
-.lp .mcp .tbls li .done{color:var(--em)}
+.lp .mcp .tbls li{font-family:var(--f-code);font-size:var(--fs-code);color:var(--text)}
+.lp .mcp .tbls li > span{font-family:var(--f-ui);font-size:12.5px;color:var(--dim)}
+.lp .mcp .tbls li.d3{display:grid}
+.lp .mcp .tbls li.d3 > span{grid-row:2;grid-column:1}
+.lp .mcp .tbls .pend{color:#E8C55A !important;opacity:0}
+.lp .mcp .tbls .done{color:var(--em) !important}
 .lp .mcp .lock{margin:auto 10px 10px;padding-top:8px;font-family:var(--f-code);font-size:12px;color:#F59186}
 
 .lp .mcp-points{list-style:none;margin:18px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 .lp .mcp-points li{padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--deep-2);font-size:var(--fs-small);line-height:1.5;color:var(--dim)}
 .lp .mcp-points b{display:block;margin-bottom:2px;font-size:var(--fs-body);color:var(--text)}
-
-.lp .cases-h{margin-top:34px;font-family:var(--f-disp);font-weight:800;font-size:var(--fs-h3);text-transform:uppercase}
-.lp .study-flow{list-style:none;margin:20px 0 0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.lp .study-flow li{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:#061716;font-size:var(--fs-small);color:var(--text)}
-.lp .study-flow b{flex:none;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--lime);color:var(--ink);font-family:var(--f-code);font-size:12px}
-.lp .study-flow li:nth-child(n+4) b{background:#E8C55A}
-.lp .study-flow li:last-child b{background:var(--em)}
-@media (max-width:520px){.lp .study-flow{grid-template-columns:1fr}}
-.lp .study-guards{list-style:none;margin:0;padding:0;display:grid;gap:8px;align-content:start}
-.lp .study-guards li{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#061716;font-size:var(--fs-small);line-height:1.45;color:var(--dim)}
-.lp .study-guards b{display:block;margin-bottom:1px;color:var(--text)}
-.lp .cases{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px}
-.lp .case-more{display:flex;flex-direction:column;border-style:dashed}
-.lp .case-more .see{margin-top:auto;padding-top:12px;font-size:var(--fs-small);font-weight:600;color:var(--lime);text-decoration:none}
-.lp .case-more .see:hover{text-decoration:underline}
-.lp .case{padding:18px 20px 20px;border:1px solid var(--line);border-radius:12px;background:var(--deep-2)}
-.lp .case h4{margin:0;font-family:var(--f-disp);font-weight:800;font-size:var(--fs-h3);line-height:1.1;text-transform:uppercase}
-.lp .case p{margin:10px 0 0;font-size:var(--fs-body);line-height:1.55;color:var(--text)}
-.lp .case .eyebrow{margin:0 0 8px}
-.lp .study{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;margin-top:14px;padding:22px 24px;border:1px solid rgba(163,230,53,.35);border-radius:14px;background:radial-gradient(120% 140% at 0% 0%,rgba(163,230,53,.07),transparent 60%),var(--deep-2)}
-.lp .study h4{margin:0;font-family:var(--f-disp);font-weight:800;font-size:clamp(22px,2.2vw,28px);line-height:1.08;text-transform:uppercase}
-.lp .study-main > p{margin:10px 0 0;font-size:var(--fs-body);line-height:1.6;color:var(--text)}
-.lp .study-main > .eyebrow{margin:0 0 8px}
+.lp .mcp-uses{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:16px 0 0;font-size:var(--fs-small)}
+.lp .mcp-uses b{margin-right:4px;color:var(--text)}
+.lp .mcp-uses span{padding:5px 11px;border:1px solid var(--line-hi);border-radius:999px;color:var(--text)}
 
 @media (max-width:900px){
-  .lp .mcp{grid-template-columns:1fr;gap:12px;padding:14px}
-  .lp .mcp-wire{display:none}
-  .lp .mcp-points,.lp .cases,.lp .study{grid-template-columns:1fr}
+  .lp .mcp{grid-template-columns:minmax(0,1fr);padding:12px;row-gap:10px}
+  .lp .mcp-lbl.l1{grid-row:1}
+  .lp .mcp .chat{grid-row:2}
+  .lp .mcp-lbl.l2{grid-column:1;grid-row:3;margin-top:8px}
+  .lp .mcp .side{grid-column:1;grid-row:4}
+  .lp .mcp .wire.h{display:none}
+  .lp .mcp .msgs{padding:12px}
+  .lp .mcp .calls,.lp .mcp .files,.lp .mcp .appr{margin-left:0;padding-left:0}
+  .lp .mcp .xl,.lp .mcp .chart{max-width:none}
+  .lp .mcp .think{left:0}
+  .lp .mcp .inp{margin:0 10px 10px;font-size:13px}
+  .lp .mcp .conn{font-size:11px;padding:3px 8px}
+  .lp .mcp-points{grid-template-columns:1fr}
+}
+@media (max-width:420px){
+  .lp .mcp .ttl{display:none}
+  .lp .mcp .xl-row{grid-template-columns:24px minmax(0,1fr) 92px}
 }
 
-/* ───── the timeline ───── */
+/* ───── the timeline (GENERATED by scripts/gen-ask-keyframes.py — edit the times there) ───── */
 @media (prefers-reduced-motion:no-preference){
-  .lp .mcp .a,.lp .mcp .a::after{animation-duration:14s;animation-timing-function:ease;animation-iteration-count:infinite}
-  .lp .mcp:not(.on) .a,.lp .mcp:not(.on) .a::after{animation-play-state:paused}
-
-  .lp .mcp .b.think{display:flex}
-  .lp .mcp .q1{animation-name:mcp-q1}
-  .lp .mcp .t1{animation-name:mcp-t1}
-  .lp .mcp .r1{animation-name:mcp-r1}
-  .lp .mcp .q2{animation-name:mcp-q2}
-  .lp .mcp .r2{animation-name:mcp-r2}
-  .lp .mcp .r3{animation-name:mcp-r3}
-  .lp .mcp .tools .k2::after{animation-name:mcp-k2}
-  .lp .mcp .tools .k3::after{animation-name:mcp-k3}
-  .lp .mcp .tools .k4::after{animation-name:mcp-k4}
-  .lp .mcp .tbls .d1::after,.lp .mcp .tbls .d2::after{animation-name:mcp-rows}
-  .lp .mcp .tbls .d3::after{animation-name:mcp-d3}
-  .lp .mcp .tbls .d3 .pend{display:block}
-  .lp .mcp .tbls .d3 .pend{animation:mcp-pend 14s ease infinite}
-  .lp .mcp .tbls .d3 .done{animation:mcp-done 14s ease infinite}
-  .lp .mcp:not(.on) .tbls .d3 span{animation-play-state:paused}
-  .lp .mcp .ap{animation-name:mcp-ap}
-  .lp .mcp .appr .wait{animation:mcp-wait 14s ease infinite}
-  .lp .mcp .appr .ok{animation:mcp-ok 14s ease infinite}
-  .lp .mcp:not(.on) .appr .st{animation-play-state:paused}
-  .lp .mcp .p1{animation-name:mcp-p1;animation-timing-function:linear}
-  .lp .mcp .p1b{animation-name:mcp-p1b;animation-timing-function:linear}
-  .lp .mcp .p2b{animation-name:mcp-p2b;animation-timing-function:linear}
-  .lp .mcp .p2{animation-name:mcp-p2;animation-timing-function:linear}
-  .lp .mcp .p3{animation-name:mcp-p3;animation-timing-function:linear}
-  .lp .mcp .p3b{animation-name:mcp-p3b;animation-timing-function:linear}
+  .lp .mcp .a,.lp .mcp .a::after{animation-duration:16s;animation-timing-function:ease;animation-iteration-count:infinite}
+  .lp .mcp:not(.on) .a,.lp .mcp:not(.on) .a::after,.lp .mcp:not(.on) .think i{animation-play-state:paused}
+  .lp .mcp .think{display:flex}
+  .lp .mcp .think i{animation:mc-dot .9s ease-in-out infinite}
+  .lp .mcp .think i:nth-child(2){animation-delay:.15s}
+  .lp .mcp .think i:nth-child(3){animation-delay:.3s}
+  .lp .mcp .call .sp{display:block;animation-duration:.8s,16s;animation-timing-function:linear,ease}
+  .lp .mcp .ph{animation-name:mc-ph}
+  .lp .mcp .ty1{animation-name:mc-ty1}
+  .lp .mcp .ty2{animation-name:mc-ty2}
+  .lp .mcp .cv1{animation-name:mc-cv1}
+  .lp .mcp .cv2{animation-name:mc-cv2}
+  .lp .mcp .send{animation-name:mc-send}
+  .lp .mcp .u1{animation-name:mc-u1}
+  .lp .mcp .th{animation-name:mc-th}
+  .lp .mcp .c1{animation-name:mc-c1}
+  .lp .mcp .c1 .sp{animation-name:mc-spin,mc-c1s}
+  .lp .mcp .c1 .ok{animation-name:mc-c1k}
+  .lp .mcp .c2{animation-name:mc-c2}
+  .lp .mcp .c2 .sp{animation-name:mc-spin,mc-c2s}
+  .lp .mcp .c2 .ok{animation-name:mc-c2k}
+  .lp .mcp .c3{animation-name:mc-c3}
+  .lp .mcp .c3 .sp{animation-name:mc-spin,mc-c3s}
+  .lp .mcp .c3 .ok{animation-name:mc-c3k}
+  .lp .mcp .c4{animation-name:mc-c4}
+  .lp .mcp .c4 .sp{animation-name:mc-spin,mc-c4s}
+  .lp .mcp .c4 .ok{animation-name:mc-c4k}
+  .lp .mcp .c5{animation-name:mc-c5}
+  .lp .mcp .c5 .sp{animation-name:mc-spin,mc-c5s}
+  .lp .mcp .c5 .ok{animation-name:mc-c5k}
+  .lp .mcp .a1{animation-name:mc-a1}
+  .lp .mcp .x0{animation-name:mc-x0}
+  .lp .mcp .xr1{animation-name:mc-xr1}
+  .lp .mcp .xr2{animation-name:mc-xr2}
+  .lp .mcp .xr3{animation-name:mc-xr3}
+  .lp .mcp .xr4{animation-name:mc-xr4}
+  .lp .mcp .xb{animation-name:mc-xb}
+  .lp .mcp .g0{animation-name:mc-g0}
+  .lp .mcp .cbars .g1{animation-name:mc-g1}
+  .lp .mcp .cbars .g2{animation-name:mc-g2}
+  .lp .mcp .cbars .g3{animation-name:mc-g3}
+  .lp .mcp .cbars .g4{animation-name:mc-g4}
+  .lp .mcp .cbars .g5{animation-name:mc-g5}
+  .lp .mcp .cbars .g6{animation-name:mc-g6}
+  .lp .mcp .u2{animation-name:mc-u2}
+  .lp .mcp .ap{animation-name:mc-ap}
+  .lp .mcp .ap .w{animation-name:mc-apw}
+  .lp .mcp .ap .k{animation-name:mc-apk}
+  .lp .mcp .tools .k1::after{animation-name:mc-k1}
+  .lp .mcp .tools .k2::after{animation-name:mc-k2}
+  .lp .mcp .tools .k3::after{animation-name:mc-k3}
+  .lp .mcp .tools .k4::after{animation-name:mc-k4}
+  .lp .mcp .tbls .d1::after{animation-name:mc-d1}
+  .lp .mcp .tbls .d2::after{animation-name:mc-d2}
+  .lp .mcp .tbls .d3::after{animation-name:mc-d3}
+  .lp .mcp .tbls .pend{animation-name:mc-pend}
+  .lp .mcp .tbls .done{animation-name:mc-done}
+  .lp .mcp .p1{animation-name:mc-p1;animation-timing-function:linear}
+  .lp .mcp .p2{animation-name:mc-p2;animation-timing-function:linear}
+  .lp .mcp .p3{animation-name:mc-p3;animation-timing-function:linear}
+  .lp .mcp .p4{animation-name:mc-p4;animation-timing-function:linear}
+  .lp .mcp .p5{animation-name:mc-p5;animation-timing-function:linear}
+  .lp .mcp .p6{animation-name:mc-p6;animation-timing-function:linear}
+  .lp .mcp .v1{animation-name:mc-v1;animation-timing-function:linear}
+  .lp .mcp .v2{animation-name:mc-v2;animation-timing-function:linear}
+  .lp .mcp .v3{animation-name:mc-v3;animation-timing-function:linear}
+  .lp .mcp .v4{animation-name:mc-v4;animation-timing-function:linear}
 }
 
-/* bubbles: in, stay, fade with the loop */
-@keyframes mcp-q1{0%,2%{opacity:0;transform:translateY(8px)}4%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
-@keyframes mcp-t1{0%,7%{opacity:0;transform:translateY(6px)}8.5%,17%{opacity:1;transform:none}18.5%,100%{opacity:0;transform:none}}
-@keyframes mcp-r1{0%,31%{opacity:0;transform:translateY(8px)}33%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
-@keyframes mcp-q2{0%,43%{opacity:0;transform:translateY(8px)}45%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
-@keyframes mcp-r2{0%,57%{opacity:0;transform:translateY(8px)}59%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
-@keyframes mcp-r3{0%,74%{opacity:0;transform:translateY(8px)}76%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mc-ph{0%,1.88%{opacity:1}2.5%,18.75%{opacity:0}19.69%,51.88%{opacity:1}52.5%,63.75%{opacity:0}64.69%,100%{opacity:1}}
+@keyframes mc-ty1{0%,2.19%{opacity:0}2.5%,18.75%{opacity:1}19.38%,100%{opacity:0}}
+@keyframes mc-ty2{0%,52.19%{opacity:0}52.5%,63.75%{opacity:1}64.38%,100%{opacity:0}}
+@keyframes mc-cv1{0%,2.5%{transform:translateX(0);animation-timing-function:steps(44,end)}17.5%,100%{transform:translateX(100%)}}
+@keyframes mc-cv2{0%,52.5%{transform:translateX(0);animation-timing-function:steps(26,end)}62.5%,100%{transform:translateX(100%)}}
+@keyframes mc-send{0%,18.44%{transform:none}19.06%{transform:scale(.8)}20.62%,63.44%{transform:none}64.06%{transform:scale(.8)}65.62%,100%{transform:none}}
+@keyframes mc-u1{0%,18.75%{opacity:0;transform:translateY(6px)}20.31%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mc-th{0%,20.62%{opacity:0}22.19%,23.44%{opacity:1}25%,100%{opacity:0}}
+@keyframes mc-c1{0%,23.75%{opacity:0;transform:translateY(6px)}25.31%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mc-c1s{0%,23.75%{opacity:0}25.31%,25.94%{opacity:1}27.5%,100%{opacity:0}}
+@keyframes mc-c1k{0%,27.5%{opacity:0}29.06%,95%{opacity:1}99%,100%{opacity:0}}
+@keyframes mc-c2{0%,27.5%{opacity:0;transform:translateY(6px)}29.06%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mc-c2s{0%,27.5%{opacity:0}29.06%,30.31%{opacity:1}31.87%,100%{opacity:0}}
+@keyframes mc-c2k{0%,31.87%{opacity:0}33.44%,95%{opacity:1}99%,100%{opacity:0}}
+@keyframes mc-c3{0%,31.25%{opacity:0;transform:translateY(6px)}32.81%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mc-c3s{0%,31.25%{opacity:0}32.81%,33.44%{opacity:1}35%,100%{opacity:0}}
+@keyframes mc-c3k{0%,35%{opacity:0}36.56%,95%{opacity:1}99%,100%{opacity:0}}
+@keyframes mc-c4{0%,66.25%{opacity:0;transform:translateY(6px)}67.81%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mc-c4s{0%,66.25%{opacity:0}67.81%,67.81%{opacity:1}69.38%,100%{opacity:0}}
+@keyframes mc-c4k{0%,69.38%{opacity:0}70.94%,95%{opacity:1}99%,100%{opacity:0}}
+@keyframes mc-c5{0%,70%{opacity:0;transform:translateY(6px)}71.56%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mc-c5s{0%,70%{opacity:0}71.56%,71.56%{opacity:1}73.12%,100%{opacity:0}}
+@keyframes mc-c5k{0%,73.12%{opacity:0}74.69%,95%{opacity:1}99%,100%{opacity:0}}
+@keyframes mc-a1{0%,36.25%{opacity:0;transform:translateY(6px)}37.81%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mc-x0{0%,38.75%{opacity:0;transform:translateY(6px)}40.31%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mc-xr1{0%,41.25%{opacity:0;transform:translateY(6px)}42.81%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mc-xr2{0%,43.12%{opacity:0;transform:translateY(6px)}44.69%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mc-xr3{0%,45%{opacity:0;transform:translateY(6px)}46.56%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mc-xr4{0%,46.88%{opacity:0;transform:translateY(6px)}48.44%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mc-xb{0%,49.38%{transform:none}50.62%{transform:scale(1.08)}52.5%,100%{transform:none}}
+@keyframes mc-g0{0%,46.88%{opacity:0;transform:translateY(6px)}48.44%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mc-g1{0%,48.44%{transform:scaleY(0)}50.62%,95%{transform:none}99%,100%{transform:scaleY(0)}}
+@keyframes mc-g2{0%,49.19%{transform:scaleY(0)}51.38%,95%{transform:none}99%,100%{transform:scaleY(0)}}
+@keyframes mc-g3{0%,49.94%{transform:scaleY(0)}52.12%,95%{transform:none}99%,100%{transform:scaleY(0)}}
+@keyframes mc-g4{0%,50.69%{transform:scaleY(0)}52.87%,95%{transform:none}99%,100%{transform:scaleY(0)}}
+@keyframes mc-g5{0%,51.44%{transform:scaleY(0)}53.62%,95%{transform:none}99%,100%{transform:scaleY(0)}}
+@keyframes mc-g6{0%,52.19%{transform:scaleY(0)}54.37%,95%{transform:none}99%,100%{transform:scaleY(0)}}
+@keyframes mc-u2{0%,63.75%{opacity:0;transform:translateY(6px)}65.31%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mc-ap{0%,73.75%{opacity:0;transform:translateY(6px)}75.31%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mc-apw{0%,73.75%{opacity:0}75.31%,80.62%{opacity:1}82.19%,100%{opacity:0}}
+@keyframes mc-apk{0%,81.25%{opacity:0}82.81%,95%{opacity:1}99%,100%{opacity:0}}
+@keyframes mc-k1{0%,23.75%{opacity:0}25.31%,28.12%{opacity:1}29.69%,100%{opacity:0}}
+@keyframes mc-k2{0%,27.5%{opacity:0}29.06%,36.25%{opacity:1}37.81%,100%{opacity:0}}
+@keyframes mc-k3{0%,66.25%{opacity:0}67.81%,70%{opacity:1}71.56%,100%{opacity:0}}
+@keyframes mc-k4{0%,70%{opacity:0}71.56%,74.38%{opacity:1}75.94%,100%{opacity:0}}
+@keyframes mc-d1{0%,29.38%{opacity:0}30.94%,33.75%{opacity:1}35.31%,100%{opacity:0}}
+@keyframes mc-d2{0%,32.5%{opacity:0}34.06%,36.25%{opacity:1}37.81%,100%{opacity:0}}
+@keyframes mc-d3{0%,68.12%{opacity:0}69.69%,83.12%{opacity:1}84.69%,100%{opacity:0}}
+@keyframes mc-pend{0%,68.12%{opacity:0}69.69%,80.62%{opacity:1}82.19%,100%{opacity:0}}
+@keyframes mc-done{0%,81.25%{opacity:0}82.81%,95%{opacity:1}99%,100%{opacity:0}}
+@keyframes mc-p1{0%,23.75%{opacity:0;transform:translateX(0px)}24%{opacity:1}26.25%{opacity:1;transform:translateX(24px)}26.5%,100%{opacity:0;transform:translateX(24px)}}
+@keyframes mc-p2{0%,27.5%{opacity:0;transform:translateX(0px)}27.75%{opacity:1}30%{opacity:1;transform:translateX(24px)}30.25%,100%{opacity:0;transform:translateX(24px)}}
+@keyframes mc-p3{0%,31.25%{opacity:0;transform:translateX(0px)}31.5%{opacity:1}33.75%{opacity:1;transform:translateX(24px)}34%,100%{opacity:0;transform:translateX(24px)}}
+@keyframes mc-p4{0%,35%{opacity:0;transform:translateX(24px)}35.25%{opacity:1}37.5%{opacity:1;transform:translateX(0px)}37.75%,100%{opacity:0;transform:translateX(0px)}}
+@keyframes mc-p5{0%,66.25%{opacity:0;transform:translateX(0px)}66.5%{opacity:1}68.75%{opacity:1;transform:translateX(24px)}69%,100%{opacity:0;transform:translateX(24px)}}
+@keyframes mc-p6{0%,73.12%{opacity:0;transform:translateX(24px)}73.37%{opacity:1}75.62%{opacity:1;transform:translateX(0px)}75.87%,100%{opacity:0;transform:translateX(0px)}}
+@keyframes mc-v1{0%,28.75%{opacity:0;transform:translateY(0px)}29%{opacity:1}30.94%{opacity:1;transform:translateY(18px)}31.19%,100%{opacity:0;transform:translateY(18px)}}
+@keyframes mc-v2{0%,31.87%{opacity:0;transform:translateY(0px)}32.12%{opacity:1}34.06%{opacity:1;transform:translateY(18px)}34.31%,100%{opacity:0;transform:translateY(18px)}}
+@keyframes mc-v3{0%,35%{opacity:0;transform:translateY(18px)}35.25%{opacity:1}37.19%{opacity:1;transform:translateY(0px)}37.44%,100%{opacity:0;transform:translateY(0px)}}
+@keyframes mc-v4{0%,68.12%{opacity:0;transform:translateY(0px)}68.38%{opacity:1}70.31%{opacity:1;transform:translateY(18px)}70.56%,100%{opacity:0;transform:translateY(18px)}}
 
-/* highlights (the ::after layers) */
-@keyframes mcp-k2{0%,11.5%{opacity:0}13%,24%{opacity:1}26%,100%{opacity:0}}
-@keyframes mcp-k3{0%,48.5%{opacity:0}50%,60%{opacity:1}61.5%,100%{opacity:0}}
-@keyframes mcp-k4{0%,60.5%{opacity:0}62%,68%{opacity:1}69.5%,100%{opacity:0}}
-@keyframes mcp-rows{0%,18.5%{opacity:0}20%,29.5%{opacity:1}31%,100%{opacity:0}}
-@keyframes mcp-d3{0%,55.7%{opacity:0}57%,70%{opacity:1}72%,100%{opacity:0}}
-
-/* the proposed row, then the booked one */
-@keyframes mcp-pend{0%,55.7%{opacity:0}57%,70%{opacity:1}71.4%,100%{opacity:0}}
-@keyframes mcp-done{0%,71.4%{opacity:0}73%,95%{opacity:1}99%,100%{opacity:0}}
-
-/* the approval card */
-@keyframes mcp-ap{0%,58.5%{opacity:.25}60%,95%{opacity:1}99%,100%{opacity:.25}}
-@keyframes mcp-wait{0%,58.5%{opacity:0}60%,67%{opacity:1}68.6%,100%{opacity:0}}
-@keyframes mcp-ok{0%,68.6%{opacity:0}70%,95%{opacity:1}99%,100%{opacity:0}}
-
-/* packets along the wires (the wire is 32 px of travel) */
-@keyframes mcp-p1{0%,10%{opacity:0;transform:translateX(0)}10.5%{opacity:1}14%{opacity:1;transform:translateX(24px)}14.5%,100%{opacity:0;transform:translateX(24px)}}
-@keyframes mcp-p1b{0%,14%{opacity:0;transform:translateX(0)}14.5%{opacity:1}18.5%{opacity:1;transform:translateX(24px)}19%,100%{opacity:0;transform:translateX(24px)}}
-@keyframes mcp-p2b{0%,23%{opacity:0;transform:translateX(24px)}23.5%{opacity:1}27%{opacity:1;transform:translateX(0)}27.5%,100%{opacity:0;transform:translateX(0)}}
-@keyframes mcp-p2{0%,27%{opacity:0;transform:translateX(24px)}27.5%{opacity:1}31%{opacity:1;transform:translateX(0)}31.5%,100%{opacity:0;transform:translateX(0)}}
-@keyframes mcp-p3{0%,47%{opacity:0;transform:translateX(0)}47.5%{opacity:1}51.5%{opacity:1;transform:translateX(24px)}52%,100%{opacity:0;transform:translateX(24px)}}
-@keyframes mcp-p3b{0%,51.5%{opacity:0;transform:translateX(0)}52%{opacity:1}55.7%{opacity:1;transform:translateX(24px)}56.2%,100%{opacity:0;transform:translateX(24px)}}
-
-/* the proposed and the booked line share one spot */
-.lp .mcp .tbls li.d3{display:grid}
-.lp .mcp .tbls li.d3 > span{grid-row:2;grid-column:1}
+@keyframes mc-spin{to{transform:rotate(360deg)}}
+@keyframes mc-dot{0%,60%,100%{transform:none}30%{transform:translateY(-4px)}}

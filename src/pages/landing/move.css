@@ -56,6 +56,7 @@
   .lp .mig{grid-template-columns:1fr;gap:12px;padding:14px}
   .lp .mig-pipe{justify-content:center;padding:0}
   .lp .mig .lane{display:none}
+
   .lp .mig .stages{grid-auto-flow:column}
   .lp .mig-steps{grid-template-columns:1fr}
 }

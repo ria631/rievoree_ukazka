@@ -1,25 +1,15 @@
-/* What I build (Services.tsx) */
+/* What I do (Services.tsx): three offers, each a link to its part of the page */
+.lp .offer-sec{padding-top:clamp(48px,8vh,88px)}
 .lp .offers{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
-.lp .offer{display:flex;flex-direction:column;gap:10px;padding:18px 20px 20px;border:1px solid var(--line);border-radius:12px;background:var(--deep-2)}
-.lp .offer h3{font-family:var(--f-disp);font-weight:800;font-size:var(--fs-h3);line-height:1.1;text-transform:uppercase}
+.lp .offers > li{display:flex}
+.lp .offer{flex:1;display:flex;flex-direction:column;gap:10px;padding:20px 22px 22px;border:1px solid var(--line);border-radius:14px;background:var(--deep-2);color:inherit;text-decoration:none;transition:border-color .2s}
+.lp .offer:hover{border-color:var(--lime)}
+.lp .offer .n{font-family:var(--f-code);font-size:var(--fs-code);font-weight:700;color:var(--lime)}
+.lp .offer .tag{align-self:flex-start;padding:3px 9px;border:1px solid var(--line-hi);border-radius:999px;font-family:var(--f-code);font-size:12px;color:var(--dim)}
+.lp .offers > li:first-child .tag{border-color:var(--lime);background:var(--lime);color:var(--ink);font-weight:700}
+.lp .offer h3{font-family:var(--f-disp);font-weight:800;font-size:clamp(24px,2.4vw,30px);line-height:1.05;text-transform:uppercase}
 .lp .offer p{margin:0;font-size:var(--fs-body);line-height:1.55;color:var(--text)}
-.lp .offer .also{font-size:var(--fs-small);color:var(--dim)}
-.lp .offer .where{align-self:flex-start;padding:3px 9px;border-radius:999px;font-family:var(--f-code);font-size:12px;font-weight:700;letter-spacing:.04em}
-.lp .offer.live .where{background:var(--lime);color:var(--ink)}
-.lp .offer.request .where{border:1px solid var(--line-hi);color:var(--dim)}
-.lp .offer .see{margin-top:auto;padding-top:4px;font-size:var(--fs-small);font-weight:600;color:var(--lime);text-decoration:none}
-.lp .offer .see:hover{text-decoration:underline}
-@media (max-width:1023px){.lp .offers{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:640px){.lp .offers{grid-template-columns:1fr}}
-
-/* the map of this page, right under the hero */
-.lp .map{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0;padding:clamp(40px,7vh,72px) 0 0;list-style:none}
-.lp .map a{display:flex;flex-direction:column;gap:6px;height:100%;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--deep-2);text-decoration:none;transition:border-color .2s}
-.lp .map a:hover{border-color:var(--lime)}
-.lp .map b{font-family:var(--f-code);font-size:var(--fs-code);color:var(--lime)}
-.lp .map strong{font-family:var(--f-disp);font-weight:800;font-size:18px;line-height:1.1;text-transform:uppercase;color:var(--text)}
-.lp .map span{font-size:var(--fs-small);line-height:1.4;color:var(--dim)}
-.lp .map-h{margin:0;padding-top:clamp(40px,7vh,72px);font-family:var(--f-code);font-size:var(--fs-code);font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
-.lp .map-h + .map{padding-top:12px}
-@media (max-width:1023px){.lp .map{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:520px){.lp .map{grid-template-columns:1fr}}
+.lp .offer .see{margin-top:auto;padding-top:6px;font-size:var(--fs-small);font-weight:600;color:var(--lime)}
+.lp .offer-sec .also{margin:16px 0 0;font-size:var(--fs-small);line-height:1.5;color:var(--dim)}
+.lp .offer-sec .also b{color:var(--text);font-weight:600}
+@media (max-width:900px){.lp .offers{grid-template-columns:1fr}}

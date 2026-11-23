@@ -130,8 +130,9 @@
 .lp .pol .ln.hl{background:rgba(163,230,53,.12);box-shadow:inset 3px 0 0 var(--lime)}
 .lp .pol-note{margin-top:14px;font-size:var(--fs-body);color:var(--text)}
 .lp .pol .path{display:inline-block;margin-top:12px}
-.lp .k{color:var(--lime)}.lp .s{color:var(--teal)}.lp .c{color:#5E9384}
 @media (max-width:900px){.lp .rls{grid-template-columns:1fr}}
+/* syntax colours for highlighted source (hl in repoSource.ts) */
+.lp .k{color:var(--lime)}.lp .s{color:var(--teal)}.lp .c{color:#5E9384}
 
 /* 3 · how it works — the desk (desk.css) plays the month on a loop; the
    token rides the track and the matching step card lights with each act

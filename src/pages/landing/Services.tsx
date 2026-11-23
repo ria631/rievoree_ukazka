@@ -1,72 +1,53 @@
 import "./services.css"
 
 /**
- * What I build — the page shows one of these working (X-Ray); the others are
- * what the same skills do for a client. Each card says where it can be seen:
- * live on this page, or on request (shown above as an animation).
+ * What I do, right under the hero: three offers, each with one sentence and a
+ * link to the part of the page that shows it. Replaces both a page map and a
+ * longer services list — one place that answers "what can I get here?".
  */
-type Where = "live" | "request"
-const WHERE: Record<Where, string> = { live: "Live on this page", request: "On request" }
-
-const OFFERS: { title: string; body: string; also?: string; where: Where; href?: string }[] = [
+const OFFERS = [
   {
-    title: "Reporting your team can trust",
-    body: "P&L, cash, receivables, budgets and forecasts for a group of companies — each person sees only their companies, and every number traces back to its source.",
-    also: "Shown here: X-Ray, seven reports on sample data.",
-    where: "live", href: "#how",
+    n: "01", href: "#how", tag: "Live demo on this page",
+    title: "Reporting",
+    body: "Numbers from many companies in one place — P&L, cash, receivables, forecasts. Each person sees only their companies.",
+    see: "See how it works",
   },
   {
-    title: "AI access to your database (MCP)",
-    body: "Your team's AI — Claude, ChatGPT, Copilot — answers questions about your data, drafts bookings and prepares approvals, within each person's permissions.",
-    also: "Instead of dashboards, or next to them.",
-    where: "request", href: "#ai",
+    n: "02", href: "#ai", tag: "Shown as an animation",
+    title: "AI on your database",
+    body: "Your team asks Claude, ChatGPT or Copilot about the numbers in plain language — safely, through an MCP server.",
+    see: "See it in action",
   },
   {
+    n: "03", href: "#migrate", tag: "Shown as an animation",
     title: "Database migration",
-    body: "From spreadsheets, Access, an old SQL server or an accounting system's exports to PostgreSQL / Supabase — mapped, checked row for row against the source, and switched over without downtime.",
-    also: "Shown above as an animation; runs on your own data.",
-    where: "request", href: "#migrate",
-  },
-  {
-    title: "Data pipelines & integrations",
-    body: "Spreadsheets, CSV and Excel uploads, shared Google Sheets and signed webhooks flow in on their own, checked on the way.",
-    also: "Also: bank statements, accounting systems and ERP exports.",
-    where: "live", href: "#how",
-  },
-  {
-    title: "Security & access control",
-    body: "Row-level security in the database, roles and invitations, a locked-down public demo, and tests that prove one company never sees another's data.",
-    where: "live", href: "#rls",
-  },
-  {
-    title: "Checks & approvals",
-    body: "Every incoming row is validated and compared with its history; anything unusual waits for a person before it reaches a report.",
-    where: "live", href: "#how",
+    body: "Off spreadsheets or an old system into PostgreSQL — checked row for row, switched over only when it all matches.",
+    see: "See it in action",
   },
 ]
 
-export function Services() {
+export function Offer() {
   return (
-    <section className="sec" id="build">
+    <section className="sec offer-sec" id="offer">
       <div className="sec-head">
-        <p className="eyebrow">What I build</p>
-        <h2>This page shows one system. Here's the rest.</h2>
-        <p>
-          X-Ray is one way to use a company's data. The same foundation — a clean, secured database — can feed
-          reports, an AI assistant, or a new system you're moving to. Pick what you need; they combine.
-        </p>
+        <p className="eyebrow">What I do</p>
+        <h2>Three ways I can help</h2>
+        <p>Pick one or combine them — all three stand on the same thing: a clean, secure database.</p>
       </div>
-      <ul className="offers">
+      <ol className="offers">
         {OFFERS.map((o) => (
-          <li key={o.title} className={`offer ${o.where}`}>
-            <span className="where">{WHERE[o.where]}</span>
-            <h3>{o.title}</h3>
-            <p>{o.body}</p>
-            {o.also && <p className="also">{o.also}</p>}
-            {o.href && <a className="see" href={o.href}>See it ↑</a>}
+          <li key={o.n}>
+            <a className="offer" href={o.href}>
+              <span className="n">{o.n}</span>
+              <span className="tag">{o.tag}</span>
+              <h3>{o.title}</h3>
+              <p>{o.body}</p>
+              <span className="see">{o.see} ↓</span>
+            </a>
           </li>
         ))}
-      </ul>
+      </ol>
+      <p className="also"><b>Part of every project:</b> data imports and integrations · access control · automatic checks and approvals</p>
     </section>
   )
 }

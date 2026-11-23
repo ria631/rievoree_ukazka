@@ -44,12 +44,11 @@ export function MoveYourData() {
   return (
     <section className="sec" id="migrate">
       <div className="sec-head">
-        <p className="eyebrow">Option 3 · moving your data</p>
-        <h2>Stuck on spreadsheets or an old system? Move it without losing a row.</h2>
+        <p className="eyebrow">03 · Database migration</p>
+        <h2>Stuck on spreadsheets or an old system?</h2>
         <p>
-          Reporting and AI both need a clean database underneath. If your data lives in Excel, Access, an ageing SQL
-          server or an accounting system's exports, I move it to <b>PostgreSQL / Supabase</b>: mapped, checked row for
-          row against the source, and switched over only when the numbers match.
+          I move your data to <b>PostgreSQL</b> — mapped, checked row for row against the source, and switched over
+          only when the numbers match. Then reporting and AI can build on it.
         </p>
       </div>
 
