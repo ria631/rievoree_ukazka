@@ -4,13 +4,17 @@ import { useExploreDemo } from "@/app/AppShell"
 import { AUTHOR, EVIDENCE, TOP_TESTS, contactLinks, repoUrl } from "@/lib/author"
 import { FILES, SRC, hl } from "./landing/repoSource"
 import { CodeHero } from "./landing/CodeHero"
+import { AskYourData } from "./landing/AskYourData"
+import { MoveYourData } from "./landing/MoveYourData"
+import { Services } from "./landing/Services"
 import { Desk, SkeletonList } from "./landing/Desk"
 import { watchInView } from "./landing/viewport"
 import "./landing/landing.css"
 
 /**
- * The landing — a portfolio first, a product second. Five screens, each with
- * one job: who built this and what it is (money forming out of a rain of the
+ * The landing — a portfolio first, a product second. It says up front what the
+ * author builds (reporting, AI access through MCP, migrations), maps the page,
+ * and then each screen has one job: who built this and what it is (money forming out of a rain of the
  * repo's own code, then turning into the code that books and reports it — the
  * product's idea in fifteen seconds), the moment that proves it
  * (row-level security, live in the browser), how it works (a live desk, then
@@ -66,9 +70,9 @@ export function Landing() {
         <div className="wrap">
           <Link to="/" className="brand" aria-label="X-Ray home"><img src="/xray-mark.svg" alt="" />X-Ray</Link>
           <nav aria-label="Sections">
-            <a href="#rls">Security demo</a>
             <a href="#how">How it works</a>
-            <a href="#skills">Skills</a>
+            <a href="#ai">AI &amp; MCP</a>
+            <a href="#build">What I build</a>
             <a href="#contact">Contact</a>
           </nav>
           <span className="spacer" />
@@ -81,23 +85,27 @@ export function Landing() {
         <section ref={hero} className="hero dark" aria-label="Introduction">
           <div className="wrap hero-grid">
             <div ref={copy} className="txt">
-              <p className="kicker">Backend &amp; data engineer</p>
+              <p className="kicker">Data &amp; backend engineer · for finance teams</p>
               <h1>
                 <span className="lp-mask"><span className="name">{AUTHOR.name.split(" ")[0]}</span></span>
                 <span className="lp-mask"><span className="name n2">{AUTHOR.name.split(" ").slice(1).join(" ")}</span></span>
               </h1>
               <p className="lede">
-                <b>X-Ray</b> is a financial reporting engine I built from the database to the browser: messy
-                spreadsheets in, checked and secured reports out — and every screen can show the queries,
-                policies and code behind it.
+                I build the systems behind a company's numbers: <b>reporting</b> your team can trust,{" "}
+                <b>AI that can safely work with your database</b>, and <b>migrations</b> that move your data
+                without losing a row.
+              </p>
+              <p className="lede2">
+                This page is a working example — <b>X-Ray</b>, a reporting engine running on sample data. Open it,
+                switch roles, and press <kbd>X</kbd> to see the code behind any screen.
               </p>
               <div className="ctas">
                 {demoBtn("btn-ink")}
-                <a className="btn btn-ghost" href={AUTHOR.repo} target="_blank" rel="noreferrer">Source on GitHub</a>
+                <a className="btn btn-ghost" href="#build">What I can build for you</a>
               </div>
               <p className="aside">
-                Read-only demo with sample data — no sign-up.{" "}
-                <a href="#contact">Get in touch ↓</a>
+                Sample data · read-only · resets every hour ·{" "}
+                <a href={AUTHOR.repo} target="_blank" rel="noreferrer">source on GitHub</a>
               </p>
             </div>
             <CodeHero host={hero} avoid={copy} />
@@ -106,8 +114,18 @@ export function Landing() {
 
         <div className="machinery">
           <div className="wrap">
+            {/* what's on this page, in one row — so nobody has to guess */}
+            <p className="map-h">On this page</p>
+            <ol className="map">
+              {PAGE_MAP.map((m, i) => (
+                <li key={m.href}><a href={m.href}><b>{String(i + 1).padStart(2, "0")}</b><strong>{m.t}</strong><span>{m.s}</span></a></li>
+              ))}
+            </ol>
             <WhoSeesWhat />
             <HowItWorks />
+            <AskYourData />
+            <MoveYourData />
+            <Services />
             <Skills />
           </div>
 
@@ -115,7 +133,7 @@ export function Landing() {
           <section ref={close} className="close" id="contact" aria-label="Contact and demo">
             <div className="wrap close-in">
               <div className="copy">
-                <p className="kicker">The live demo</p>
+                <p className="kicker">Try it · talk to me</p>
                 <h2>See it run on a real set of books</h2>
                 <p>
                   The whole product on sample data: four property companies, two years of accounts and seven
@@ -144,9 +162,9 @@ export function Landing() {
               <div className="work">
                 <h3>Work with me</h3>
                 <p>
-                  I build reporting systems for groups of companies: importing and checking accounting data, a Postgres core
-                  with row-level security and an audit trail, and the reports people rely on at month end. If that is what
-                  you need, get in touch.
+                  Reporting for groups of companies, AI access to your own data through MCP, and migrations off
+                  spreadsheets and old systems — all on a database that holds up in an audit. Tell me what you have and
+                  what you need, and I'll tell you honestly which of these fits.
                 </p>
                 <div className="links">
                   {contacts.map((c) => (
@@ -167,6 +185,16 @@ export function Landing() {
     </div>
   )
 }
+
+/** The page in five lines, right under the hero. */
+const PAGE_MAP = [
+  { href: "#rls", t: "Who sees what", s: "The database decides — try three roles" },
+  { href: "#how", t: "How it works", s: "A month of numbers, from spreadsheet to report" },
+  { href: "#ai", t: "Ask your data", s: "Your AI on your database, through MCP" },
+  { href: "#migrate", t: "Move your data", s: "Off spreadsheets and old systems, row for row" },
+  { href: "#build", t: "What I build", s: "Everything above, and what else I do" },
+  { href: "#contact", t: "Try it · talk to me", s: "The live demo, and how to reach me" },
+]
 
 /* ───────────────────────── 2 · the proof: same query, different rows ───────────────────────── */
 
@@ -195,8 +223,12 @@ function WhoSeesWhat() {
   return (
     <section className="sec" id="rls">
       <div className="sec-head">
-        <h2>Same query. Different rows.</h2>
-        <p>Three people run the identical query. The database — not the website — decides which companies each of them may see. Pick one.</p>
+        <p className="eyebrow">Live · try it</p>
+        <h2>Who sees what is decided by the database</h2>
+        <p>
+          In most apps the website hides what you shouldn't see — and anyone who goes around the website sees it all.
+          Here the database itself refuses. Three people run the same query; pick one and watch what comes back.
+        </p>
       </div>
       <div className="rls">
         <div className="rls-box">
@@ -389,8 +421,13 @@ function HowItWorks() {
   return (
     <section className="sec" id="how">
       <div className="sec-head">
-        <h2>How it works</h2>
-        <p>From a spreadsheet to a report a CFO can trust, in four steps — then the same month on X-ray, down to the tables and jobs that run it.</p>
+        <p className="eyebrow">Option 1 · reporting</p>
+        <h2>How a month of numbers becomes a report</h2>
+        <p>
+          Four steps that run for real in the demo: spreadsheets come in, every row is checked, each company's figures
+          stay private, and the reports rebuild themselves. Then <b>See the skeleton</b> shows the actual tables, jobs
+          and policies behind each step.
+        </p>
       </div>
       <div ref={flow} className="flow">
         <div className="desk-wrap">
@@ -436,8 +473,9 @@ function Skills() {
   return (
     <section className="sec" id="skills">
       <div className="sec-head">
-        <h2>What this shows I can do</h2>
-        <p>Each line links to the code that backs it.</p>
+        <p className="eyebrow">How it's built</p>
+        <h2>Proof, not promises</h2>
+        <p>What building X-Ray shows — each line links to the code that backs it, and the tests run on every change.</p>
       </div>
       <div className="skills">
         <ul className="areas">
@@ -455,7 +493,7 @@ function Skills() {
         <aside className="proof">
           <h3>Tested on every change</h3>
           <dl>
-            <div><dt>98</dt><dd>database assertions (pgTAP) against a real Postgres</dd></div>
+            <div><dt>138</dt><dd>database assertions (pgTAP) against a real Postgres</dd></div>
             <div><dt>81</dt><dd>unit tests for the money maths</dd></div>
             <div><dt>14</dt><dd>tests for the file parser</dd></div>
           </dl>

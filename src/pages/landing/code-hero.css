@@ -10,6 +10,8 @@
 .lp .hero.dark h1{color:var(--lime);text-shadow:0 0 24px rgba(163,230,53,.25)}
 .lp .hero.dark .lede{color:#C4D9D1}
 .lp .hero.dark .lede b{color:#fff}
+.lp .hero.dark .lede2{color:var(--dim)}
+.lp .hero.dark .lede2 b{color:var(--text)}
 .lp .hero.dark .btn-ink{background:var(--lime);color:var(--ink)}
 .lp .hero.dark .btn-ink:hover{background:#B9F04F}
 .lp .hero.dark .btn-ghost{color:var(--text)}

@@ -401,7 +401,7 @@ function Skeleton() {
       ))}
       <g className="tests" style={{ "--dl": at5(600) } as CSSProperties}>
         <rect x="296" y="488" width="604" height="34" rx="8" />
-        <text x="598" y="510">Tested on every change · 98 pgTAP assertions · 81 unit tests · Playwright under CSP</text>
+        <text x="598" y="510">Tested on every change · 138 pgTAP assertions · 81 unit tests · Playwright under CSP</text>
       </g>
     </svg>
   )
@@ -421,7 +421,7 @@ export function SkeletonList() {
       <h4 className="pol">Row-level security <em>entities_select — every read filtered by company</em></h4>
       <h4>In the browser</h4>
       <ul>{by(["React app", "X-ray panel", "Realtime"]).map(item)}</ul>
-      <p className="tests">Tested on every change · 98 pgTAP assertions · 81 unit tests · Playwright under CSP</p>
+      <p className="tests">Tested on every change · 138 pgTAP assertions · 81 unit tests · Playwright under CSP</p>
     </div>
   )
 }

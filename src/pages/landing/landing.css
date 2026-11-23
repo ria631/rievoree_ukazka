@@ -74,6 +74,9 @@
 @keyframes lp-rise{to{transform:none}}
 .lp .hero .lede{margin-top:22px;max-width:46ch;font-size:var(--fs-lede);color:var(--ink-soft)}
 .lp .hero .lede b{color:var(--ink)}
+.lp .hero .lede2{margin-top:12px;max-width:52ch;font-size:var(--fs-body);color:var(--ink-soft)}
+.lp .hero .lede2 b{color:var(--ink)}
+.lp .hero .lede2 kbd{font-size:12px}
 .lp .hero .ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
 .lp .hero .aside{margin-top:18px;font-size:var(--fs-small);color:var(--ink-soft)}
 .lp .hero .aside a{color:var(--ink);font-weight:600;text-decoration:underline;text-underline-offset:3px}
