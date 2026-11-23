@@ -12,4 +12,5 @@
 .lp .offer .see{margin-top:auto;padding-top:6px;font-size:var(--fs-small);font-weight:600;color:var(--lime)}
 .lp .offer-sec .also{margin:16px 0 0;font-size:var(--fs-small);line-height:1.5;color:var(--dim)}
 .lp .offer-sec .also b{color:var(--text);font-weight:600}
+.lp .offer-sec .also a{color:var(--lime);text-underline-offset:3px}
 @media (max-width:900px){.lp .offers{grid-template-columns:1fr}}

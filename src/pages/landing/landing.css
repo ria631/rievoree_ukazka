@@ -67,7 +67,8 @@
 .lp .hero-grid{position:relative;z-index:2;width:100%;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);align-items:center;gap:clamp(24px,4vw,64px);pointer-events:none}
 .lp .hero .txt{pointer-events:auto;min-width:0}
 .lp .hero .kicker{font-family:var(--f-disp);font-weight:700;font-size:var(--fs-h3);text-transform:uppercase;letter-spacing:.02em;color:var(--ink-soft)}
-.lp .hero h1{margin-top:6px;font-family:var(--f-stencil);font-weight:800;text-transform:uppercase;font-size:var(--fs-name);line-height:.86;letter-spacing:-.005em}
+.lp .hero h1 .kicker{display:block;margin-bottom:6px;line-height:1.2}
+.lp .hero h1{margin-top:0;font-family:var(--f-stencil);font-weight:800;text-transform:uppercase;font-size:var(--fs-name);line-height:.86;letter-spacing:-.005em}
 .lp .hero h1 .lp-mask{display:block;overflow-y:clip;padding-bottom:.03em}
 .lp .hero h1 .name{display:block;transform:translateY(105%);animation:lp-rise .75s cubic-bezier(.2,.75,.2,1) forwards}
 .lp .hero h1 .n2{animation-delay:.12s}
@@ -183,21 +184,29 @@
 }
 
 /* 4 · what it shows — areas + the tests as evidence */
-.lp .skills{display:grid;grid-template-columns:1.45fr .55fr;gap:32px;align-items:start}
-.lp .areas{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px 32px}
-.lp .areas li{display:flex;flex-direction:column;gap:8px;padding-top:16px;border-top:1px solid var(--line)}
+/* what this project shows: four blocks, then the tests as blocks */
+.lp .areas{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.lp .areas li{display:flex;flex-direction:column;gap:8px;padding:20px 20px 22px;border:1px solid var(--line);border-radius:14px;background:var(--deep-2)}
+.lp .areas .n{font-family:var(--f-code);font-size:var(--fs-code);font-weight:700;color:var(--lime)}
 .lp .areas h3{font-family:var(--f-disp);font-weight:800;text-transform:uppercase;font-size:var(--fs-h3);line-height:1.1}
-.lp .areas .links{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:2px}
-.lp .proof{position:sticky;top:96px;display:flex;flex-direction:column;gap:12px;padding:22px;border:1px solid var(--line);border-radius:12px;background:var(--deep-2)}
-.lp .proof h3{font-family:var(--f-disp);font-weight:800;text-transform:uppercase;font-size:var(--fs-h3)}
-.lp .proof dl{margin:0;display:flex;flex-direction:column;gap:10px}
-.lp .proof dl div{display:grid;grid-template-columns:64px 1fr;gap:12px;align-items:baseline}
-.lp .proof dt{font-family:var(--f-disp);font-weight:800;font-size:var(--fs-h2);line-height:1;color:var(--lime)}
-.lp .proof dd{margin:0;font-size:var(--fs-small);color:var(--text)}
-.lp .proof ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
-.lp .proof li a{color:var(--em);font-size:var(--fs-small);text-underline-offset:3px}
-@media (max-width:1023px){.lp .skills{grid-template-columns:1fr}.lp .proof{position:static}}
-@media (max-width:640px){.lp .areas{grid-template-columns:1fr}}
+.lp .areas .plain{margin:0;flex:1}
+.lp .areas .links{display:flex;flex-wrap:wrap;gap:6px 14px;margin:6px 0 0;padding-top:12px;border-top:1px solid var(--line)}
+.lp .tested-h{margin:40px 0 14px;font-family:var(--f-disp);font-weight:800;text-transform:uppercase;font-size:var(--fs-h3)}
+.lp .tested{display:grid;grid-template-columns:repeat(3,minmax(0,.8fr)) minmax(0,1.6fr);gap:16px}
+.lp .tested .stat{display:flex;flex-direction:column;gap:8px;padding:20px;border:1px solid var(--line);border-radius:14px;background:var(--deep-2)}
+.lp .tested .stat b{font-family:var(--f-disp);font-weight:800;font-size:clamp(40px,4.4vw,56px);line-height:.9;color:var(--lime)}
+.lp .tested .stat span{font-size:var(--fs-small);line-height:1.45;color:var(--text)}
+.lp .tested .tests .k3{font-family:var(--f-code);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.lp .tested .tests ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.lp .tested .tests li a{display:block;padding:8px 12px;border:1px solid var(--line-hi);border-radius:10px;color:var(--em);font-size:var(--fs-small);text-decoration:none}
+.lp .tested .tests li a:hover{border-color:var(--em)}
+@media (max-width:1100px){.lp .areas{grid-template-columns:repeat(2,minmax(0,1fr))}.lp .tested{grid-template-columns:repeat(3,minmax(0,1fr))}.lp .tested .tests{grid-column:1/-1}}
+@media (max-width:640px){.lp .areas{grid-template-columns:1fr}.lp .tested{grid-template-columns:1fr}}
+
+/* scroll settles on the start of each block (Landing.tsx adds .lp-snap to <html>) */
+html.lp-snap{scroll-snap-type:y proximity;scroll-padding-top:76px}
+.lp .hero,.lp .sec-head,.lp .mcp,.lp .mig,.lp .close{scroll-snap-align:start}
+.lp .mcp,.lp .mig{scroll-margin-top:12px}
 
 /* ---------- 5 · contact and the demo: back on the paper ---------- */
 .lp .close{position:relative;margin-top:clamp(80px,12vh,140px);color:var(--ink);overflow:hidden;min-height:100svh}
