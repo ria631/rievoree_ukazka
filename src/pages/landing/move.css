@@ -1,0 +1,127 @@
+/* "Move your data" (MoveYourData.tsx): old sources → map · clean · compare → PostgreSQL.
+
+   One 12 s timeline, same rules as the MCP animation (ask.css): animated
+   elements have class .a, transform and opacity only, highlights are ::after
+   layers, paused unless .mig is .on, and without animation every element
+   shows its end state — reconciled and switched over.
+
+   Timeline (s): sources light up one by one 0.6–4 · rows travel left 0.6–5 ·
+   map / clean / compare 2.2–7 · rows travel right 2.6–7 · checks pass 6.2,
+   6.9, 7.6 · switched over 8.8 · fade 11.4–11.9 */
+
+.lp .mig{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr) minmax(0,1fr);align-items:stretch;gap:0;
+  padding:22px;border:1px solid var(--line);border-radius:16px;background:radial-gradient(120% 120% at 100% 0%,rgba(93,207,218,.06),transparent 55%),var(--deep-2)}
+.lp .mig-col{min-width:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;background:#061716;overflow:hidden}
+.lp .mig-head{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:var(--fs-small);font-weight:600;color:var(--text);background:rgba(11,36,35,.8)}
+.lp .mig-head .dot{width:8px;height:8px;border-radius:50%}
+.lp .mig-head .dot.amber{background:#E8C55A}
+.lp .mig-head .dot.teal{background:var(--teal)}
+.lp .mig ul{list-style:none;margin:0;padding:10px;display:grid;gap:6px}
+.lp .mig li{position:relative}
+.lp .mig-src li,.lp .checks li{padding:8px 10px;border:1px solid var(--line);border-radius:8px}
+.lp .mig-src li{display:flex;flex-direction:column;gap:2px}
+.lp .mig-src li b{font-size:var(--fs-small);font-weight:600;color:var(--text)}
+.lp .mig-src li span{font-family:var(--f-code);font-size:12px;color:var(--dim)}
+.lp .mig-src li::after,.lp .stages li::after{content:"";position:absolute;inset:-1px;border-radius:inherit;border:1px solid var(--lime);background:rgba(163,230,53,.09);opacity:0;pointer-events:none}
+
+.lp .checks li{display:grid;grid-template-columns:1fr auto 18px;align-items:center;gap:10px;font-size:var(--fs-small)}
+.lp .checks li span{color:var(--dim)}
+.lp .checks li b{display:grid;font-family:var(--f-code);font-size:var(--fs-code);font-weight:600;color:var(--text);text-align:right}
+.lp .checks li b > em{grid-area:1/1;font-style:normal}
+.lp .checks li .w{display:none;color:var(--dim)}
+.lp .checks li i{font-style:normal;font-weight:700;color:var(--em)}
+
+.lp .mig-schema{display:flex;flex-wrap:wrap;gap:6px;margin:4px 10px 0;padding:10px;border:1px dashed var(--line);border-radius:8px}
+.lp .mig-schema span{flex-basis:100%;font-size:12px;color:var(--dim)}
+.lp .mig-schema code{padding:2px 8px;border:1px solid var(--line-hi);border-radius:999px;font-family:var(--f-code);font-size:12px;color:var(--teal)}
+.lp .mig-foot{margin:auto 10px 10px;padding:8px 10px;border-radius:8px;font-size:12.5px;line-height:1.4}
+.lp .mig-foot.old{border:1px dashed rgba(232,197,90,.5);color:#E8C55A}
+.lp .mig-foot.live{border:1px solid rgba(110,231,160,.45);background:rgba(110,231,160,.07);color:var(--text)}
+.lp .mig-foot.live span{font-weight:700;color:var(--em)}
+
+/* the pipe: lane · stages · lane */
+.lp .mig-pipe{display:flex;align-items:center;gap:10px;padding:0 10px}
+.lp .lane{position:relative;flex:1;min-width:24px;height:2px;background:var(--line-hi)}
+.lp .row{position:absolute;top:-4px;left:0;width:100%;height:10px;opacity:0}
+.lp .row::before{content:"";position:absolute;left:0;top:0;width:18px;height:10px;border-radius:3px;background:var(--lime);box-shadow:0 0 10px rgba(163,230,53,.6)}
+.lp .r5::before,.lp .r6::before,.lp .r7::before,.lp .r8::before{background:var(--teal);box-shadow:0 0 10px rgba(93,207,218,.6)}
+.lp .stages{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.lp .stages li{padding:7px 12px;border:1px solid var(--line-hi);border-radius:8px;background:#061716;font-family:var(--f-code);font-size:var(--fs-code);color:var(--text);text-align:center}
+
+.lp .mig-steps{list-style:none;margin:18px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.lp .mig-steps li{padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--deep-2);font-size:var(--fs-small);line-height:1.5;color:var(--dim)}
+.lp .mig-steps b{display:block;margin-bottom:2px;font-size:var(--fs-body);color:var(--text)}
+
+@media (max-width:900px){
+  .lp .mig{grid-template-columns:1fr;gap:12px;padding:14px}
+  .lp .mig-pipe{justify-content:center;padding:0}
+  .lp .lane{display:none}
+  .lp .stages{grid-auto-flow:column}
+  .lp .mig-steps{grid-template-columns:1fr}
+}
+
+/* ───── the timeline ───── */
+@media (prefers-reduced-motion:no-preference){
+  .lp .mig .a,.lp .mig .a::after{animation-duration:12s;animation-timing-function:ease;animation-iteration-count:infinite}
+  .lp .mig:not(.on) .a,.lp .mig:not(.on) .a::after,.lp .mig:not(.on) .checks :is(em,i){animation-play-state:paused}
+
+  .lp .mig-src li{animation-name:mig-dim}
+  .lp .mig-src .s1::after{animation-name:mig-s1}
+  .lp .mig-src .s2::after{animation-name:mig-s2}
+  .lp .mig-src .s3::after{animation-name:mig-s3}
+  .lp .mig-src .s4::after{animation-name:mig-s4}
+
+  .lp .row{animation-timing-function:linear}
+  .lp .r1{animation-name:mig-r1} .lp .r2{animation-name:mig-r2} .lp .r3{animation-name:mig-r3} .lp .r4{animation-name:mig-r4}
+  .lp .r5{animation-name:mig-r5} .lp .r6{animation-name:mig-r6} .lp .r7{animation-name:mig-r7} .lp .r8{animation-name:mig-r8}
+
+  .lp .stages .g1::after{animation-name:mig-g1}
+  .lp .stages .g2::after{animation-name:mig-g2}
+  .lp .stages .g3::after{animation-name:mig-g3}
+
+  .lp .checks li .w{display:block}
+  .lp .checks .c1{animation-name:mig-c1}
+  .lp .checks .c2{animation-name:mig-c2}
+  .lp .checks .c3{animation-name:mig-c3}
+  .lp .checks .c1 .w{animation:mig-w1 12s ease infinite} .lp .checks .c1 :is(.v,i){animation:mig-v1 12s ease infinite}
+  .lp .checks .c2 .w{animation:mig-w2 12s ease infinite} .lp .checks .c2 :is(.v,i){animation:mig-v2 12s ease infinite}
+  .lp .checks .c3 .w{animation:mig-w3 12s ease infinite} .lp .checks .c3 :is(.v,i){animation:mig-v3 12s ease infinite}
+
+  .lp .mig .gone,.lp .mig .sw{animation-name:mig-sw}
+}
+
+/* the old sources: each lights up as its rows leave; all dim once switched over */
+@keyframes mig-dim{0%,72%{opacity:1}75%,95%{opacity:.45}99%,100%{opacity:1}}
+@keyframes mig-s1{0%,4%{opacity:0}5.5%,11%{opacity:1}13%,100%{opacity:0}}
+@keyframes mig-s2{0%,11%{opacity:0}12.5%,18%{opacity:1}20%,100%{opacity:0}}
+@keyframes mig-s3{0%,18%{opacity:0}19.5%,25%{opacity:1}27%,100%{opacity:0}}
+@keyframes mig-s4{0%,25%{opacity:0}26.5%,32%{opacity:1}34%,100%{opacity:0}}
+
+/* rows: across the lane (the box is lane-wide, the visible bar 18 px) */
+@keyframes mig-r1{0%,5%{opacity:0;transform:translateX(0)}6%{opacity:1}19%{opacity:1;transform:translateX(calc(100% - 18px))}20%,100%{opacity:0;transform:translateX(calc(100% - 18px))}}
+@keyframes mig-r2{0%,12%{opacity:0;transform:translateX(0)}13%{opacity:1}26%{opacity:1;transform:translateX(calc(100% - 18px))}27%,100%{opacity:0;transform:translateX(calc(100% - 18px))}}
+@keyframes mig-r3{0%,19%{opacity:0;transform:translateX(0)}20%{opacity:1}33%{opacity:1;transform:translateX(calc(100% - 18px))}34%,100%{opacity:0;transform:translateX(calc(100% - 18px))}}
+@keyframes mig-r4{0%,26%{opacity:0;transform:translateX(0)}27%{opacity:1}40%{opacity:1;transform:translateX(calc(100% - 18px))}41%,100%{opacity:0;transform:translateX(calc(100% - 18px))}}
+@keyframes mig-r5{0%,22%{opacity:0;transform:translateX(0)}23%{opacity:1}36%{opacity:1;transform:translateX(calc(100% - 18px))}37%,100%{opacity:0;transform:translateX(calc(100% - 18px))}}
+@keyframes mig-r6{0%,29%{opacity:0;transform:translateX(0)}30%{opacity:1}43%{opacity:1;transform:translateX(calc(100% - 18px))}44%,100%{opacity:0;transform:translateX(calc(100% - 18px))}}
+@keyframes mig-r7{0%,36%{opacity:0;transform:translateX(0)}37%{opacity:1}50%{opacity:1;transform:translateX(calc(100% - 18px))}51%,100%{opacity:0;transform:translateX(calc(100% - 18px))}}
+@keyframes mig-r8{0%,43%{opacity:0;transform:translateX(0)}44%{opacity:1}57%{opacity:1;transform:translateX(calc(100% - 18px))}58%,100%{opacity:0;transform:translateX(calc(100% - 18px))}}
+
+/* map · clean · compare */
+@keyframes mig-g1{0%,17%{opacity:0}19%,40%{opacity:1}42%,100%{opacity:0}}
+@keyframes mig-g2{0%,25%{opacity:0}27%,48%{opacity:1}50%,100%{opacity:0}}
+@keyframes mig-g3{0%,33%{opacity:0}35%,58%{opacity:1}60%,100%{opacity:0}}
+
+/* the checks: faint while "checking…", then the value and a tick */
+@keyframes mig-c1{0%,50%{opacity:.5}52%,95%{opacity:1}99%,100%{opacity:.5}}
+@keyframes mig-c2{0%,56%{opacity:.5}58%,95%{opacity:1}99%,100%{opacity:.5}}
+@keyframes mig-c3{0%,62%{opacity:.5}64%,95%{opacity:1}99%,100%{opacity:.5}}
+@keyframes mig-w1{0%,50%{opacity:1}51.5%,97%{opacity:0}99%,100%{opacity:1}}
+@keyframes mig-v1{0%,50%{opacity:0}52%,95%{opacity:1}99%,100%{opacity:0}}
+@keyframes mig-w2{0%,56%{opacity:1}57.5%,97%{opacity:0}99%,100%{opacity:1}}
+@keyframes mig-v2{0%,56%{opacity:0}58%,95%{opacity:1}99%,100%{opacity:0}}
+@keyframes mig-w3{0%,62%{opacity:1}63.5%,97%{opacity:0}99%,100%{opacity:1}}
+@keyframes mig-v3{0%,62%{opacity:0}64%,95%{opacity:1}99%,100%{opacity:0}}
+
+/* switched over */
+@keyframes mig-sw{0%,72%{opacity:0;transform:translateY(6px)}74%,95%{opacity:1;transform:none}99%,100%{opacity:0;transform:none}}

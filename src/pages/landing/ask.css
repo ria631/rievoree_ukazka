@@ -1,0 +1,146 @@
+/* "Rather ask than click?" (AskYourData.tsx): chat → MCP server → database.
+
+   One 14 s timeline. Every animated element has class .a; its keyframes are in
+   percentages of the loop. Without animation (reduced motion) every element
+   shows its final state — the finished conversation. Transform and opacity
+   only (highlights are ::after layers that fade); paused unless .mcp is .on.
+
+   Timeline (s): question 0.3 · thinking 1.0–2.6 · read_data 1.6–3.6 ·
+   rows 2.6–4.4 · answer 4.4 · second ask 6.0 · propose_change 6.8–8.6 ·
+   pending row 7.8 · "waiting" 8.2 · approved 9.6 · booked 10.0 ·
+   confirmation 10.4 · fade 13.3–13.9 */
+
+.lp .eyebrow{font-family:var(--f-code);font-size:var(--fs-code);font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--lime);margin-bottom:10px}
+.lp .sec-head p b{color:var(--text)}
+
+.lp .mcp{display:grid;grid-template-columns:minmax(0,1.2fr) 44px minmax(0,1fr) 44px minmax(0,.9fr);align-items:stretch;gap:0;
+  padding:22px;border:1px solid var(--line);border-radius:16px;background:radial-gradient(120% 120% at 0% 0%,rgba(163,230,53,.06),transparent 55%),var(--deep-2)}
+.lp .mcp-col{min-width:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;background:#061716;overflow:hidden}
+.lp .mcp-head{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:var(--fs-small);font-weight:600;color:var(--text);background:rgba(11,36,35,.8)}
+.lp .mcp-head .dot{width:8px;height:8px;border-radius:50%;background:var(--em)}
+.lp .mcp-head .dot.lime{background:var(--lime)}
+.lp .mcp-head .dot.teal{background:var(--teal)}
+
+/* chat */
+.lp .mcp-msgs{display:flex;flex-direction:column;gap:8px;padding:14px;flex:1}
+.lp .b{margin:0;max-width:92%;padding:9px 12px;border-radius:12px;font-size:var(--fs-small);line-height:1.45}
+.lp .b p{margin:0}
+.lp .b.me{align-self:flex-end;background:var(--lime);color:var(--ink);border-bottom-right-radius:4px;font-weight:500}
+.lp .b.ai{align-self:flex-start;background:var(--deep-3);color:var(--text);border:1px solid var(--line);border-bottom-left-radius:4px}
+.lp .b.ai b{color:var(--lime)}
+.lp .b.think{display:none;gap:4px;padding:12px 14px}
+.lp .b.think i{width:6px;height:6px;border-radius:50%;background:var(--dim)}
+
+/* wires + packets */
+.lp .mcp-wire{position:relative;align-self:center;height:2px;margin:0 6px;background:linear-gradient(90deg,var(--line-hi),var(--line-hi))}
+.lp .pk{position:absolute;top:-4px;left:0;width:10px;height:10px;border-radius:50%;background:var(--lime);box-shadow:0 0 10px rgba(163,230,53,.8);opacity:0}
+.lp .pk.back{background:var(--teal);box-shadow:0 0 10px rgba(93,207,218,.8)}
+
+/* MCP server */
+.lp .tools{list-style:none;margin:0;padding:10px;display:grid;gap:6px}
+.lp .tools li{position:relative;display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--line);border-radius:8px}
+.lp .tools li::after,.lp .tbls li::after{content:"";position:absolute;inset:-1px;border-radius:inherit;border:1px solid var(--lime);background:rgba(163,230,53,.09);opacity:0;pointer-events:none}
+.lp .tools code{font-family:var(--f-code);font-size:var(--fs-code);color:var(--lime)}
+.lp .tools span{font-size:12.5px;color:var(--dim)}
+.lp .appr{position:relative;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:4px 10px;margin:0 10px 10px;padding:9px 12px;border-radius:8px;border:1px dashed rgba(232,197,90,.6);background:rgba(232,197,90,.07);font-size:var(--fs-small)}
+.lp .appr .who{font-weight:600;color:#E8C55A}
+.lp .appr .st{grid-column:2;grid-row:1;color:var(--text)}
+.lp .appr .wait{opacity:0}
+.lp .appr .ok{color:var(--em);font-weight:600}
+
+/* database */
+.lp .tbls{list-style:none;margin:0;padding:10px;display:grid;gap:6px}
+.lp .tbls li{position:relative;display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-family:var(--f-code);font-size:var(--fs-code);color:var(--text)}
+.lp .tbls li:last-child{color:var(--dim)}
+.lp .tbls li span{font-family:var(--f-ui);font-size:12.5px;color:var(--dim)}
+.lp .tbls li .pend{display:none;color:#E8C55A}
+.lp .tbls li .done{color:var(--em)}
+.lp .lock{margin:auto 10px 10px;padding-top:8px;font-family:var(--f-code);font-size:12px;color:#F59186}
+
+.lp .mcp-points{list-style:none;margin:18px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.lp .mcp-points li{padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--deep-2);font-size:var(--fs-small);line-height:1.5;color:var(--dim)}
+.lp .mcp-points b{display:block;margin-bottom:2px;font-size:var(--fs-body);color:var(--text)}
+
+.lp .cases-h{margin-top:34px;font-family:var(--f-disp);font-weight:800;font-size:var(--fs-h3);text-transform:uppercase}
+.lp .cases{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:14px}
+.lp .case{padding:18px 20px 20px;border:1px solid var(--line);border-radius:12px;background:var(--deep-2)}
+.lp .case h4{margin:0;font-family:var(--f-disp);font-weight:800;font-size:var(--fs-h3);line-height:1.1;text-transform:uppercase}
+.lp .case p{margin:10px 0 0;font-size:var(--fs-body);line-height:1.55;color:var(--text)}
+.lp .case .eyebrow{margin:0 0 8px}
+.lp .case .chips{display:flex;flex-wrap:wrap;gap:6px}
+.lp .case .chips code{padding:3px 8px;border:1px solid var(--line-hi);border-radius:999px;font-family:var(--f-code);font-size:12px;color:var(--em)}
+
+@media (max-width:900px){
+  .lp .mcp{grid-template-columns:1fr;gap:12px;padding:14px}
+  .lp .mcp-wire{display:none}
+  .lp .mcp-points,.lp .cases{grid-template-columns:1fr}
+}
+
+/* ───── the timeline ───── */
+@media (prefers-reduced-motion:no-preference){
+  .lp .mcp .a,.lp .mcp .a::after{animation-duration:14s;animation-timing-function:ease;animation-iteration-count:infinite}
+  .lp .mcp:not(.on) .a,.lp .mcp:not(.on) .a::after{animation-play-state:paused}
+
+  .lp .b.think{display:flex}
+  .lp .q1{animation-name:mcp-q1}
+  .lp .t1{animation-name:mcp-t1}
+  .lp .r1{animation-name:mcp-r1}
+  .lp .q2{animation-name:mcp-q2}
+  .lp .r2{animation-name:mcp-r2}
+  .lp .r3{animation-name:mcp-r3}
+  .lp .tools .k2::after{animation-name:mcp-k2}
+  .lp .tools .k3::after{animation-name:mcp-k3}
+  .lp .tools .k4::after{animation-name:mcp-k4}
+  .lp .tbls .d1::after,.lp .tbls .d2::after{animation-name:mcp-rows}
+  .lp .tbls .d3::after{animation-name:mcp-d3}
+  .lp .tbls .d3 .pend{display:block}
+  .lp .tbls .d3 .pend{animation:mcp-pend 14s ease infinite}
+  .lp .tbls .d3 .done{animation:mcp-done 14s ease infinite}
+  .lp .mcp:not(.on) .tbls .d3 span{animation-play-state:paused}
+  .lp .ap{animation-name:mcp-ap}
+  .lp .appr .wait{animation:mcp-wait 14s ease infinite}
+  .lp .appr .ok{animation:mcp-ok 14s ease infinite}
+  .lp .mcp:not(.on) .appr .st{animation-play-state:paused}
+  .lp .p1{animation-name:mcp-p1;animation-timing-function:linear}
+  .lp .p1b{animation-name:mcp-p1b;animation-timing-function:linear}
+  .lp .p2b{animation-name:mcp-p2b;animation-timing-function:linear}
+  .lp .p2{animation-name:mcp-p2;animation-timing-function:linear}
+  .lp .p3{animation-name:mcp-p3;animation-timing-function:linear}
+  .lp .p3b{animation-name:mcp-p3b;animation-timing-function:linear}
+}
+
+/* bubbles: in, stay, fade with the loop */
+@keyframes mcp-q1{0%,2%{opacity:0;transform:translateY(8px)}4%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mcp-t1{0%,7%{opacity:0;transform:translateY(6px)}8.5%,17%{opacity:1;transform:none}18.5%,100%{opacity:0;transform:none}}
+@keyframes mcp-r1{0%,31%{opacity:0;transform:translateY(8px)}33%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mcp-q2{0%,43%{opacity:0;transform:translateY(8px)}45%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mcp-r2{0%,57%{opacity:0;transform:translateY(8px)}59%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+@keyframes mcp-r3{0%,74%{opacity:0;transform:translateY(8px)}76%,95%{opacity:1;transform:none}99%,100%{opacity:0}}
+
+/* highlights (the ::after layers) */
+@keyframes mcp-k2{0%,11.5%{opacity:0}13%,24%{opacity:1}26%,100%{opacity:0}}
+@keyframes mcp-k3{0%,48.5%{opacity:0}50%,60%{opacity:1}61.5%,100%{opacity:0}}
+@keyframes mcp-k4{0%,67%{opacity:0}68.5%,74%{opacity:1}75.7%,100%{opacity:0}}
+@keyframes mcp-rows{0%,18.5%{opacity:0}20%,29.5%{opacity:1}31%,100%{opacity:0}}
+@keyframes mcp-d3{0%,55.7%{opacity:0}57%,70%{opacity:1}72%,100%{opacity:0}}
+
+/* the proposed row, then the booked one */
+@keyframes mcp-pend{0%,55.7%{opacity:0}57%,70%{opacity:1}71.4%,100%{opacity:0}}
+@keyframes mcp-done{0%,71.4%{opacity:0}73%,95%{opacity:1}99%,100%{opacity:0}}
+
+/* the approval card */
+@keyframes mcp-ap{0%,58.5%{opacity:.25}60%,95%{opacity:1}99%,100%{opacity:.25}}
+@keyframes mcp-wait{0%,58.5%{opacity:0}60%,67%{opacity:1}68.6%,100%{opacity:0}}
+@keyframes mcp-ok{0%,68.6%{opacity:0}70%,95%{opacity:1}99%,100%{opacity:0}}
+
+/* packets along the wires (the wire is 32 px of travel) */
+@keyframes mcp-p1{0%,10%{opacity:0;transform:translateX(0)}10.5%{opacity:1}14%{opacity:1;transform:translateX(24px)}14.5%,100%{opacity:0;transform:translateX(24px)}}
+@keyframes mcp-p1b{0%,14%{opacity:0;transform:translateX(0)}14.5%{opacity:1}18.5%{opacity:1;transform:translateX(24px)}19%,100%{opacity:0;transform:translateX(24px)}}
+@keyframes mcp-p2b{0%,23%{opacity:0;transform:translateX(24px)}23.5%{opacity:1}27%{opacity:1;transform:translateX(0)}27.5%,100%{opacity:0;transform:translateX(0)}}
+@keyframes mcp-p2{0%,27%{opacity:0;transform:translateX(24px)}27.5%{opacity:1}31%{opacity:1;transform:translateX(0)}31.5%,100%{opacity:0;transform:translateX(0)}}
+@keyframes mcp-p3{0%,47%{opacity:0;transform:translateX(0)}47.5%{opacity:1}51.5%{opacity:1;transform:translateX(24px)}52%,100%{opacity:0;transform:translateX(24px)}}
+@keyframes mcp-p3b{0%,51.5%{opacity:0;transform:translateX(0)}52%{opacity:1}55.7%{opacity:1;transform:translateX(24px)}56.2%,100%{opacity:0;transform:translateX(24px)}}
+
+/* the proposed and the booked line share one spot */
+.lp .tbls li.d3{display:grid}
+.lp .tbls li.d3 > span{grid-row:2;grid-column:1}
