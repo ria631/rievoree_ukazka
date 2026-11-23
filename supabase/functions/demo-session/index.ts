@@ -24,7 +24,18 @@
 // the raw IP is never stored).
 // ============================================================================
 import { createClient } from "jsr:@supabase/supabase-js@2"
-import { CORS, json, log } from "../_shared/connectors.ts"
+
+// Self-contained on purpose (no ../_shared import): the file can be pasted into
+// the dashboard's function editor as is.
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+}
+const json = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } })
+const log = (component: string, level: "info" | "error", msg: string, extra?: unknown) =>
+  console.log(JSON.stringify({ ts: new Date().toISOString(), level, component, msg, ...(extra ? { extra } : {}) }))
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!
